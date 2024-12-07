@@ -45,8 +45,10 @@
 
 (defvar termgrab-server-proc nil)
 (defvar termgrab-frame nil)
-(defvar termgrab--socket nil)
-(defvar termgrab--server-name nil)
+(defvar termgrab--tmux-socket nil)
+(defvar termgrab--orig-server-name nil)
+
+(defconst termgrab--server-output-buffer-name " *termgrab-server-output*")
 
 (defun termgrab-live-p (&optional proc)
   (let ((proc (or proc termgrab-server-proc)))
@@ -58,48 +60,56 @@
       (error "Missing termgrab tmux process proc:%s" (when proc (process-status proc))))))
 
 (defun termgrab--tmux-cmd ()
-  (list termgrab-tmux-exe "-S" termgrab--socket "-f" "/dev/null"))
+  (list termgrab-tmux-exe "-S" termgrab--tmux-socket "-f" "/dev/null"))
+
+(defun termgrab-restart-server ()
+  (interactive)
+  (termgrab-stop-server)
+  (termgrab-start-server))
 
 (defun termgrab-start-server ()
-  (unless (termgrab-live-p)
-    (let ((server-use-tcp nil)
-          (server-name (format "termgrab-%s" (emacs-pid)))
-          proc new-frame new-frame-func)
+  (interactive)
+  ;; If we need to start a server to communicate with this Emacs
+  ;; process, make sure the server name is unique for tests, so as not
+  ;; to interfere with any running Emacs server.
+  (unless (and server-process (process-live-p server-process))
+    (setq termgrab--orig-server-name server-name)
+    (setq server-name (format "termgrab-%s" (emacs-pid)))
+    (server-start nil 'inhibit-prompt))
 
-      (setq termgrab--server-name server-name)
-      (unless (server-running-p)
-        (server-start nil 'inhibit-prompt))
+  (unless (termgrab-live-p)
+    (let (proc new-frame new-frame-func)
 
       ;; Keep the tmux socket into the same directory as the server
       ;; socket, so they have the same access limits.
       (server-ensure-safe-dir server-socket-dir)
-      (setq termgrab--socket (expand-file-name (concat "tmux-" server-name) server-socket-dir))
-      (when (file-exists-p termgrab--socket)
-        (delete-file termgrab--socket))
+      (setq termgrab--tmux-socket
+            (expand-file-name (format "tmux-termgrab-%s" (emacs-pid))
+                              server-socket-dir))
+      (when (file-exists-p termgrab--tmux-socket)
+        (delete-file termgrab--tmux-socket))
 
       (add-hook 'kill-emacs-hook #'termgrab-stop-server)
       (unwind-protect
           (progn
             (setq proc (make-process :name "*termgrab-server*"
-                                     :buffer " *termgrab-server-output*"
+                                     :buffer termgrab--server-output-buffer-name
                                      :connection-type 'pty
                                      :command (append (termgrab--tmux-cmd) '("-D"))))
             (set-process-query-on-exit-flag proc nil)
             (termgrab--wait-for 5 "server failed to start"
-             (lambda () (file-exists-p termgrab--socket)))
+             (lambda () (file-exists-p termgrab--tmux-socket)))
             (setq new-frame-func (lambda () (setq new-frame (selected-frame))))
             (add-hook 'server-after-make-frame-hook new-frame-func)
             (unwind-protect
                 (progn
-                  (termgrab--tmux
-                   proc
-                   nil
-                   "new-session" "-d" "-s" "grab" "-x" "80" "-y" "20"
-                   termgrab-emacsclient-exe
-                   (concat "-socket-name="
-                           (shell-quote-argument
-                            (expand-file-name server-name server-socket-dir)))
-                   "-nw" "-c")
+                  (apply
+                   #'termgrab--tmux
+                   proc nil "new-session" "-d" "-s" "grab" "-x" "80" "-y" "20"
+                   termgrab-emacsclient-exe "-nw" "-c"
+                   (if server-use-tcp
+                       `("-f" ,(expand-file-name server-name server-auth-dir))
+                     `("-s" ,(expand-file-name server-name server-socket-dir))))
                   (termgrab--wait-for 5 "emacsclient failed to connect" (lambda () new-frame)))
               (remove-hook 'server-after-make-frame-hook new-frame-func))
             (setq termgrab-server-proc proc)
@@ -118,13 +128,17 @@
   (delete-other-windows (car (window-list termgrab-frame))))
 
 (defun termgrab-stop-server ()
-  (when termgrab--server-name
-    (let ((server-use-tcp nil)
-          (server-name termgrab--server-name))
-      ;; Unintuitively, this stops the server. server-force-delete
-      ;; sounds more appropriate, but sometimes prompts.
-      (server-start 'leave-dead 'inhibit-prompt)))
-  (setq termgrab--server-name nil)
+  (interactive)
+  (when (string-prefix-p "termgrab-" server-name)
+    ;; Unintuitively, this stops the server. server-force-delete
+    ;; sounds more appropriate, but sometimes prompts.
+    (server-start 'leave-dead 'inhibit-prompt))
+  (when termgrab--orig-server-name
+    (setq server-name termgrab--orig-server-name))
+  (setq termgrab--orig-server-name nil)
+
+  (when (buffer-live-p termgrab--server-output-buffer-name)
+    (kill-buffer termgrab--server-output-buffer-name))
 
   (when termgrab-server-proc
     (when (process-live-p termgrab-server-proc)
@@ -132,9 +146,9 @@
   (setq termgrab-server-proc nil)
   (setq termgrab-frame nil)
 
-  (when (and termgrab--socket (file-exists-p termgrab--socket))
-    (delete-file termgrab--socket))
-  (setq termgrab--socket nil))
+  (when (and termgrab--tmux-socket (file-exists-p termgrab--tmux-socket))
+    (delete-file termgrab--tmux-socket))
+  (setq termgrab--tmux-socket nil))
 
 (defun termgrab-setup-buffer (&optional buf)
   "Setup the termgrab frame to display BUF in its root window.
