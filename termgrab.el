@@ -142,7 +142,8 @@ sure the server is available and in a reasonable state."
                 (progn
                   (apply
                    #'termgrab--tmux
-                   proc nil "new-session" "-d" "-s" "grab" "-x" "80" "-y" "20"
+                   proc nil
+                   "new-session" "-d" "-s" "grab" "-x" "80" "-y" "20"
                    termgrab-emacsclient-exe "-nw" "-c"
                    (if server-use-tcp
                        `("-f" ,(expand-file-name server-name server-auth-dir))

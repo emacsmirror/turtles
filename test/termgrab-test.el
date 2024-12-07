@@ -298,4 +298,33 @@
            "line 17-----------$\n")
           (termgrab-grab-window-to-string center-win)))))))
 
+(ert-deftest termgrab-test-colors ()
+  (let (orig-buf capture-buf)
+    (termgrab-start-server)
+    (ert-with-test-buffer (:name "orig")
+      (setq orig-buf (current-buffer))
+      (termgrab-test-init-buffer)
+      (insert (propertize "green on red" 'face
+                          `(:foreground ,(face-foreground 'ansi-color-green)
+                                        :background ,(face-background 'ansi-color-red))))
+      (insert "\n")
+      (insert (propertize "yellow on blue" 'face
+                          `(:foreground ,(face-foreground 'ansi-color-yellow)
+                                        :background ,(face-background 'ansi-color-blue))))
+      (insert "\n")
+      (ert-with-test-buffer (:name "capture")
+        (setq capture-buf (current-buffer))
+        (termgrab-grab-buffer-into orig-buf capture-buf)
+        (goto-char (point-min))
+
+        (should (search-forward "green on red"))
+        (goto-char (1- (point)))
+        (should (equal (face-foreground 'ansi-color-green) (foreground-color-at-point)))
+        (should (equal (face-background 'ansi-color-red) (background-color-at-point)))
+
+        (should (search-forward "yellow on blue"))
+        (goto-char (1- (point)))
+        (should (equal (face-foreground 'ansi-color-yellow) (foreground-color-at-point)))
+        (should (equal (face-background 'ansi-color-blue) (background-color-at-point)))))))
+
 ;;; termgrab-test.el ends here
