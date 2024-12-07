@@ -109,7 +109,8 @@
 
 (defun termgrab-stop-server ()
   (when termgrab--server-name
-    (let ((server-use-tcp nil))
+    (let ((server-use-tcp nil)
+          (server-name termgrab--server-name))
       ;; Unintuitively, this stops the server. server-force-delete
       ;; sounds more appropriate, but sometimes prompts.
       (server-start 'leave-dead 'inhibit-prompt)))
