@@ -189,6 +189,13 @@ representation of the content of that window."
           (goto-char (point-min))
           (while (progn
                    (move-to-column left)
+                   (when (and noninteractive
+                              (not (char-before ?|)))
+                     (error
+                      (concat "Capturing a window to the right of another "
+                              "doesn't work because of rendering errors in "
+                              "batch mode. Either always split horizontally "
+                              "or run tests in non-batch mode.")))
                    (delete-region (pos-bol) (point))
                    (= (forward-line 1) 0))))
 
