@@ -220,8 +220,7 @@ representation of the content of that window."
   (with-current-buffer buffer
     (delete-region (point-min) (point-max))
     (termgrab--tmux termgrab-server-proc buffer
-                    "capture-pane" "-t" "grab:0" "-e" "-b" "saved" ";"
-                    "save-buffer" "-b" "saved" "-")
+                    "capture-pane" "-t" "grab:0" "-e" "-p")
     (ansi-color-apply-on-region (point-min) (point-max))))
 
 (defun termgrab--tmux (proc buffer &rest commands)
