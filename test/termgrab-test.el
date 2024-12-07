@@ -85,7 +85,7 @@
                      "line 15\n"
                      "line 16\n"
                      "line 17\n")
-             (termgrab-grab-buffer-into-string (current-buffer))))))
+             (termgrab-grab-buffer-to-string (current-buffer))))))
 
 (ert-deftest termgrab-test-grab-buffer-tail ()
   (termgrab-start-server)
@@ -112,7 +112,7 @@
                      "\n"
                      "\n"
                      "\n")
-             (termgrab-grab-buffer-into-string (current-buffer))))))
+             (termgrab-grab-buffer-to-string (current-buffer))))))
 
 (ert-deftest termgrab-test-grab-buffer-full-lines ()
   (termgrab-start-server)
@@ -140,7 +140,112 @@
                      "line 15------------------------------------------------------------------------$\n"
                      "line 16------------------------------------------------------------------------$\n"
                      "line 17------------------------------------------------------------------------$\n")
-             (termgrab-grab-buffer-into-string (current-buffer))))))
+             (termgrab-grab-buffer-to-string (current-buffer))))))
 
+(ert-deftest termgrab-test-grab-window-horiz-center ()
+  (termgrab-start-server)
+  (let (buf1 buf2 center-win)
+    (ert-with-test-buffer (:name "buf1")
+      (setq buf1 (current-buffer))
+      (setq-local truncate-lines t)
+      (dotimes (i 40)
+        (insert (format "line %d%s\n" i (make-string 80 ?-))))
+      (goto-char (point-min))
 
+      (ert-with-test-buffer (:name "buf2")
+        (setq buf2 (current-buffer))
+        (dotimes (i 40)
+          (insert (make-string 80 ?x)))
+        (goto-char (point-min))
+        
+        (set-window-buffer (termgrab-root-window) buf2)
+        (setq center-win (split-window-below 5 (termgrab-root-window)))
+        (split-window-below 10 center-win)
+        (set-window-buffer center-win buf1)
+
+        (should
+         (equal
+          (concat
+           "line 0-------------------------------------------------------------------------$\n"
+           "line 1-------------------------------------------------------------------------$\n"
+           "line 2-------------------------------------------------------------------------$\n"
+           "line 3-------------------------------------------------------------------------$\n"
+           "line 4-------------------------------------------------------------------------$\n"
+           "line 5-------------------------------------------------------------------------$\n"
+           "line 6-------------------------------------------------------------------------$\n"
+           "line 7-------------------------------------------------------------------------$\n"
+           "line 8-------------------------------------------------------------------------$\n")
+          (termgrab-grab-window-to-string center-win)))))))
+
+(ert-deftest termgrab-test-grab-window-vert-center ()
+  (termgrab-start-server)
+  (let (buf1 buf2 center-win)
+    (ert-with-test-buffer (:name "buf1")
+      (setq buf1 (current-buffer))
+      (setq-local truncate-lines t)
+      (dotimes (i 40)
+        (insert (format "line %d%s\n" i (make-string 80 ?-))))
+      (goto-char (point-min))
+
+      (ert-with-test-buffer (:name "buf2")
+        (setq buf2 (current-buffer))
+        (insert "begin")
+        (dotimes (i 40)
+          (insert (make-string 80 ?x))
+          (insert "\n"))
+        (insert "end")
+        (goto-char (point-min))
+
+        (set-window-buffer (termgrab-root-window) buf2)
+        (setq center-win (split-window-right 20 (termgrab-root-window)))
+        (split-window-right 20 center-win)
+        (set-window-buffer center-win buf1)
+
+        (should
+         (equal
+          (concat
+           "line 0------------$\n"
+           "line 1------------$\n"
+           "line 2------------$\n"
+           "line 3------------$\n"
+           "line 4------------$\n"
+           "line 5------------$\n"
+           "line 6------------$\n"
+           "line 7------------$\n"
+           "line 8------------$\n"
+           "line 9------------$\n"
+           "line 10-----------$\n"
+           "line 11-----------$\n"
+           "line 12-----------$\n"
+           "line 13-----------$\n"
+           "line 14-----------$\n"
+           "line 15-----------$\n"
+           "line 16-----------$\n"
+           "line 17-----------$\n"
+           )
+          ;;(termgrab-grab-to-string)
+          (termgrab-grab-window-to-string center-win)
+          ))))))
+
+;; "beginxxxxxxxxxxxxx$|line 0------------$|beginxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 1------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 2------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 3------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 4------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 5------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 6------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 7------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 8------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 9------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 10-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 11-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 12-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 13-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 14-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 15-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 16-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "xxxxxxxxxxxxxxxxxx$|line 17-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
+;; "-UUU:@**-  F2  *Tes|-UUU:@**-  F2  *Tes|-UUU:@**-  F2  *Test buffer (termgrab-te\n"
+;; "\n"
+;; ""
 ;;; termgrab-test.el ends here

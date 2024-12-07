@@ -107,7 +107,10 @@
             ;; Success. Don't kill process in the unwind section
             (setq proc nil))
         (when (and proc (termgrab-live-p proc))
-          (kill-process proc))))))
+          (kill-process proc)))))
+
+  ;; Always start with a single window
+  (delete-other-windows (car (window-list termgrab-frame))))
 
 (defun termgrab-stop-server ()
   (when termgrab--server-name
@@ -134,39 +137,55 @@
 If BUF is nil, the current buffer is used instead."
   (termgrab-require-server)
 
+  (delete-other-windows (car (window-list termgrab-frame)))
   (let ((win (frame-root-window termgrab-frame)))
-    (set-window-buffer win (or buf (current-buffer)))
+    (set-window-buffer win (or buf (current-buffer)))))
 
-    (with-selected-frame termgrab-frame
-      (with-selected-window win
-        (redraw-frame termgrab-frame)
-        (redisplay 'force)))))
+(defun termgrab-root-window ()
+  "Return the root window of the grabbed frame."
+  (frame-root-window termgrab-frame))
+
+(defun termgrab-minibuffer-window ()
+  "Return the minibuffer window of the grabbed frame."
+  (minibuffer-window termgrab-frame))
 
 (defun termgrab-grab-buffer-into (buf output-buf)
-  "Grab BUF into OUTPUT-BUF.
+  "Display BUF in the grabbed frame and grab it into OUTPUT-BUF.
 
 When this function returns, OUTPUT-BUF contains the textual
-representation of BUF as displayed in the grab window. It is
-exactly the size of the grab window, no matter the size of the
-buffer."
+representation of BUF as displayed in the root window of the
+grabbed frame."
   (termgrab-setup-buffer buf)
+  (termgrab-grab-window-into (termgrab-root-window) output-buf))
+
+(defun termgrab-grab-window-into (win output-buf)
+  "Grab WIN into output-buf.
+
+WIN must be a window on the termgrab frame.
+
+When this function returns, OUTPUT-BUF contains the textual
+representation of the content of that window."
+  (unless (eq (window-frame win) termgrab-frame)
+    (error "Window is not part of the termgrab frame: %s" win))
+
   (termgrab-grab-into output-buf)
+
   (with-current-buffer output-buf
     (save-excursion
-      (pcase-let ((`(,left ,top ,right ,bottom)
-                   (window-body-edges (frame-root-window termgrab-frame))))
+      (pcase-let ((`(,left ,top ,right ,bottom) (window-body-edges win)))
+
         (goto-char (point-min))
         (while (progn
-                 (when (> (- (pos-eol) (pos-bol)) right)
-                   (delete-region (+ (point) right) (pos-eol)))
-                 (> (forward-line 1) 0)))
+                 (move-to-column right)
+                 (delete-region (point) (pos-eol))
+                 (= (forward-line 1) 0)))
 
         (when (> left 0)
           (goto-char (point-min))
           (while (progn
-                   (when (> (- (pos-eol) (pos-bol)) left)
-                     (delete-region (point) (+ (point) left)))
-                   (> (forward-line 1) 0))))
+                   (move-to-column left)
+                   (delete-region (pos-bol) (point))
+                   (= (forward-line 1) 0))))
 
         (goto-char (point-min))
         (forward-line bottom)
@@ -177,9 +196,14 @@ buffer."
           (forward-line top)
           (delete-region (point-min) (point)))))))
 
-(defun termgrab-grab-buffer-into-string (buf)
+(defun termgrab-grab-buffer-to-string (buf)
   (with-temp-buffer
     (termgrab-grab-buffer-into buf (current-buffer))
+    (buffer-string)))
+
+(defun termgrab-grab-window-to-string (win)
+  (with-temp-buffer
+    (termgrab-grab-window-into win (current-buffer))
     (buffer-string)))
 
 (defun termgrab-grab-to-string ()
@@ -188,6 +212,11 @@ buffer."
     (buffer-string)))
 
 (defun termgrab-grab-into (buffer)
+  (with-selected-frame termgrab-frame
+    (with-selected-window (car (window-list termgrab-frame))
+      (redraw-frame termgrab-frame)
+      (redisplay 'force)))
+
   (with-current-buffer buffer
     (delete-region (point-min) (point-max))
     (termgrab--tmux termgrab-server-proc buffer
