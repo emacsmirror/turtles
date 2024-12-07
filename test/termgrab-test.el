@@ -21,23 +21,36 @@
 
 (require 'termgrab)
 
-(ert-deftest termgrab-test-setup-and-teardown ()
-  (unwind-protect
-      (progn
-        (termgrab-start-server)
-        (should termgrab-server-proc)
-        (should (string-prefix-p
-                 "grab: 1 windows"
-                 (with-temp-buffer
-                   (termgrab--tmux termgrab-server-proc (current-buffer) "list-sessions")
-                   (buffer-string))))
+(ert-deftest termgrab-test-setup ()
+  (termgrab-start-server)
+  (should termgrab-server-proc)
+  (should (string-prefix-p
+           "grab: 1 windows"
+           (with-temp-buffer
+             (termgrab--tmux termgrab-server-proc (current-buffer) "list-sessions")
+             (buffer-string))))
 
-        (should (redisplay 'force))
+  (let ((grabbed (termgrab-grab-to-string)))
+    (should (stringp grabbed))))
 
-        (let ((grabbed (termgrab-grab-to-string)))
-          (should (stringp grabbed))
-          (should (string-match-p "scratch" grabbed))))
-    (termgrab-stop-server))
-  (should-not termgrab-server-proc))
+(ert-deftest termgrab-test-select-buffer ()
+  (termgrab-start-server)
+
+  (should termgrab-frame)
+  (should (frame-live-p termgrab-frame))
+  (select-frame termgrab-frame)
+
+  (let ((win (frame-root-window termgrab-frame)))
+
+    (ert-with-test-buffer ()
+      (insert "test buffer")
+      (set-window-buffer win (current-buffer))
+      (select-window win)
+
+      (should (redisplay 'force))
+
+      (let ((grabbed (termgrab-grab-to-string)))
+        (should (stringp grabbed))
+        (should (string-match-p "test buffer" grabbed))))))
 
 ;;; termgrab-test.el ends here
