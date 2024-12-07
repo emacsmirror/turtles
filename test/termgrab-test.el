@@ -221,31 +221,7 @@
            "line 14-----------$\n"
            "line 15-----------$\n"
            "line 16-----------$\n"
-           "line 17-----------$\n"
-           )
-          ;;(termgrab-grab-to-string)
-          (termgrab-grab-window-to-string center-win)
-          ))))))
+           "line 17-----------$\n")
+          (termgrab-grab-window-to-string center-win)))))))
 
-;; "beginxxxxxxxxxxxxx$|line 0------------$|beginxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 1------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 2------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 3------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 4------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 5------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 6------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 7------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 8------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 9------------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 10-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 11-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 12-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 13-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 14-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 15-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 16-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "xxxxxxxxxxxxxxxxxx$|line 17-----------$|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$\n"
-;; "-UUU:@**-  F2  *Tes|-UUU:@**-  F2  *Tes|-UUU:@**-  F2  *Test buffer (termgrab-te\n"
-;; "\n"
-;; ""
 ;;; termgrab-test.el ends here
