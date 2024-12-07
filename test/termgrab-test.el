@@ -21,17 +21,19 @@
 
 (require 'termgrab)
 
-(ert-deftest termgrab-test-smoke ()
+(ert-deftest termgrab-test-setup-and-teardown ()
   (unwind-protect
       (progn
         (termgrab-start-server)
         (should termgrab-server-proc)
-        (should termgrab-frame)
         (should (string-prefix-p
                  "grab: 1 windows"
                  (with-temp-buffer
                    (termgrab--tmux termgrab-server-proc (current-buffer) "list-sessions")
                    (buffer-string))))
+
+        (should (redisplay 'force))
+
         (let ((grabbed (termgrab-grab-to-string)))
           (should (stringp grabbed))
           (should (string-match-p "scratch" grabbed))))
