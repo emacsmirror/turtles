@@ -96,13 +96,18 @@
                    nil
                    "new-session" "-d" "-s" "grab" "-x" "80" "-y" "20"
                    termgrab-emacsclient-exe
-                   (concat "-socket-name=" (shell-quote-argument
-                                            (expand-file-name server-name
-                                                              server-socket-dir))) "-nw" "-c")
+                   (concat "-socket-name="
+                           (shell-quote-argument
+                            (expand-file-name server-name server-socket-dir)))
+                   "-nw" "-c")
                   (termgrab--wait-for 5 "emacsclient failed to connect" (lambda () new-frame)))
               (remove-hook 'server-after-make-frame-hook new-frame-func))
             (setq termgrab-server-proc proc)
             (setq termgrab-frame new-frame)
+
+            ;; Recover some space
+            (with-selected-frame termgrab-frame
+              (toggle-menu-bar-mode-from-frame -1))
 
             ;; Success. Don't kill process in the unwind section
             (setq proc nil))
