@@ -78,7 +78,8 @@
     (server-start nil 'inhibit-prompt))
 
   (unless (termgrab-live-p)
-    (let (proc new-frame new-frame-func)
+    (let ((old-frame (selected-frame))
+          proc new-frame new-frame-func)
 
       ;; Keep the tmux socket into the same directory as the server
       ;; socket, so they have the same access limits.
@@ -99,7 +100,8 @@
             (set-process-query-on-exit-flag proc nil)
             (termgrab--wait-for 5 "server failed to start"
              (lambda () (file-exists-p termgrab--tmux-socket)))
-            (setq new-frame-func (lambda () (setq new-frame (selected-frame))))
+            (setq new-frame-func (lambda ()
+                                   (setq new-frame (selected-frame))))
             (add-hook 'server-after-make-frame-hook new-frame-func)
             (unwind-protect
                 (progn
@@ -111,7 +113,11 @@
                        `("-f" ,(expand-file-name server-name server-auth-dir))
                      `("-s" ,(expand-file-name server-name server-socket-dir))))
                   (termgrab--wait-for 5 "emacsclient failed to connect" (lambda () new-frame)))
-              (remove-hook 'server-after-make-frame-hook new-frame-func))
+              (remove-hook 'server-after-make-frame-hook new-frame-func)
+
+              ;; The new frame shouldn't be selected when running
+              ;; interactively. It'll be selected later by the tests.
+              (select-frame old-frame))
             (setq termgrab-server-proc proc)
             (setq termgrab-frame new-frame)
 
