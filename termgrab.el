@@ -28,6 +28,8 @@
 ;; This package contains utilities for testing the appearance of a
 ;; buffer or window in the terminal.
 ;;
+
+(require 'pcase)
 (require 'server)
 (require 'ansi-color)
 
@@ -63,7 +65,7 @@
     (let ((server-use-tcp nil)
           (server-name (format "termgrab-%s" (emacs-pid)))
           proc new-frame new-frame-func)
-      
+
       (setq termgrab--server-name server-name)
       (unless (server-running-p)
         (server-start nil 'inhibit-prompt))
@@ -74,7 +76,7 @@
       (setq termgrab--socket (expand-file-name (concat "tmux-" server-name) server-socket-dir))
       (when (file-exists-p termgrab--socket)
         (delete-file termgrab--socket))
-      
+
       (add-hook 'kill-emacs-hook #'termgrab-stop-server)
       (unwind-protect
           (progn
@@ -91,8 +93,8 @@
                 (progn
                   (termgrab--tmux
                    proc
-                   nil 
-                   "new-session" "-d" "-s" "grab"
+                   nil
+                   "new-session" "-d" "-s" "grab" "-x" "80" "-y" "20"
                    termgrab-emacsclient-exe
                    (concat "-socket-name=" (shell-quote-argument
                                             (expand-file-name server-name
@@ -101,7 +103,7 @@
               (remove-hook 'server-after-make-frame-hook new-frame-func))
             (setq termgrab-server-proc proc)
             (setq termgrab-frame new-frame)
-            
+
             ;; Success. Don't kill process in the unwind section
             (setq proc nil))
         (when (and proc (termgrab-live-p proc))
@@ -115,19 +117,19 @@
       ;; sounds more appropriate, but sometimes prompts.
       (server-start 'leave-dead 'inhibit-prompt)))
   (setq termgrab--server-name nil)
-  
+
   (when termgrab-server-proc
     (when (process-live-p termgrab-server-proc)
       (kill-process termgrab-server-proc)))
   (setq termgrab-server-proc nil)
   (setq termgrab-frame nil)
-  
+
   (when (and termgrab--socket (file-exists-p termgrab--socket))
     (delete-file termgrab--socket))
   (setq termgrab--socket nil))
 
 (defun termgrab-setup-buffer (&optional buf)
-  "Setup the termgrab frame to display BUF.
+  "Setup the termgrab frame to display BUF in its root window.
 
 If BUF is nil, the current buffer is used instead."
   (termgrab-require-server)
@@ -137,7 +139,48 @@ If BUF is nil, the current buffer is used instead."
 
     (with-selected-frame termgrab-frame
       (with-selected-window win
+        (redraw-frame termgrab-frame)
         (redisplay 'force)))))
+
+(defun termgrab-grab-buffer-into (buf output-buf)
+  "Grab BUF into OUTPUT-BUF.
+
+When this function returns, OUTPUT-BUF contains the textual
+representation of BUF as displayed in the grab window. It is
+exactly the size of the grab window, no matter the size of the
+buffer."
+  (termgrab-setup-buffer buf)
+  (termgrab-grab-into output-buf)
+  (with-current-buffer output-buf
+    (save-excursion
+      (pcase-let ((`(,left ,top ,right ,bottom)
+                   (window-body-edges (frame-root-window termgrab-frame))))
+        (goto-char (point-min))
+        (while (progn
+                 (when (> (- (pos-eol) (pos-bol)) right)
+                   (delete-region (+ (point) right) (pos-eol)))
+                 (> (forward-line 1) 0)))
+
+        (when (> left 0)
+          (goto-char (point-min))
+          (while (progn
+                   (when (> (- (pos-eol) (pos-bol)) left)
+                     (delete-region (point) (+ (point) left)))
+                   (> (forward-line 1) 0))))
+
+        (goto-char (point-min))
+        (forward-line bottom)
+        (delete-region (point) (point-max))
+
+        (when (> top 0)
+          (goto-char (point-min))
+          (forward-line top)
+          (delete-region (point-min) (point)))))))
+
+(defun termgrab-grab-buffer-into-string (buf)
+  (with-temp-buffer
+    (termgrab-grab-buffer-into buf (current-buffer))
+    (buffer-string)))
 
 (defun termgrab-grab-to-string ()
   (with-temp-buffer
@@ -145,11 +188,12 @@ If BUF is nil, the current buffer is used instead."
     (buffer-string)))
 
 (defun termgrab-grab-into (buffer)
-  (delete-region (point-min) (point-max))
-  (termgrab--tmux termgrab-server-proc buffer
-                  "capture-pane" "-t" "grab:0" "-e" "-b" "saved" ";"
-                  "save-buffer" "-b" "saved" "-")
-  (ansi-color-apply-on-region (point-min) (point-max)))
+  (with-current-buffer buffer
+    (delete-region (point-min) (point-max))
+    (termgrab--tmux termgrab-server-proc buffer
+                    "capture-pane" "-t" "grab:0" "-e" "-b" "saved" ";"
+                    "save-buffer" "-b" "saved" "-")
+    (ansi-color-apply-on-region (point-min) (point-max))))
 
 (defun termgrab--tmux (proc buffer &rest commands)
   (termgrab-require-server proc)
@@ -171,7 +215,7 @@ If BUF is nil, the current buffer is used instead."
                (string-join commands " ")
                (process-exit-status proc)
                (buffer-substring-no-properties (point-min) (point-max)))))))
-      
+
 
 (defun termgrab--wait-for (timeout error-message predicate)
   (let ((start (current-time)))

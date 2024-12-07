@@ -60,4 +60,87 @@
       (should (stringp grabbed))
       (should (string-match-p "test buffer" grabbed)))))
 
+(ert-deftest termgrab-test-grab-buffer-head ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (dotimes (i 100)
+      (insert (format "line %d\n" i)))
+    (goto-char (point-min))
+    (should (equal
+             (concat "line 0\n"
+                     "line 1\n"
+                     "line 2\n"
+                     "line 3\n"
+                     "line 4\n"
+                     "line 5\n"
+                     "line 6\n"
+                     "line 7\n"
+                     "line 8\n"
+                     "line 9\n"
+                     "line 10\n"
+                     "line 11\n"
+                     "line 12\n"
+                     "line 13\n"
+                     "line 14\n"
+                     "line 15\n"
+                     "line 16\n"
+                     "line 17\n")
+             (termgrab-grab-buffer-into-string (current-buffer))))))
+
+(ert-deftest termgrab-test-grab-buffer-tail ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (dotimes (i 100)
+      (insert (format "line %d\n" i)))
+    (goto-char (point-max))
+    (should (equal
+             (concat "line 91\n"
+                     "line 92\n"
+                     "line 93\n"
+                     "line 94\n"
+                     "line 95\n"
+                     "line 96\n"
+                     "line 97\n"
+                     "line 98\n"
+                     "line 99\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n")
+             (termgrab-grab-buffer-into-string (current-buffer))))))
+
+(ert-deftest termgrab-test-grab-buffer-full-lines ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (setq-local truncate-lines t)
+    (dotimes (i 100)
+      (insert (format "line %d%s\n" i (make-string 80 ?-))))
+    (goto-char (point-min))
+    (should (equal
+             (concat "line 0-------------------------------------------------------------------------$\n"
+                     "line 1-------------------------------------------------------------------------$\n"
+                     "line 2-------------------------------------------------------------------------$\n"
+                     "line 3-------------------------------------------------------------------------$\n"
+                     "line 4-------------------------------------------------------------------------$\n"
+                     "line 5-------------------------------------------------------------------------$\n"
+                     "line 6-------------------------------------------------------------------------$\n"
+                     "line 7-------------------------------------------------------------------------$\n"
+                     "line 8-------------------------------------------------------------------------$\n"
+                     "line 9-------------------------------------------------------------------------$\n"
+                     "line 10------------------------------------------------------------------------$\n"
+                     "line 11------------------------------------------------------------------------$\n"
+                     "line 12------------------------------------------------------------------------$\n"
+                     "line 13------------------------------------------------------------------------$\n"
+                     "line 14------------------------------------------------------------------------$\n"
+                     "line 15------------------------------------------------------------------------$\n"
+                     "line 16------------------------------------------------------------------------$\n"
+                     "line 17------------------------------------------------------------------------$\n")
+             (termgrab-grab-buffer-into-string (current-buffer))))))
+
+
 ;;; termgrab-test.el ends here
