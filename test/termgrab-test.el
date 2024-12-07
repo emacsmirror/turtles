@@ -27,14 +27,14 @@
 
 (ert-deftest termgrab-test-setup ()
   (termgrab-start-server)
-  (should termgrab-server-proc)
+  (should termgrab-tmux-proc)
   (should (string-prefix-p
            "grab: 1 windows"
            (with-temp-buffer
-             (termgrab--tmux termgrab-server-proc (current-buffer) "list-sessions")
+             (termgrab--tmux termgrab-tmux-proc (current-buffer) "list-sessions")
              (buffer-string))))
 
-  (let ((grabbed (termgrab-grab-to-string)))
+  (let ((grabbed (termgrab-grab-frame-to-string)))
     (should (stringp grabbed))))
 
 (ert-deftest termgrab-test-setup-buffer ()
@@ -48,7 +48,7 @@
 
     (termgrab-setup-buffer)
 
-    (let ((grabbed (termgrab-grab-to-string)))
+    (let ((grabbed (termgrab-grab-frame-to-string)))
       (should (stringp grabbed))
       (should (string-match-p "test buffer" grabbed)))))
 
@@ -62,7 +62,7 @@
       (with-current-buffer "*scratch*"
       (termgrab-setup-buffer buf)))
 
-    (let ((grabbed (termgrab-grab-to-string)))
+    (let ((grabbed (termgrab-grab-frame-to-string)))
       (should (stringp grabbed))
       (should (string-match-p "test buffer" grabbed)))))
 

@@ -29,6 +29,8 @@
 ;; buffer or window in the terminal.
 ;;
 
+;;; Code:
+
 (require 'pcase)
 (require 'server)
 (require 'ansi-color)
@@ -43,37 +45,70 @@
   :type 'string
   :group 'termgrab)
 
-(defvar termgrab-server-proc nil)
-(defvar termgrab-frame nil)
-(defvar termgrab--tmux-socket nil)
-(defvar termgrab--orig-server-name nil)
+(defvar termgrab-tmux-proc nil
+  "The tmux server started by `termgrab-start-server'.")
 
-(defconst termgrab--server-output-buffer-name " *termgrab-server-output*")
+(defvar termgrab-frame nil
+  "The frame running in tmux, while the tmux server is running.
+
+In tests, it's more usual to call `termgrab-root-window' and
+`termgrab-minibuffer-window' to manipulate the windows or just
+give the buffer to grab to `termgrab-grab-buffer-into' or
+`termgrab-grab-buffer-to-string'.")
+
+(defvar termgrab--tmux-socket nil
+  "Full path to the socket used to communicate with tmux.")
+(defvar termgrab--orig-server-name nil
+  "Original value of `server-name'.
+
+This is set by `termgrab-start-server' just before overriding
+`server-name'.")
+
+(defconst termgrab--server-output-buffer-name " *termgrab-server-output*"
+  "Name of the buffer to which the tmux server output is sent.")
 
 (defun termgrab-live-p (&optional proc)
-  (let ((proc (or proc termgrab-server-proc)))
+  "Return non-nil if the tmux process started by termgrab is live.
+
+PROC defaults to `termgrab-tmux-proc'."
+  (let ((proc (or proc termgrab-tmux-proc)))
     (and proc (process-live-p proc))))
 
 (defun termgrab-require-server (&optional proc)
-  (let ((proc (or proc termgrab-server-proc)))
+  "Fail unless the tmux process started by termgrab is live.
+
+PROC defaults to `termgrab-tmux-proc'."
+  (let ((proc (or proc termgrab-tmux-proc)))
     (unless (termgrab-live-p proc)
       (error "Missing termgrab tmux process proc:%s" (when proc (process-status proc))))))
 
 (defun termgrab--tmux-cmd ()
+  "Command and arguments used to start the tmux server and clients."
   (list termgrab-tmux-exe "-S" termgrab--tmux-socket "-f" "/dev/null"))
 
 (defun termgrab-restart-server ()
+  "Stop and restart the tmux server, and optionally the Emacs server."
   (interactive)
   (termgrab-stop-server)
   (termgrab-start-server))
 
 (defun termgrab-start-server ()
+  "Start the tmux server required by termgrab, and optionally the Emacs server.
+
+After this function has run `termgrab-frame' is set to the frame
+that's running under tmux. If the server is already running, this
+function resets some of its attribute, in case they've been
+changed by previous tests.
+
+It's a good idea to call this function before each test, to make
+sure the server is available and in a reasonable state."
   (interactive)
   ;; If we need to start a server to communicate with this Emacs
   ;; process, make sure the server name is unique for tests, so as not
   ;; to interfere with any running Emacs server.
   (unless (and server-process (process-live-p server-process))
-    (setq termgrab--orig-server-name server-name)
+    (unless termgrab--orig-server-name
+      (setq termgrab--orig-server-name server-name))
     (setq server-name (format "termgrab-%s" (emacs-pid)))
     (server-start nil 'inhibit-prompt))
 
@@ -118,7 +153,7 @@
               ;; The new frame shouldn't be selected when running
               ;; interactively. It'll be selected later by the tests.
               (select-frame old-frame))
-            (setq termgrab-server-proc proc)
+            (setq termgrab-tmux-proc proc)
             (setq termgrab-frame new-frame)
 
             ;; Recover some space
@@ -134,6 +169,9 @@
   (delete-other-windows (car (window-list termgrab-frame))))
 
 (defun termgrab-stop-server ()
+  "Stop the tmux server, does nothing if the server is not running.
+
+This is done automatically just before Emacs shuts down."
   (interactive)
   (when (string-prefix-p "termgrab-" server-name)
     ;; Unintuitively, this stops the server. server-force-delete
@@ -146,10 +184,10 @@
   (when (buffer-live-p termgrab--server-output-buffer-name)
     (kill-buffer termgrab--server-output-buffer-name))
 
-  (when termgrab-server-proc
-    (when (process-live-p termgrab-server-proc)
-      (kill-process termgrab-server-proc)))
-  (setq termgrab-server-proc nil)
+  (when termgrab-tmux-proc
+    (when (process-live-p termgrab-tmux-proc)
+      (kill-process termgrab-tmux-proc)))
+  (setq termgrab-tmux-proc nil)
   (setq termgrab-frame nil)
 
   (when (and termgrab--tmux-socket (file-exists-p termgrab--tmux-socket))
@@ -193,7 +231,7 @@ representation of the content of that window."
   (unless (eq (window-frame win) termgrab-frame)
     (error "Window is not part of the termgrab frame: %s" win))
 
-  (termgrab-grab-into output-buf)
+  (termgrab-grab-frame-into output-buf)
 
   (with-current-buffer output-buf
     (save-excursion
@@ -229,21 +267,35 @@ representation of the content of that window."
           (delete-region (point-min) (point)))))))
 
 (defun termgrab-grab-buffer-to-string (buf)
+  "Grab BUF into a string.
+
+See `termgrab-grab-buffer-into' for more details."
   (with-temp-buffer
     (termgrab-grab-buffer-into buf (current-buffer))
     (buffer-string)))
 
 (defun termgrab-grab-window-to-string (win)
+  "Grab WIN into a string.
+
+See `termgrab-grab-window-into' for more details."
   (with-temp-buffer
     (termgrab-grab-window-into win (current-buffer))
     (buffer-string)))
 
-(defun termgrab-grab-to-string ()
+(defun termgrab-grab-frame-to-string ()
+  "Grab the frame into a string.
+
+See `termgrab-grab-frame-into' for more details."
   (with-temp-buffer
-    (termgrab-grab-into (current-buffer))
+    (termgrab-grab-frame-into (current-buffer))
     (buffer-string)))
 
-(defun termgrab-grab-into (buffer)
+(defun termgrab-grab-frame-into (buffer)
+  "Grab the frame running under tmux into BUFFER.
+
+This includes all windows and decorations. Unless that's what you
+want to test, it's usually better to call `termgrab-grab-buffer'
+or `termgrab-grab-win', which just return the window body."
   (with-selected-frame termgrab-frame
     (with-selected-window (car (window-list termgrab-frame))
       (redraw-frame termgrab-frame)
@@ -251,11 +303,15 @@ representation of the content of that window."
 
   (with-current-buffer buffer
     (delete-region (point-min) (point-max))
-    (termgrab--tmux termgrab-server-proc buffer
+    (termgrab--tmux termgrab-tmux-proc buffer
                     "capture-pane" "-t" "grab:0" "-e" "-p")
     (ansi-color-apply-on-region (point-min) (point-max))))
 
 (defun termgrab--tmux (proc buffer &rest commands)
+  "Execute the tmux client commands COMMANDS.
+
+Communicates with PROC, usually `termgrab-tmux-proc' and stores
+stdout into BUFFER."
   (termgrab-require-server proc)
   (with-temp-buffer
     (let ((tmux-cmd (append (termgrab--tmux-cmd) '("-N" "--") commands))
@@ -271,13 +327,16 @@ representation of the content of that window."
       (while (process-live-p proc)
         (accept-process-output))
       (when (not (zerop (process-exit-status proc)))
-        (error "termgrab:tmux %s [%s] %s"
+        (error "Command failed: tmux %s [%s] %s"
                (string-join commands " ")
                (process-exit-status proc)
                (buffer-substring-no-properties (point-min) (point-max)))))))
 
 
 (defun termgrab--wait-for (timeout error-message predicate)
+  "Wait for up to TIMEOUT seconds for PREDICATE to become non-nil.
+
+Fails with ERROR-MESSAGE if it times out."
   (let ((start (current-time)))
     (while (and (< (time-to-seconds (time-subtract (current-time) start)) timeout)
                 (not (funcall predicate)))
