@@ -33,24 +33,31 @@
   (let ((grabbed (termgrab-grab-to-string)))
     (should (stringp grabbed))))
 
-(ert-deftest termgrab-test-select-buffer ()
+(ert-deftest termgrab-test-setup-buffer ()
   (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (insert "test buffer")
 
-  (should termgrab-frame)
-  (should (frame-live-p termgrab-frame))
-  (select-frame termgrab-frame)
+    (should termgrab-frame)
+    (should (frame-live-p termgrab-frame))
 
-  (let ((win (frame-root-window termgrab-frame)))
+    (termgrab-setup-buffer)
 
-    (ert-with-test-buffer ()
-      (insert "test buffer")
-      (set-window-buffer win (current-buffer))
-      (select-window win)
+    (let ((grabbed (termgrab-grab-to-string)))
+      (should (stringp grabbed))
+      (should (string-match-p "test buffer" grabbed)))))
 
-      (should (redisplay 'force))
+(ert-deftest termgrab-test-setup-other-buffer ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (insert "test buffer")
 
-      (let ((grabbed (termgrab-grab-to-string)))
-        (should (stringp grabbed))
-        (should (string-match-p "test buffer" grabbed))))))
+    (let ((buf (current-buffer)))
+      (with-current-buffer "*scratch*"
+      (termgrab-setup-buffer buf)))
+
+    (let ((grabbed (termgrab-grab-to-string)))
+      (should (stringp grabbed))
+      (should (string-match-p "test buffer" grabbed)))))
 
 ;;; termgrab-test.el ends here

@@ -126,6 +126,19 @@
     (delete-file termgrab--socket))
   (setq termgrab--socket nil))
 
+(defun termgrab-setup-buffer (&optional buf)
+  "Setup the termgrab frame to display BUF.
+
+If BUF is nil, the current buffer is used instead."
+  (termgrab-require-server)
+
+  (let ((win (frame-root-window termgrab-frame)))
+    (set-window-buffer win (or buf (current-buffer)))
+
+    (with-selected-frame termgrab-frame
+      (with-selected-window win
+        (redisplay 'force)))))
+
 (defun termgrab-grab-to-string ()
   (with-temp-buffer
     (termgrab-grab-into (current-buffer))
