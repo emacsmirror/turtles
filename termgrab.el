@@ -230,7 +230,11 @@ If BUF is nil, the current buffer is used instead."
 
 When this function returns, OUTPUT-BUF contains the textual
 representation of BUF as displayed in the root window of the
-grabbed frame."
+grabbed frame.
+
+This function uses `termgrab-grab-window-into' after setting up
+the buffer. See the documentation of that function for details on
+the buffer content."
   (termgrab-setup-buffer buf)
   (termgrab-grab-window-into (termgrab-root-window) output-buf))
 
@@ -240,7 +244,11 @@ grabbed frame."
 WIN must be a window on the termgrab frame.
 
 When this function returns, OUTPUT-BUF contains the textual
-representation of the content of that window."
+representation of the content of that window. Colors are copied,
+as much as the tmux terminal behind `termgrab-frame' allows.
+
+This also sets the point, mark and region of to corresponding
+positions in OUTPUT-BUF, if possible."
   (unless (eq (window-frame win) termgrab-frame)
     (error "Window is not part of the termgrab frame: %s" win))
 
