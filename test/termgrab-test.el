@@ -166,7 +166,7 @@
         (dotimes (i 40)
           (insert (make-string 80 ?x)))
         (goto-char (point-min))
-        
+
         (set-window-buffer (termgrab-root-window) buf2)
         (setq center-win (split-window-below 5 (termgrab-root-window)))
         (split-window-below 10 center-win)
@@ -620,7 +620,7 @@
     (ert-with-test-buffer ()
       (setq test-buffer (current-buffer))
       (termgrab-test-init-buffer)
-      (insert "Some faces:\n")
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
       (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
       (insert (concat "  " (propertize "error" 'face 'error) "\n"))
       (insert (concat "  " (propertize "link" 'face 'link) "\n"))
@@ -633,6 +633,8 @@
          '(highlight error success))
 
         (goto-char (point-min))
+
+        (should (equal 'success (get-text-property (point-min) 'face)))
 
         (search-forward "faces")
         (should (equal nil (get-text-property (1- (point)) 'face)))
@@ -654,5 +656,83 @@
         (search-forward "success")
         (should (equal 'success (get-text-property (1- (point)) 'face)))
         (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))))))
+
+(ert-deftest termgrab-test-grab-and-mark-faces ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (should
+       (equal
+        "{Some} faces:\n  [highlight]\n  <<error>>\n  {success}"
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into
+            test-buffer (current-buffer)
+            '(highlight error success))
+
+           (termgrab-mark-text-with-faces '((highlight "[]")
+                                            (error "<<>>")
+                                            (success "{}")))
+
+           (buffer-string))))))))
+
+(ert-deftest termgrab-test-grab-and-mark-faces-assymetric-markers ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (should
+       (equal
+        "#s[Some] faces:\n  #h[highlight]\n  #e[error]\n  #s[success]"
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into
+            test-buffer (current-buffer)
+            '(highlight error success))
+
+           (termgrab-mark-text-with-faces '((highlight "#h[" "]")
+                                            (error "#e[" "]")
+                                            (success "#s[" "]")))
+
+           (buffer-string))))))))
+
+(ert-deftest termgrab-test-grab-and-mark-faces-single-call ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (should
+       (equal
+        "Some faces:\n  [highlight]\n  e[error]\n  success"
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into
+            test-buffer (current-buffer)
+            '(highlight error success))
+
+           (termgrab-mark-text-with-face 'highlight "[]")
+           (termgrab-mark-text-with-face 'error "e[" "]")
+
+           (buffer-string))))))))
+
 
 ;;; termgrab-test.el ends here

@@ -536,19 +536,23 @@ set."
       (setq next (point-min))
       (while
           (progn
-            (when (> next (point))
-              (remove-text-properties (point) next '(font-lock-face nil)))
             (goto-char next)
-            (when current-face
-              (add-text-properties range-start next `(face ,current-face))
-              (setq range-start nil)
-              (setq current-face nil))
             (when-let* ((spec (get-text-property (point) 'font-lock-face))
                         (col (termgrab--color-values spec))
                         (face (alist-get col reverse-face-alist nil nil #'equal)))
               (setq current-face face)
               (setq range-start (point)))
-            (setq next (next-property-change (point))))))))
+            (setq next (next-property-change (point)))
+
+            (let ((next (or next (point-max))))
+              (when (> next (point))
+                (remove-text-properties (point) next '(font-lock-face nil)))
+              (when current-face
+                (add-text-properties range-start next `(face ,current-face))
+                (setq range-start nil)
+                (setq current-face nil)))
+
+            next)))))
 
 (defun termgrab--color-values (spec)
   "Extract fg/bg color values from SPEC.
@@ -584,6 +588,78 @@ face attribute lists."
                    (mapcar
                     (lambda (s) (when (consp s) (termgrab--face-attr s attr)))
                     spec)))))))
+
+(defsubst termgrab-mark-text-with-face (face marker &optional closing-marker)
+  "Put section of text marked with FACE within MARKERS.
+
+MARKER should either be a string made up of two markers of the
+same length, such as \"[]\" or the opening marker string, with
+the closing marker defined by CLOSING-MARKER.
+
+This function is a thin wrapper around
+`termgrab-mark-text-with-face'. See the documentatin of that
+function for details."
+  (termgrab-mark-text-with-faces
+   `((,face ,marker . ,(when closing-marker (cons closing-marker nil))))))
+
+(defun termgrab-mark-text-with-faces (face-marker-alist)
+  "Put section of text marked with specific faces with text markers.
+
+FACE-MARKER-ALIST should be an alist of (face markers),
+with face a face symbol to detect and marker.
+
+The idea behind this function is to make face properties visible
+in the text, to make easier to test buffer content with faces by
+comparing two strings.
+
+markers should be, either:
+
+- a string made up an opening and closing substring of the same
+  length or two strings. For example, \"()\" \"[]\" \"<<>>\"
+  \"/**/\".
+
+- two strings, the opening and closing substrings.
+  For example: (\"s[\" \"]\")
+
+This function is meant to highlight faces setup by termgrab when
+asked to grab faces. It won't work in the general case."
+  (save-excursion
+    (let ((next (point-min))
+          (closing nil))
+      (while
+          (progn
+            (goto-char next)
+            (when-let* ((face (get-text-property (point) 'face))
+                        (markers (alist-get face face-marker-alist)))
+              (pcase-let ((`(,op . ,close) (termgrab--split-markers markers)))
+                (insert op)
+                (setq closing close)))
+            (setq next (next-property-change (point)))
+
+            (when closing
+              (goto-char (or next (point-max)))
+              (insert closing)
+              (setq closing nil))
+
+            next)))))
+
+(defun termgrab--split-markers (markers)
+  "Return an opening and closing marker.
+
+MARKERS must be either a string, to be split into two strings of
+the same length or a list of two elements.
+
+The return value is a (cons opening closing) containing two
+strings"
+  (cond
+   ((and (consp markers) (length= markers 1))
+    (termgrab--split-markers (car markers)))
+   ((and (consp markers) (length= markers 2))
+    (cons (nth 0 markers) (nth 1 markers)))
+   ((stringp markers)
+    (let ((mid (/ (length markers) 2)))
+      (cons (substring markers 0 mid) (substring markers mid))))
+   (t (error "Unsupported markers: %s" markers))))
 
 (provide 'termgrab)
 
