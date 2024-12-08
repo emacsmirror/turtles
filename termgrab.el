@@ -34,6 +34,7 @@
 (require 'pcase)
 (require 'server)
 (require 'ansi-color)
+(require 'faces)
 
 (defcustom termgrab-tmux-exe "tmux"
   "Path to the tmux executable."
@@ -225,7 +226,7 @@ If BUF is nil, the current buffer is used instead."
   "Return the minibuffer window of the grabbed frame."
   (minibuffer-window termgrab-frame))
 
-(defun termgrab-grab-buffer-into (buf output-buf)
+(defun termgrab-grab-buffer-into (buf output-buf &optional grab-faces)
   "Display BUF in the grabbed frame and grab it into OUTPUT-BUF.
 
 When this function returns, OUTPUT-BUF contains the textual
@@ -234,25 +235,32 @@ grabbed frame.
 
 This function uses `termgrab-grab-window-into' after setting up
 the buffer. See the documentation of that function for details on
-the buffer content."
+the buffer content and the effect of GRAB-FACES."
   (termgrab-setup-buffer buf)
-  (termgrab-grab-window-into (termgrab-root-window) output-buf))
+  (termgrab-grab-window-into (termgrab-root-window) output-buf grab-faces))
 
-(defun termgrab-grab-window-into (win output-buf)
+(defun termgrab-grab-window-into (win output-buf &optional grab-faces)
   "Grab WIN into output-buf.
 
 WIN must be a window on the termgrab frame.
 
 When this function returns, OUTPUT-BUF contains the textual
-representation of the content of that window. Colors are copied,
-as much as the tmux terminal behind `termgrab-frame' allows.
+representation of the content of that window. The point, mark and
+region are also set to corresponding positions in OUTPUT-BUF, if
+possible.
 
-This also sets the point, mark and region of to corresponding
-positions in OUTPUT-BUF, if possible."
+If GRAB-FACES is empty, the colors are copied as
+\\='font-lock-face text properties, with as much fidelity as the
+tmux terminal behind `termgrab-frame' allows.
+
+If GRAB-FACES is not empty, the faces on that list - and only
+these faces - are recovered into \\='face text properties. Note
+that in such case, no other face or color information is grabbed,
+so any other face not in GRAB-FACE are absent."
   (unless (eq (window-frame win) termgrab-frame)
     (error "Window is not part of the termgrab frame: %s" win))
 
-  (termgrab-grab-frame-into output-buf)
+  (termgrab-grab-frame-into output-buf grab-faces)
   (with-current-buffer output-buf
     (setq termgrab-source-window win)
     (setq termgrab-source-buffer (window-buffer win))
@@ -367,23 +375,52 @@ See `termgrab-grab-frame-into' for more details."
     (termgrab-grab-frame-into (current-buffer))
     (buffer-string)))
 
-(defun termgrab-grab-frame-into (buffer)
+(defun termgrab-grab-frame-into (buffer &optional grab-faces)
   "Grab the frame running under tmux into BUFFER.
 
 This includes all windows and decorations. Unless that's what you
 want to test, it's usually better to call `termgrab-grab-buffer'
-or `termgrab-grab-win', which just return the window body."
-  (with-selected-frame termgrab-frame
-    (with-selected-window (car (window-list termgrab-frame))
-      (redraw-frame termgrab-frame)
-      (redisplay 'force)))
+or `termgrab-grab-win', which just return the window body.
 
-  (with-current-buffer buffer
-    (delete-region (point-min) (point-max))
-    (termgrab--tmux termgrab-tmux-proc buffer
-                    "capture-pane" "-t" "grab:0" "-e" "-p")
-    (let ((ansi-color-apply-face-function #'ansi-color-apply-overlay-face))
-      (ansi-color-apply-on-region (point-min) (point-max)))))
+If GRAB-FACES is empty, the colors are copied as
+\\='font-lock-face text properties, with as much fidelity as the
+tmux terminal behind `termgrab-frame' allows.
+
+If GRAB-FACES is not empty, the faces on that list - and only
+these faces - are recovered into \\='face text properties. Note
+that in such case, no other face or color information is grabbed,
+so any other face not in GRAB-FACE are absent."
+  (pcase-let ((`(,grab-face-alist . ,cookies)
+               (termgrab--setup-grab-faces grab-faces)))
+    (unwind-protect
+        (progn
+          (with-selected-frame termgrab-frame
+            (with-selected-window (car (window-list termgrab-frame))
+              (redraw-frame termgrab-frame)
+              (redisplay 'force)))
+
+          (with-current-buffer buffer
+            (delete-region (point-min) (point-max))
+            (termgrab--tmux termgrab-tmux-proc buffer
+                            "capture-pane" "-t" "grab:0" "-e" "-p")
+
+            (if grab-faces
+                ;; Set 'face properties for the faces in grab-faces,
+                ;; detected from colors setup by
+                ;; termgrab--setup-grab-faces.
+                (progn
+                  (let ((ansi-color-apply-face-function #'ansi-color-apply-text-property-face))
+                    (ansi-color-apply-on-region (point-min) (point-max)))
+                  (termgrab--faces-from-color grab-face-alist))
+
+              ;; Grab colors as close to the original as the terminas allows.
+              ;;
+              ;; This uses overlays, because
+              ;; foreground/background-color-at-point don't work with
+              ;; font lock text properties in batch mode.
+              (let ((ansi-color-apply-face-function #'ansi-color-apply-overlay-face))
+                (ansi-color-apply-on-region (point-min) (point-max))))))
+      (termgrab--teardown-grab-faces cookies))))
 
 (defun termgrab--tmux (proc buffer &rest commands)
   "Execute the tmux client commands COMMANDS.
@@ -421,6 +458,132 @@ Fails with ERROR-MESSAGE if it times out."
       (accept-process-output nil 0 500)))
   (unless (funcall predicate)
     (error (concat "termgrab:timeout: " error-message))))
+
+(defun termgrab--setup-grab-faces (grab-faces)
+  (when grab-faces
+    (let (grab-face-alist cookies remapping)
+
+      ;; This algorithm limits itself to normal (non-bright) ansi
+      ;; colors, excluding black and white, for simplicity. That gives
+      ;; us 6 color - 36 combination of background and foreground - to
+      ;; work with. That should be enough for most reasonable tests,
+      ;; but if not, it could be extended to use more colors, as we
+      ;; normally have access to 256 colors.
+      (when (> (length grab-faces) 36)
+        (error "Too many faces to highlight"))
+
+      (dolist (face grab-faces)
+        (let* ((idx (length remapping))
+               (bg (face-background
+                    (aref ansi-color-normal-colors-vector
+                          (1+ (% idx 6)))))
+               (fg (face-foreground
+                    (aref ansi-color-bright-colors-vector
+                          (1+ (/ idx 6))))))
+          (push (cons face `(:background ,bg :foreground ,fg)) remapping)))
+
+      (setq grab-face-alist (cl-copy-list remapping))
+
+      ;; Set *all* other faces to white-on-black so there won't be any
+      ;; confusion.
+      (let* ((white-fg (face-foreground 'ansi-color-white))
+             (black-bg (face-background 'ansi-color-black))
+             (white-on-black
+              `(:foreground ,white-fg :background ,black-bg)))
+        (dolist (face (face-list))
+          (unless (memq face grab-faces)
+            (push (cons face white-on-black) remapping))))
+
+      (dolist (buf (let ((bufs (list)))
+                     (dolist (win (window-list termgrab-frame))
+                       (when-let ((buf (window-buffer win)))
+                         (unless (memq buf bufs)
+                           (push buf bufs))))
+
+                     bufs))
+        (with-current-buffer buf
+          (push (cons buf (buffer-local-value 'face-remapping-alist buf))
+                cookies)
+          (setq-local face-remapping-alist remapping)))
+
+      (cons grab-face-alist cookies))))
+
+(defun termgrab--teardown-grab-faces (cookies)
+  (pcase-dolist (`(,buf . ,remapping) cookies)
+    (with-current-buffer buf
+      (setq-local face-remapping-alist remapping))))
+
+(defun termgrab--faces-from-color (face-alist)
+  "Recognize faces from FACE-ALIST in current buffer.
+
+This function replaces the font-lock-face color properties set by
+ansi-color with face properties from FACE-ALIST.
+
+FACE-ALIST must be an alist of face symbol to face spec, as
+returned by termgrab--setup-grab-faces. The colors in this alist
+are mapped back to the symbols.
+
+When this function returns, the buffer content should look like
+the original content, but with only the faces from FACE-ALIST
+set."
+  (let ((reverse-face-alist
+         (mapcar (lambda (cell)
+                   (cons (termgrab--color-values (cdr cell)) (car cell)))
+                 face-alist))
+        current-face range-start next)
+    (save-excursion
+      (goto-char (point-min))
+      (setq next (point-min))
+      (while
+          (progn
+            (when (> next (point))
+              (remove-text-properties (point) next '(font-lock-face nil)))
+            (goto-char next)
+            (when current-face
+              (add-text-properties range-start next `(face ,current-face))
+              (setq range-start nil)
+              (setq current-face nil))
+            (when-let* ((spec (get-text-property (point) 'font-lock-face))
+                        (col (termgrab--color-values spec))
+                        (face (alist-get col reverse-face-alist nil nil #'equal)))
+              (setq current-face face)
+              (setq range-start (point)))
+            (setq next (next-property-change (point))))))))
+
+(defun termgrab--color-values (spec)
+  "Extract fg/bg color values from SPEC.
+
+The color values are constrained to colors inside of
+`termgrab-frame'.
+
+SPEC might be a face symbol, a face attribute list or a list of
+face attribute lists.
+
+Returns a (cons fg bg) with fg and bg a list of 3 integers (red
+green blue) between 0 and 65535."
+  (cons (color-values (or (termgrab--face-attr spec :foreground)
+                          "unspecified-fg")
+                      termgrab-frame)
+        (color-values (or (termgrab--face-attr spec :background)
+                          "unspecified-bg")
+                      termgrab-frame)))
+
+(defun termgrab--face-attr (spec attr)
+  "Extract ATTR from SPEC.
+
+SPEC might be a face symbol, a face attribute list or a list of
+face attribute lists."
+  (cond
+   ((symbolp spec)
+    (face-attribute-specified-or
+     (face-attribute spec attr nil t)
+     nil))
+   ((consp spec)
+    (or (cadr (memq attr spec))
+        (car (delq nil
+                   (mapcar
+                    (lambda (s) (when (consp s) (termgrab--face-attr s attr)))
+                    spec)))))))
 
 (provide 'termgrab)
 

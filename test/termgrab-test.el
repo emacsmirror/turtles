@@ -614,4 +614,45 @@
            (insert "<>")
            (buffer-string))))))))
 
+(ert-deftest termgrab-test-grab-faces ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (insert "Some faces:\n")
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "link" 'face 'link) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (ert-with-test-buffer (:name "grab")
+        (termgrab-grab-buffer-into
+         test-buffer (current-buffer)
+         ;; list of faces to be grabbed
+         '(highlight error success))
+
+        (goto-char (point-min))
+
+        (search-forward "faces")
+        (should (equal nil (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "highlight")
+        (should (equal 'highlight (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "error")
+        (should (equal 'error (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "link")
+        ;; link isn't on the list of faces to be grabbed
+        (should (equal nil (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "success")
+        (should (equal 'success (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))))))
+
 ;;; termgrab-test.el ends here
