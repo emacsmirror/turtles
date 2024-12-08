@@ -300,7 +300,7 @@ boundaries.
 Return a position in the current buffer. If the point does not
 appear in the grab, return nil."
   (unless termgrab-source-window
-    (error "Current buffer does not contain a window grab."))
+    (error "Current buffer does not contain a window grab"))
 
   (cond
    ((null pos-in-source-buf) nil)
@@ -461,6 +461,18 @@ Fails with ERROR-MESSAGE if it times out."
     (error (concat "termgrab:timeout: " error-message))))
 
 (defun termgrab--setup-grab-faces (grab-faces)
+  "Prepare buffer faces for grabbing GRAB-FACES.
+
+This function modifies the faces in all buffers of
+`termgrab-frame' so that they can be detected from color by
+`termgrab--faces-from-color'.
+
+The color changes are reverted by `termgrab--teardown-grab-faces'
+or the grabbed buffers will look very ugly.
+
+Return a (cons grab-face-alist cookies) with grab-face-alist the
+alist to pass to `termgrab--faces-from-color' and cookies to pass
+to `termgrab--teardown-grab-faces'."
   (when grab-faces
     (let (grab-face-alist cookies remapping)
 
@@ -510,6 +522,10 @@ Fails with ERROR-MESSAGE if it times out."
       (cons grab-face-alist cookies))))
 
 (defun termgrab--teardown-grab-faces (cookies)
+  "Revert buffer colors modified by `termgrab--setup-grab-faces'.
+
+COOKIES is one of the return values of
+`termgrab--setup-grab-faces'."
   (pcase-dolist (`(,buf . ,remapping) cookies)
     (with-current-buffer buf
       (setq-local face-remapping-alist remapping))))
