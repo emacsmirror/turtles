@@ -249,10 +249,22 @@ representation of the content of that window."
     (setq termgrab-source-window win)
     (setq termgrab-source-buffer (window-buffer win))
     (termgrab--clip-in-frame-grab win)
-    (when-let ((pos (termgrab-pos-in-window-grab (window-point win))))
-      (goto-char pos))))
 
-(defun termgrab-pos-in-window-grab (pos-in-source-buf)
+    (let ((point-pos (termgrab-pos-in-window-grab (window-point win)))
+          (mark-pos (termgrab-pos-in-window-grab
+                     (with-selected-window win (mark)) 'range)))
+      (when point-pos
+        (goto-char point-pos))
+      (when mark-pos
+        (push-mark mark-pos 'nomsg nil))
+
+      (when (and point-pos
+                 mark-pos
+                 (with-selected-window win
+                   (region-active-p)))
+        (activate-mark)))))
+
+(defun termgrab-pos-in-window-grab (pos-in-source-buf &optional range)
   "Convert a position in the source buffer to the current buffer.
 
 For this to work, the current buffer must be a grab buffer
@@ -260,18 +272,35 @@ created by `termgrab-grab-window-into' or
 `termgrab-grab-buffer-into' and neither its content nor the
 source buffer or source window must have changed since the grab.
 
+POS-IN-SOURCE-BUF should be a position in the source buffer. It
+might be nil, in which case this function returns nil.
+
+When RANGE is non-nil, if the position is before window start,
+set it at (point-min), if it is after window end, set it
+at (point-max). This is appropriate when highlighting range
+boundaries.
+
 Return a position in the current buffer. If the point does not
 appear in the grab, return nil."
   (unless termgrab-source-window
     (error "Current buffer does not contain a window grab."))
-  (pcase-let ((`(,x . ,y) (window-absolute-pixel-position
-                           pos-in-source-buf termgrab-source-window)))
-    (when (and x y)
-      (save-excursion
-        (goto-char (point-min))
-        (forward-line y)
-        (move-to-column x)
-        (point)))))
+
+  (cond
+   ((null pos-in-source-buf) nil)
+   ((and range (<= pos-in-source-buf
+                   (window-start termgrab-source-window)))
+    (point-min))
+   ((and range (>= pos-in-source-buf
+                   (window-end termgrab-source-window)))
+    (point-max))
+   (t (pcase-let ((`(,x . ,y) (window-absolute-pixel-position
+                               pos-in-source-buf termgrab-source-window)))
+        (when (and x y)
+          (save-excursion
+            (goto-char (point-min))
+            (forward-line y)
+            (move-to-column x)
+            (point)))))))
 
 (defun termgrab--clip-in-frame-grab (win)
   "Clip the frame grab in the current buffer to the body of WIN."

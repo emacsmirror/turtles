@@ -331,7 +331,7 @@
         (should (equal (color-values (face-background 'ansi-color-blue) termgrab-frame)
                        (color-values (background-color-at-point) termgrab-frame)))))))
 
-(ert-deftest termgrab-test-grab-buffer-point ()
+(ert-deftest termgrab-test-grab-point ()
   (let ((test-buffer))
     (termgrab-start-server)
     (ert-with-test-buffer ()
@@ -361,6 +361,222 @@
          (ert-with-test-buffer (:name "grab")
            (termgrab-grab-buffer-into test-buffer (current-buffer))
            (insert "<>")
+           (buffer-string))))))))
+
+(ert-deftest termgrab-test-grab-active-mark ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (push-mark (match-beginning 0) 'nomsg)
+      (search-forward "line 6")
+      (activate-mark)
+      (should (and t (region-active-p)))
+
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "[line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line 6]..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+           (should (region-active-p))
+
+           (buffer-string))))))))
+
+(ert-deftest termgrab-test-grab-inactive-mark ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (push-mark (match-beginning 0) 'nomsg)
+      (search-forward "line 6")
+      (deactivate-mark)
+      (should (not (region-active-p)))
+
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "[line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line 6]..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+           (should-not (region-active-p))
+
+           (buffer-string))))))))
+
+(ert-deftest termgrab-test-grab-mark-before-window-start ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (dotimes (i 100)
+        (insert (format "line %d.\n" i)))
+
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (push-mark (match-beginning 0) 'nomsg)
+      (search-forward "line 90")
+
+      (should
+       (equal
+        (concat "[line 81.\n"
+                "line 82.\n"
+                "line 83.\n"
+                "line 84.\n"
+                "line 85.\n"
+                "line 86.\n"
+                "line 87.\n"
+                "line 88.\n"
+                "line 89.\n"
+                "line 90].\n"
+                "line 91.\n"
+                "line 92.\n"
+                "line 93.\n"
+                "line 94.\n"
+                "line 95.\n"
+                "line 96.\n"
+                "line 97.\n"
+                "line 98.")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+
+           (buffer-string))))))))
+
+
+(ert-deftest termgrab-test-grab-mark-after-window-start ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (dotimes (i 100)
+        (insert (format "line %d.\n" i)))
+
+      (goto-char (point-min))
+      (search-forward "line 90")
+      (push-mark (point) 'nomsg)
+      (goto-char (point-min))
+      (search-forward "line 9")
+      (goto-char (match-beginning 0))
+
+      (should
+       (equal
+        (concat
+         "line 0.\n"
+         "line 1.\n"
+         "line 2.\n"
+         "line 3.\n"
+         "line 4.\n"
+         "line 5.\n"
+         "line 6.\n"
+         "line 7.\n"
+         "line 8.\n"
+         "[line 9.\n"
+         "line 10.\n"
+         "line 11.\n"
+         "line 12.\n"
+         "line 13.\n"
+         "line 14.\n"
+         "line 15.\n"
+         "line 16.\n"
+         "line 17.\n"
+         "]")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into test-buffer (current-buffer))
+           (insert "[")
+           (goto-char (mark))
+           (insert "]")
+
+           (buffer-string))))))))
+
+(ert-deftest termgrab-test-grab-invisible-mark ()
+  (let ((test-buffer))
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+
+      ;; Put the mark in the middle of an invisible section.
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (search-forward "invisible")
+      (push-mark (point) 'nomsg)
+      (search-forward "line 6")
+
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "line 3.[.\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line 6]..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+
            (buffer-string))))))))
 
 (ert-deftest termgrab-test-grab-buffer-position ()
