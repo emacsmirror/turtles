@@ -318,7 +318,7 @@ or `termgrab-grab-win', which just return the window body."
     (delete-region (point-min) (point-max))
     (termgrab--tmux termgrab-tmux-proc buffer
                     "capture-pane" "-t" "grab:0" "-e" "-p")
-    (let ((ansi-color-apply-face-function #'ansi-color-apply-text-property-face))
+    (let ((ansi-color-apply-face-function #'ansi-color-apply-overlay-face))
       (ansi-color-apply-on-region (point-min) (point-max)))))
 
 (defun termgrab--tmux (proc buffer &rest commands)

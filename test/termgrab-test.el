@@ -319,13 +319,17 @@
 
         (should (search-forward "green on red"))
         (goto-char (1- (point)))
-        (should (equal (face-foreground 'ansi-color-green) (foreground-color-at-point)))
-        (should (equal (face-background 'ansi-color-red) (background-color-at-point)))
+        (should (equal (color-values (face-foreground 'ansi-color-green) termgrab-frame)
+                       (color-values (foreground-color-at-point) termgrab-frame)))
+        (should (equal (color-values (face-background 'ansi-color-red) termgrab-frame)
+                       (color-values (background-color-at-point) termgrab-frame)))
 
         (should (search-forward "yellow on blue"))
         (goto-char (1- (point)))
-        (should (equal (face-foreground 'ansi-color-yellow) (foreground-color-at-point)))
-        (should (equal (face-background 'ansi-color-blue) (background-color-at-point)))))))
+        (should (equal (color-values (face-foreground 'ansi-color-yellow) termgrab-frame)
+                       (color-values (foreground-color-at-point) termgrab-frame)))
+        (should (equal (color-values (face-background 'ansi-color-blue) termgrab-frame)
+                       (color-values (background-color-at-point) termgrab-frame)))))))
 
 (ert-deftest termgrab-test-grab-buffer-point ()
   (let ((test-buffer))
