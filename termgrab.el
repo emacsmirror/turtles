@@ -233,39 +233,51 @@ representation of the content of that window."
     (error "Window is not part of the termgrab frame: %s" win))
 
   (termgrab-grab-frame-into output-buf)
-
   (with-current-buffer output-buf
-    (save-excursion
-      (pcase-let ((`(,left ,top ,right ,bottom) (window-body-edges win)))
+    (termgrab--clip-in-frame-grab win)
+    (termgrab--set-point-in-window-grab win)))
 
+(defun termgrab--set-point-in-window-grab (win)
+  "Copy the point from WIN in the window body in the current buffer."
+  (pcase-let ((`(,x . ,y) (window-absolute-pixel-position
+                           (window-point win) win)))
+    (when (and x y)
+      (goto-char (point-min))
+      (forward-line y)
+      (move-to-column x))))
+
+(defun termgrab--clip-in-frame-grab (win)
+  "Clip the frame grab in the current buffer to the body of WIN."
+  (save-excursion
+    (pcase-let ((`(,left ,top ,right ,bottom) (window-body-edges win)))
+      (goto-char (point-min))
+      (while (progn
+               (move-to-column right)
+               (delete-region (point) (pos-eol))
+               (= (forward-line 1) 0)))
+
+      (when (> left 0)
         (goto-char (point-min))
         (while (progn
-                 (move-to-column right)
-                 (delete-region (point) (pos-eol))
-                 (= (forward-line 1) 0)))
+                 (move-to-column left)
+                 (when (and noninteractive
+                            (not (char-before ?|)))
+                   (error
+                    (concat "Capturing a window to the right of another "
+                            "doesn't work because of rendering errors in "
+                            "batch mode. Either always split horizontally "
+                            "or run tests in non-batch mode.")))
+                 (delete-region (pos-bol) (point))
+                 (= (forward-line 1) 0))))
 
-        (when (> left 0)
-          (goto-char (point-min))
-          (while (progn
-                   (move-to-column left)
-                   (when (and noninteractive
-                              (not (char-before ?|)))
-                     (error
-                      (concat "Capturing a window to the right of another "
-                              "doesn't work because of rendering errors in "
-                              "batch mode. Either always split horizontally "
-                              "or run tests in non-batch mode.")))
-                   (delete-region (pos-bol) (point))
-                   (= (forward-line 1) 0))))
+      (goto-char (point-min))
+      (forward-line bottom)
+      (delete-region (point) (point-max))
 
+      (when (> top 0)
         (goto-char (point-min))
-        (forward-line bottom)
-        (delete-region (point) (point-max))
-
-        (when (> top 0)
-          (goto-char (point-min))
-          (forward-line top)
-          (delete-region (point-min) (point)))))))
+        (forward-line top)
+        (delete-region (point-min) (point))))))
 
 (defun termgrab-grab-buffer-to-string (buf)
   "Grab BUF into a string.
