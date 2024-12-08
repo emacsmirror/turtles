@@ -31,10 +31,11 @@
 
 ;;; Code:
 
+(require 'ansi-color)
+(require 'cl-lib)
+(require 'faces)
 (require 'pcase)
 (require 'server)
-(require 'ansi-color)
-(require 'faces)
 
 (defcustom termgrab-tmux-exe "tmux"
   "Path to the tmux executable."
