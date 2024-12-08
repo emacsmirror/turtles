@@ -67,6 +67,18 @@ This is set by `termgrab-start-server' just before overriding
 (defconst termgrab--server-output-buffer-name " *termgrab-server-output*"
   "Name of the buffer to which the tmux server output is sent.")
 
+(defvar-local termgrab-source-window nil
+  "The termgrab frame window the current buffer was grabbed from.
+
+This is local variable set in a grab buffer filled by
+`termgrab-grab-window-into' or `termgrab-grab-buffer-into'.")
+
+(defvar-local termgrab-source-buffer nil
+  "The buffer the current buffer was grabbed from.
+
+This is local variable set in a grab buffer filled by
+`termgrab-grab-window-into' or `termgrab-grab-buffer-into'.")
+
 (defun termgrab-live-p (&optional proc)
   "Return non-nil if the tmux process started by termgrab is live.
 
@@ -234,17 +246,32 @@ representation of the content of that window."
 
   (termgrab-grab-frame-into output-buf)
   (with-current-buffer output-buf
+    (setq termgrab-source-window win)
+    (setq termgrab-source-buffer (window-buffer win))
     (termgrab--clip-in-frame-grab win)
-    (termgrab--set-point-in-window-grab win)))
+    (when-let ((pos (termgrab-pos-in-window-grab (window-point win))))
+      (goto-char pos))))
 
-(defun termgrab--set-point-in-window-grab (win)
-  "Copy the point from WIN in the window body in the current buffer."
+(defun termgrab-pos-in-window-grab (pos-in-source-buf)
+  "Convert a position in the source buffer to the current buffer.
+
+For this to work, the current buffer must be a grab buffer
+created by `termgrab-grab-window-into' or
+`termgrab-grab-buffer-into' and neither its content nor the
+source buffer or source window must have changed since the grab.
+
+Return a position in the current buffer. If the point does not
+appear in the grab, return nil."
+  (unless termgrab-source-window
+    (error "Current buffer does not contain a window grab."))
   (pcase-let ((`(,x . ,y) (window-absolute-pixel-position
-                           (window-point win) win)))
+                           pos-in-source-buf termgrab-source-window)))
     (when (and x y)
-      (goto-char (point-min))
-      (forward-line y)
-      (move-to-column x))))
+      (save-excursion
+        (goto-char (point-min))
+        (forward-line y)
+        (move-to-column x)
+        (point)))))
 
 (defun termgrab--clip-in-frame-grab (win)
   "Clip the frame grab in the current buffer to the body of WIN."

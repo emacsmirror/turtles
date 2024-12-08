@@ -363,4 +363,39 @@
            (insert "<>")
            (buffer-string))))))))
 
+(ert-deftest termgrab-test-grab-buffer-position ()
+  (let (test-buffer pos)
+    (termgrab-start-server)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (termgrab-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+      (goto-char (point-min))
+      (search-forward "line 6")
+      (setq pos (1- (match-end 0)))
+      (goto-char (point-min))
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line <>6..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (termgrab-grab-buffer-into test-buffer (current-buffer))
+           (goto-char (termgrab-pos-in-window-grab pos))
+           (insert "<>")
+           (buffer-string))))))))
+
 ;;; termgrab-test.el ends here
