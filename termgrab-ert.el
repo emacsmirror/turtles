@@ -28,9 +28,9 @@
 (require 'ert-x)
 (require 'cl-lib)
 
-(cl-defmacro termgrab-to-string (&key (name "grab")
-                                      frame win buf minibuffer
-                                      faces region point (trim t))
+(cl-defun termgrab-to-string (&key (name "grab")
+                                   frame win buf minibuffer
+                                   faces region point (trim t))
   "Grab a section of the terminal and return the result as a string.
 
 With no arguments, this function renders the current buffer in
@@ -83,15 +83,20 @@ The following keyword arguments post-process what was grabbed:
     of two strings, the opening and closing string, which then
     don't need to be of the same size. See also
     `termgrab-mark-text-with-faces'"
-  (let ((calling-buf (make-symbol "calling-buf"))
-        (faces-var (make-symbol "faces")))
-    `(let ((,calling-buf (current-buffer))
-           (,faces-var ,faces))
-       (ert-with-test-buffer (:name ,name)
-         (termgrab--grab-macro-body
-          ,frame ,win ,buf ,calling-buf ,minibuffer (mapcar #'car ,faces-var))
-         (termgrab--postprocess-to-string
-          ,faces-var ,region ,point ,trim)))))
+  (let ((calling-buf (current-buffer)))
+    (ert-with-test-buffer (:name name)
+      (termgrab--internal-grab
+       frame win buf calling-buf minibuffer (mapcar #'car faces))
+      (when region
+        (termgrab-mark-region (if (consp region) (car region) region)
+                              (if (consp region) (nth 1 region))))
+      (when point
+        (insert point))
+      (when faces (termgrab-mark-text-with-faces faces))
+      (if trim
+          (string-trim-right
+           (buffer-substring-no-properties (point-min) (point-max)))
+        (buffer-substring-no-properties (point-min) (point-max))))))
 
 (cl-defmacro termgrab-with-grab-buffer ((&key (name "grab")
                                               frame win buf minibuffer
@@ -143,13 +148,13 @@ BODY:
   (let ((calling-buf (make-symbol "calling-buf")))
     `(let ((,calling-buf (current-buffer)))
        (ert-with-test-buffer (:name ,name)
-         (termgrab--grab-macro-body
+         (termgrab--internal-grab
           ,frame ,win ,buf ,calling-buf ,minibuffer ,faces)))))
 
-(defun termgrab--grab-macro-body (frame win buf calling-buf minibuffer grab-faces)
+(defun termgrab--internal-grab (frame win buf calling-buf minibuffer grab-faces)
   "Internal macro implementation for grabbing into the current buffer.
 
-Do not call this function outside of macros in this file."
+Do not call this function outside of this file."
   (let ((cur (current-buffer)))
   (cond
    (buf (termgrab-grab-buffer-into buf cur grab-faces))
@@ -157,21 +162,6 @@ Do not call this function outside of macros in this file."
    (minibuffer (termgrab-grab-window-into (termgrab-minibuffer-window) cur grab-faces))
    (frame (termgrab-grab-frame-into cur grab-faces))
    (t (termgrab-grab-buffer-into calling-buf cur grab-faces)))))
-
-(defun termgrab--postprocess-to-string (faces region point trim)
-  "Internal macro implementation for postprocessing grabbed data.
-
-Do not call this function outside of macros in this file."
-  (when region
-    (termgrab-mark-region (if (consp region) (car region) region)
-                          (if (consp region) (nth 1 region))))
-  (when point
-    (insert point))
-  (when faces (termgrab-mark-text-with-faces faces))
-  (if trim
-      (string-trim-right
-       (buffer-substring-no-properties (point-min) (point-max)))
-    (buffer-substring-no-properties (point-min) (point-max))))
 
 (provide 'termgrab-ert)
 
