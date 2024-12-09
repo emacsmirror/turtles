@@ -20,6 +20,7 @@
 (require 'ert-x)
 
 (require 'termgrab)
+(require 'termgrab-ert)
 
 (defun termgrab-test-init-buffer ()
   (setq-local truncate-lines t)
@@ -799,5 +800,46 @@
 
    (should (equal "Time is a drug. >>Too much of it kills< you."
                   (buffer-string)))))
+
+
+(ert-deftest termgrab-test-grab-buffer-change-height ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (termgrab-test-init-buffer)
+    (dotimes (i 100)
+      (insert (format "line %d\n" i)))
+    (goto-char (point-min))
+
+    (should (equal '(80 . 20) termgrab-default-terminal-size))
+    (should (equal '(80 . 20) termgrab-terminal-size))
+    (termgrab-with-grab-buffer ()
+      (should (equal 18 (count-lines))))
+
+    (termgrab-resize 80 40)
+    (termgrab-with-grab-buffer ()
+      (should (equal 38 (count-lines))))
+
+    (should (equal '(80 . 40) termgrab-terminal-size))))
+
+(ert-deftest termgrab-test-grab-buffer-change-width ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (termgrab-test-init-buffer)
+    (dotimes (i 100)
+      (insert (format "line %d" i))
+      (insert (make-string 100 ?-))
+      (insert "\n"))
+    (goto-char (point-min))
+
+    (should (equal '(80 . 20) termgrab-default-terminal-size))
+    (should (equal '(80 . 20) termgrab-terminal-size))
+    (termgrab-with-grab-buffer ()
+      (should (equal 80 (- (pos-eol) (pos-bol)))))
+
+    (termgrab-resize 40 20)
+    (termgrab-with-grab-buffer ()
+      (should (equal 40 (- (pos-eol) (pos-bol)))))
+
+    (should (equal '(40 . 20) termgrab-terminal-size))))
 
 ;;; termgrab-test.el ends here

@@ -47,6 +47,17 @@
   :type 'string
   :group 'termgrab)
 
+(defcustom termgrab-default-terminal-size '(80 . 20)
+  "Default terminal size.
+
+This is the terminal size setup by `termgrab-start-server'. Tests
+can modify it when necessary using `termgrab-resize'."
+  :type '(cons number number)
+  :group 'termgrab)
+
+(defvar termgrab-terminal-size '(80 . 20)
+  "Current terminal size.")
+
 (defvar termgrab-tmux-proc nil
   "The tmux server started by `termgrab-start-server'.")
 
@@ -110,9 +121,12 @@ PROC defaults to `termgrab-tmux-proc'."
   "Start the tmux server required by termgrab, and optionally the Emacs server.
 
 After this function has run `termgrab-frame' is set to the frame
-that's running under tmux. If the server is already running, this
-function resets some of its attribute, in case they've been
-changed by previous tests.
+that's running under tmux.
+
+If the server is already running, this function resets it to a
+terminal of the size specified by
+`termgrab-default-terminal-size' showing a single buffer, the
+scratch buffer.
 
 It's a good idea to call this function before each test, to make
 sure the server is available and in a reasonable state."
@@ -157,7 +171,9 @@ sure the server is available and in a reasonable state."
                   (apply
                    #'termgrab--tmux
                    proc nil
-                   "new-session" "-d" "-s" "grab" "-x" "80" "-y" "20"
+                   "new-session" "-d" "-s" "grab"
+                   "-x" (number-to-string (car termgrab-default-terminal-size))
+                   "-y" (number-to-string (cdr termgrab-default-terminal-size))
                    termgrab-emacsclient-exe "-nw" "-c"
                    (if server-use-tcp
                        `("-f" ,(expand-file-name server-name server-auth-dir))
@@ -180,8 +196,13 @@ sure the server is available and in a reasonable state."
         (when (and proc (termgrab-live-p proc))
           (kill-process proc)))))
 
-  ;; Always start with a single window
-  (delete-other-windows (car (window-list termgrab-frame))))
+  ;; Always start tests with the default terminal size and a single
+  ;; window showing the scratch buffer
+  (unless (equal termgrab-terminal-size termgrab-default-terminal-size)
+    (termgrab-resize (car termgrab-default-terminal-size)
+                     (cdr termgrab-default-terminal-size)))
+  (delete-other-windows (car (window-list termgrab-frame)))
+  (set-window-buffer (termgrab-root-window) (get-scratch-buffer-create)))
 
 (defun termgrab-stop-server ()
   "Stop the tmux server, does nothing if the server is not running.
@@ -208,6 +229,21 @@ This is done automatically just before Emacs shuts down."
   (when (and termgrab--tmux-socket (file-exists-p termgrab--tmux-socket))
     (delete-file termgrab--tmux-socket))
   (setq termgrab--tmux-socket nil))
+
+(defun termgrab-resize (width height)
+  "Set the frame size to WIDTH x HEIGHT.
+
+The current frame size is available in `termgrab-terminal-size'.
+
+The default is `termgrab-default-terminal-size'.
+`termgrab-start-server' makes sure to resets the terminal size to
+the default if necessary."
+  (setq termgrab-terminal-size (cons width height))
+  (termgrab--tmux
+   termgrab-tmux-proc nil
+   "resize-pane" "-t" "grab:0"
+   "-x" (number-to-string width)
+   "-y" (number-to-string height)))
 
 (defun termgrab-setup-buffer (&optional buf)
   "Setup the termgrab frame to display BUF in its root window.
