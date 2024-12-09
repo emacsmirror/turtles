@@ -22,13 +22,13 @@
 (require 'termgrab)
 (require 'termgrab-ert)
 
-(ert-deftest termgrab-ert-test-termgrab-to-string-noarg ()
+(ert-deftest termgrab-ert-test-to-string-noarg ()
   (termgrab-start-server)
   (ert-with-test-buffer ()
     (insert "hello, world")
     (should (equal "hello, world" (termgrab-to-string)))))
 
-(ert-deftest termgrab-ert-test-termgrab-to-string-buf ()
+(ert-deftest termgrab-ert-test-to-string-buf ()
   (termgrab-start-server)
   (let (test-buffer)
     (ert-with-test-buffer ()
@@ -37,7 +37,7 @@
       (with-temp-buffer
         (should (equal "hello, world" (termgrab-to-string :buf test-buffer)))))))
 
-(ert-deftest termgrab-ert-test-termgrab-to-string-win ()
+(ert-deftest termgrab-ert-test-to-string-win ()
   (termgrab-start-server)
   (let (buf1 buf2 win1 win2)
     (ert-with-test-buffer (:name "buf1")
@@ -56,7 +56,7 @@
       (should (equal "hello, world" (termgrab-to-string :win win1)))
       (should (equal "foobar" (termgrab-to-string :win win2))))))))
 
-(ert-deftest termgrab-ert-test-termgrab-to-string-faces ()
+(ert-deftest termgrab-ert-test-to-string-faces ()
   (termgrab-start-server)
   (ert-with-test-buffer ()
     (insert (propertize "hello" 'face 'error))
@@ -66,7 +66,7 @@
                    (termgrab-to-string :faces '((error "[]")
                                                 (success "{" "}")))))))
 
-(ert-deftest termgrab-ert-test-termgrab-to-string-region ()
+(ert-deftest termgrab-ert-test-to-string-region ()
   (termgrab-start-server)
   (ert-with-test-buffer ()
     (insert "baa, baa, black sheep, have you any wool?")
@@ -81,7 +81,7 @@
       "baa, [baa, black sheep], have you any wool?"
       (termgrab-to-string :region "[]")))))
 
-(ert-deftest termgrab-ert-test-termgrab-to-string-point ()
+(ert-deftest termgrab-ert-test-to-string-point ()
   (termgrab-start-server)
   (ert-with-test-buffer ()
     (insert "baa, baa, black sheep, have you any wool?")
@@ -93,7 +93,7 @@
       "baa, baa, black>< sheep, have you any wool?"
       (termgrab-to-string :point "><")))))
 
-(ert-deftest termgrab-ert-test-termgrab-to-string-point-and-region ()
+(ert-deftest termgrab-ert-test-to-string-point-and-region ()
   (termgrab-start-server)
   (ert-with-test-buffer ()
     (insert "baa, baa, black sheep, have you any wool?")
@@ -107,3 +107,59 @@
      (equal
       "baa, [baa, black sheep><], have you any wool?"
       (termgrab-to-string :point "><" :region "[]")))))
+
+(ert-deftest termgrab-ert-test-with-grab-buffer-noarg ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (insert "hello, world")
+    (termgrab-with-grab-buffer ()
+      (should (equal "hello, world"
+                     (string-trim (buffer-substring)))))))
+
+(ert-deftest termgrab-ert-test-with-grab-buffer-buf ()
+  (termgrab-start-server)
+  (let (test-buffer)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (insert "hello, world")
+      (with-temp-buffer
+        (termgrab-with-grab-buffer ()
+          (should (equal "hello, world"
+                         (string-trim (buffer-substring)))))))))
+
+
+(ert-deftest termgrab-ert-test-with-grab-buffer-win ()
+  (termgrab-start-server)
+  (let (buf1 buf2 win1 win2)
+    (ert-with-test-buffer (:name "buf1")
+      (setq buf1 (current-buffer))
+      (insert "hello, world")
+
+      (ert-with-test-buffer (:name "buf2")
+        (setq buf2 (current-buffer))
+        (insert "foobar")
+
+        (split-window-below nil (termgrab-root-window))
+        (pcase-let ((`(,win1 ,win2) (window-list termgrab-frame)))
+          (set-window-buffer win1 buf1)
+          (set-window-buffer win2 buf2)
+
+          (termgrab-with-grab-buffer (:win win1)
+            (should (equal "hello, world"
+                           (string-trim (buffer-substring)))))
+          (termgrab-with-grab-buffer (:win win2)
+            (should (equal "foobar"
+                           (string-trim (buffer-substring))))))))))
+
+(ert-deftest termgrab-ert-test-with-grab-buffer-faces ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (insert (propertize "hello" 'face 'error))
+    (insert ", ")
+    (insert (propertize "world" 'face 'success))
+    (termgrab-with-grab-buffer (:faces '(success error))
+      (goto (point-min))
+      (search-forward "hello")
+      (should (equal 'success (get-text-property (1- (point)) 'face)))
+      (search-forward "world")
+      (should (equal 'error (get-text-property (1- (point)) 'face))))))

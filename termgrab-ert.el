@@ -83,36 +83,95 @@ The following keyword arguments post-process what was grabbed:
     of two strings, the opening and closing string, which then
     don't need to be of the same size. See also
     `termgrab-mark-text-with-faces'"
+  (let ((calling-buf (make-symbol "calling-buf"))
+        (faces-var (make-symbol "faces")))
+    `(let ((,calling-buf (current-buffer))
+           (,faces-var ,faces))
+       (ert-with-test-buffer (:name ,name)
+         (termgrab--grab-macro-body
+          ,frame ,win ,buf ,calling-buf ,minibuffer (mapcar #'car ,faces-var))
+         (termgrab--postprocess-to-string
+          ,faces-var ,region ,point ,trim)))))
+
+(cl-defmacro termgrab-with-grab-buffer ((&key (name "grab")
+                                              frame win buf minibuffer
+                                              faces)
+                                        &rest body)
+  "Grab a section of the terminal and store it into a test buffer.
+
+With no arguments, this function renders the current buffer in
+the termgrab frame into an ERT test buffer and executes BODY.
+
+The ERT test buffer with the name \"grab\". When running
+interactively, ERT keeps such buffers when tests fail so they can
+be checked out. Specify the keyword argument NAME to modify the
+name of the test buffer.
+
+The garbbed buffer contains a textual representation of the frame
+or window captured on the termgrab frame. When grabbing a buffer
+or window, the point and region will be grabbed as well.
+Additionally, unless FACES is specified, captured colors are
+available as overlay colors, within the limits of the termgrab
+terminal, usually limited to 256 colors.
+
+More keyword arguments can be specified in parentheses, before
+BODY:
+
+  - The key argument BUF specifies a buffer to capture. It
+    defaults to the current buffer. The buffer is installed into
+    the single window of `termgrab-frame', rendered, then
+    grabbed.
+
+  - The key argument WIN specifies a window to grab. The window
+    must be part of `termgrab-frame'.
+
+  - Set the key argument MINIBUFFER to t to capture the content
+    of the minibuffer window of `termgrab-frame'.
+
+  - Set the key argument FRAME to t to capture the whole frame.
+
+  - The key argument FACES asks for a specific set of faces to
+    be detected and grabbed. They'll be available as face 
+    symbols set to the properties \\='face.
+
+    If necessary, faces can be made easier to test with text
+    comparison with `termgrab-mark-text-with-faces'.
+
+    Note that colors won't be available in the grabbed buffer
+    content when FACES is specified."
   (declare (indent 1))
   (let ((calling-buf (make-symbol "calling-buf")))
     `(let ((,calling-buf (current-buffer)))
        (ert-with-test-buffer (:name ,name)
          (termgrab--grab-macro-body
-          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces ,region ,point)
-         ,(if trim
-              `(string-trim-right
-                (buffer-substring-no-properties (point-min) (point-max)))
-            `(buffer-substring-no-properties (point-min) (point-max)))))))
+          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces)))))
 
-(defun termgrab--grab-macro-body (frame win buf calling-buf minibuffer faces region point)
-  "Internal macro implementation.
+(defun termgrab--grab-macro-body (frame win buf calling-buf minibuffer grab-faces)
+  "Internal macro implementation for grabbing into the current buffer.
 
 Do not call this function outside of macros in this file."
-  (let ((cur (current-buffer))
-        (grab-faces (mapcar #'car faces)))
+  (let ((cur (current-buffer)))
   (cond
    (buf (termgrab-grab-buffer-into buf cur grab-faces))
    (win (termgrab-grab-window-into win cur grab-faces))
    (minibuffer (termgrab-grab-window-into (termgrab-minibuffer-window) cur grab-faces))
    (frame (termgrab-grab-frame-into cur grab-faces))
-   (t (termgrab-grab-buffer-into calling-buf cur grab-faces)))
+   (t (termgrab-grab-buffer-into calling-buf cur grab-faces)))))
 
+(defun termgrab--postprocess-to-string (faces region point trim)
+  "Internal macro implementation for postprocessing grabbed data.
+
+Do not call this function outside of macros in this file."
   (when region
     (termgrab-mark-region (if (consp region) (car region) region)
                           (if (consp region) (nth 1 region))))
   (when point
     (insert point))
-  (when faces (termgrab-mark-text-with-faces faces))))
+  (when faces (termgrab-mark-text-with-faces faces))
+  (if trim
+      (string-trim-right
+       (buffer-substring-no-properties (point-min) (point-max)))
+    (buffer-substring-no-properties (point-min) (point-max))))
 
 (provide 'termgrab-ert)
 
