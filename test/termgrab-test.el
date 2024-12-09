@@ -734,5 +734,70 @@
 
            (buffer-string))))))))
 
+(ert-deftest termgrab-test-mark-region ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "Too")
+   (push-mark (match-beginning 0))
+   (search-forward "kills")
+   (activate-mark)
+
+   (termgrab-mark-region "[]")
+
+   (should (equal "Time is a drug. [Too much of it kills] you."
+                  (buffer-string)))))
+
+(ert-deftest termgrab-test-mark-region-swapped ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "kills")
+   (push-mark (point) 'nomsg)
+   (goto-char (point-min))
+   (search-forward "Too")
+   (goto-char (match-beginning 0))
+   (activate-mark)
+
+   (termgrab-mark-region "[]")
+
+   (should (equal "Time is a drug. [Too much of it kills] you."
+                  (buffer-string)))))
+
+(ert-deftest termgrab-test-mark-region-twochars ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "kills")
+   (push-mark (point) 'nomsg)
+   (goto-char (point-min))
+   (search-forward "Too")
+   (goto-char (match-beginning 0))
+   (activate-mark)
+
+   (termgrab-mark-region "/**/")
+
+   (should (equal "Time is a drug. /*Too much of it kills*/ you."
+                  (buffer-string)))))
+
+(ert-deftest termgrab-test-mark-region-opening-and-closing ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "kills")
+   (push-mark (point) 'nomsg)
+   (goto-char (point-min))
+   (search-forward "Too")
+   (goto-char (match-beginning 0))
+   (activate-mark)
+
+   (termgrab-mark-region ">>" "<")
+
+   (should (equal "Time is a drug. >>Too much of it kills< you."
+                  (buffer-string)))))
 
 ;;; termgrab-test.el ends here

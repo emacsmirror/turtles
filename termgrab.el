@@ -678,6 +678,31 @@ strings"
       (cons (substring markers 0 mid) (substring markers mid))))
    (t (error "Unsupported markers: %s" markers))))
 
+(defun termgrab-mark-region (marker &optional closing-marker)
+  "Surround the active region with markers.
+
+This function does nothing if the region is inactive.
+
+If only MARKER is specified, it must be a string composed of two
+strings of the same size that will be used as opening and closing
+marker, such as \"[]\" or \"/**/\".
+
+If both MARKER and CLOSING-MARKER are specified, MARKER is used
+as opening marker and CLOSING-MARKER as closing."
+  (when (region-active-p)
+    (pcase-let ((`(,opening . ,closing)
+                 (termgrab--split-markers
+                  (if closing-marker
+                      (list marker closing-marker)
+                    marker))))
+      (let ((beg (min (point-marker) (mark-marker)))
+            (end (max (point-marker) (mark-marker))))
+        (save-excursion
+          (goto-char end)
+          (insert closing)
+          (goto-char beg)
+          (insert opening))))))
+
 (provide 'termgrab)
 
 ;;; termgrab.el ends here
