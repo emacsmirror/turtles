@@ -39,7 +39,7 @@
 
 (ert-deftest termgrab-ert-test-to-string-win ()
   (termgrab-start-server)
-  (let (buf1 buf2 win1 win2)
+  (let (buf1 buf2)
     (ert-with-test-buffer (:name "buf1")
       (setq buf1 (current-buffer))
       (insert "hello, world")
@@ -114,7 +114,15 @@
     (insert "hello, world")
     (termgrab-with-grab-buffer ()
       (should (equal "hello, world"
-                     (string-trim (buffer-substring)))))))
+                     (string-trim (buffer-string)))))))
+
+(ert-deftest termgrab-ert-test-with-grab-buffer-result ()
+  (termgrab-start-server)
+  (ert-with-test-buffer ()
+    (insert "hello, world")
+    (should (equal "hello, world"
+                   (termgrab-with-grab-buffer ()
+                     (string-trim (buffer-string)))))))
 
 (ert-deftest termgrab-ert-test-with-grab-buffer-buf ()
   (termgrab-start-server)
@@ -123,14 +131,14 @@
       (setq test-buffer (current-buffer))
       (insert "hello, world")
       (with-temp-buffer
-        (termgrab-with-grab-buffer ()
+        (termgrab-with-grab-buffer (:buf test-buffer)
           (should (equal "hello, world"
-                         (string-trim (buffer-substring)))))))))
+                         (string-trim (buffer-string)))))))))
 
 
 (ert-deftest termgrab-ert-test-with-grab-buffer-win ()
   (termgrab-start-server)
-  (let (buf1 buf2 win1 win2)
+  (let (buf1 buf2)
     (ert-with-test-buffer (:name "buf1")
       (setq buf1 (current-buffer))
       (insert "hello, world")
@@ -146,20 +154,20 @@
 
           (termgrab-with-grab-buffer (:win win1)
             (should (equal "hello, world"
-                           (string-trim (buffer-substring)))))
+                           (string-trim (buffer-string)))))
           (termgrab-with-grab-buffer (:win win2)
             (should (equal "foobar"
-                           (string-trim (buffer-substring))))))))))
+                           (string-trim (buffer-string))))))))))
 
 (ert-deftest termgrab-ert-test-with-grab-buffer-faces ()
   (termgrab-start-server)
   (ert-with-test-buffer ()
-    (insert (propertize "hello" 'face 'error))
+    (insert (propertize "error" 'face 'error))
     (insert ", ")
-    (insert (propertize "world" 'face 'success))
+    (insert (propertize "success" 'face 'success))
     (termgrab-with-grab-buffer (:faces '(success error))
-      (goto (point-min))
-      (search-forward "hello")
-      (should (equal 'success (get-text-property (1- (point)) 'face)))
-      (search-forward "world")
-      (should (equal 'error (get-text-property (1- (point)) 'face))))))
+      (goto-char (point-min))
+      (search-forward "error")
+      (should (equal 'error (get-text-property (1- (point)) 'face)))
+      (search-forward "success")
+      (should (equal 'success (get-text-property (1- (point)) 'face))))))

@@ -26,13 +26,16 @@
   (setq-local truncate-lines t)
   (setq-local left-margin-width 0))
 
-(ert-deftest termgrab-test-setup ()
+(ert-deftest termgrab-test-setup-smoke ()
   (termgrab-start-server)
   (should termgrab-tmux-proc)
+  (should (process-live-p termgrab-tmux-proc))
+  (should termgrab-frame)
+  (should (frame-live-p termgrab-frame))
   (should (string-prefix-p
            "grab: 1 windows"
            (with-temp-buffer
-             (termgrab--tmux termgrab-tmux-proc (current-buffer) "list-sessions")
+             (termgrab--tmux (current-buffer) "list-sessions")
              (buffer-string))))
 
   (let ((grabbed (termgrab-grab-frame-to-string)))
@@ -164,7 +167,7 @@
       (ert-with-test-buffer (:name "buf2")
         (termgrab-test-init-buffer)
         (setq buf2 (current-buffer))
-        (dotimes (i 40)
+        (dotimes (_ 40)
           (insert (make-string 80 ?x)))
         (goto-char (point-min))
 
@@ -202,7 +205,7 @@
 
         (setq buf2 (current-buffer))
         (insert "begin")
-        (dotimes (i 40)
+        (dotimes (_ 40)
           (insert "\n"))
         (insert "end")
         (goto-char (point-min))
@@ -801,45 +804,22 @@
    (should (equal "Time is a drug. >>Too much of it kills< you."
                   (buffer-string)))))
 
-
 (ert-deftest termgrab-test-grab-buffer-change-height ()
-  (termgrab-start-server)
-  (ert-with-test-buffer ()
-    (termgrab-test-init-buffer)
-    (dotimes (i 100)
-      (insert (format "line %d\n" i)))
-    (goto-char (point-min))
+  (termgrab-start-server 80 40)
+  (should (equal '(80 . 40) (cons (frame-width termgrab-frame)
+                                  (frame-height termgrab-frame))))
 
-    (should (equal '(80 . 20) termgrab-default-terminal-size))
-    (should (equal '(80 . 20) termgrab-terminal-size))
-    (termgrab-with-grab-buffer ()
-      (should (equal 18 (count-lines))))
-
-    (termgrab-resize 80 40)
-    (termgrab-with-grab-buffer ()
-      (should (equal 38 (count-lines))))
-
-    (should (equal '(80 . 40) termgrab-terminal-size))))
+  (termgrab-start-server 80 20)
+  (should (equal '(80 . 20) (cons (frame-width termgrab-frame)
+                                  (frame-height termgrab-frame)))))
 
 (ert-deftest termgrab-test-grab-buffer-change-width ()
-  (termgrab-start-server)
-  (ert-with-test-buffer ()
-    (termgrab-test-init-buffer)
-    (dotimes (i 100)
-      (insert (format "line %d" i))
-      (insert (make-string 100 ?-))
-      (insert "\n"))
-    (goto-char (point-min))
+  (termgrab-start-server 120 20)
+  (should (equal '(120 . 20) (cons (frame-width termgrab-frame)
+                                   (frame-height termgrab-frame))))
 
-    (should (equal '(80 . 20) termgrab-default-terminal-size))
-    (should (equal '(80 . 20) termgrab-terminal-size))
-    (termgrab-with-grab-buffer ()
-      (should (equal 80 (- (pos-eol) (pos-bol)))))
-
-    (termgrab-resize 40 20)
-    (termgrab-with-grab-buffer ()
-      (should (equal 40 (- (pos-eol) (pos-bol)))))
-
-    (should (equal '(40 . 20) termgrab-terminal-size))))
+  (termgrab-start-server 100 20)
+  (should (equal '(100 . 20) (cons (frame-width termgrab-frame)
+                                   (frame-height termgrab-frame)))))
 
 ;;; termgrab-test.el ends here

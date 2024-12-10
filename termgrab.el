@@ -55,9 +55,6 @@ can modify it when necessary using `termgrab-resize'."
   :type '(cons number number)
   :group 'termgrab)
 
-(defvar termgrab-terminal-size '(80 . 20)
-  "Current terminal size.")
-
 (defvar termgrab-tmux-proc nil
   "The tmux server started by `termgrab-start-server'.")
 
@@ -92,20 +89,18 @@ This is local variable set in a grab buffer filled by
 This is local variable set in a grab buffer filled by
 `termgrab-grab-window-into' or `termgrab-grab-buffer-into'.")
 
-(defun termgrab-live-p (&optional proc)
-  "Return non-nil if the tmux process started by termgrab is live.
+(defun termgrab-live-p ()
+  "Return non-nil if the tmux process started by termgrab is live."
+  (and termgrab-tmux-proc
+       (process-live-p termgrab-tmux-proc)
+       termgrab-frame
+       (frame-live-p termgrab-frame)))
 
-PROC defaults to `termgrab-tmux-proc'."
-  (let ((proc (or proc termgrab-tmux-proc)))
-    (and proc (process-live-p proc))))
-
-(defun termgrab-require-server (&optional proc)
-  "Fail unless the tmux process started by termgrab is live.
-
-PROC defaults to `termgrab-tmux-proc'."
-  (let ((proc (or proc termgrab-tmux-proc)))
-    (unless (termgrab-live-p proc)
-      (error "Missing termgrab tmux process proc:%s" (when proc (process-status proc))))))
+(defun termgrab-fail-unless-live ()
+  "Fail unless the tmux process started by termgrab is live."
+  (unless (termgrab-live-p)
+    (error "Termgrab not available. Call termgrab-start-server. tmux:%s frame:%s"
+           termgrab-tmux-proc termgrab-frame)))
 
 (defun termgrab--tmux-cmd ()
   "Command and arguments used to start the tmux server and clients."
@@ -117,7 +112,7 @@ PROC defaults to `termgrab-tmux-proc'."
   (termgrab-stop-server)
   (termgrab-start-server))
 
-(defun termgrab-start-server ()
+(defun termgrab-start-server (&optional width height)
   "Start the tmux server required by termgrab, and optionally the Emacs server.
 
 After this function has run `termgrab-frame' is set to the frame
@@ -131,6 +126,7 @@ scratch buffer.
 It's a good idea to call this function before each test, to make
 sure the server is available and in a reasonable state."
   (interactive)
+
   ;; If we need to start a server to communicate with this Emacs
   ;; process, make sure the server name is unique for tests, so as not
   ;; to interfere with any running Emacs server.
@@ -140,67 +136,70 @@ sure the server is available and in a reasonable state."
     (setq server-name (format "termgrab-%s" (emacs-pid)))
     (server-start nil 'inhibit-prompt))
 
-  (unless (termgrab-live-p)
+  (unless (and termgrab-tmux-proc (process-live-p termgrab-tmux-proc))
+    ;; Keep the tmux socket into the same directory as the server
+    ;; socket, so they have the same access limits.
+    (server-ensure-safe-dir server-socket-dir)
+    (setq termgrab--tmux-socket
+          (expand-file-name (format "tmux-termgrab-%s" (emacs-pid))
+                            server-socket-dir))
+    (when (file-exists-p termgrab--tmux-socket)
+      (delete-file termgrab--tmux-socket))
+
+    (add-hook 'kill-emacs-hook #'termgrab-stop-server)
+    (setq termgrab-tmux-proc
+          (make-process :name "*termgrab-server*"
+                        :buffer termgrab--server-output-buffer-name
+                        :connection-type 'pty
+                        :command (append (termgrab--tmux-cmd) '("-D"))))
+    (set-process-query-on-exit-flag termgrab-tmux-proc nil)
+    (termgrab--wait-for 5 "server failed to start"
+                        (lambda () (file-exists-p termgrab--tmux-socket))))
+
+  (setq width (or width (car termgrab-default-terminal-size)))
+  (setq height (or height (cdr termgrab-default-terminal-size)))
+  (when (and termgrab-frame
+             (frame-live-p termgrab-frame)
+             (or (/= width (frame-width termgrab-frame))
+                 (/= height (frame-height termgrab-frame))))
+    (setq termgrab-frame nil)
+
+    ;; While tmux can resize panes, this take an unpredictably long
+    ;; time. Better start a new session.
+    (termgrab--tmux nil "kill-session" "-t" "grab"))
+
+  (unless (and termgrab-frame (frame-live-p termgrab-frame))
     (let ((old-frame (selected-frame))
-          proc new-frame new-frame-func)
-
-      ;; Keep the tmux socket into the same directory as the server
-      ;; socket, so they have the same access limits.
-      (server-ensure-safe-dir server-socket-dir)
-      (setq termgrab--tmux-socket
-            (expand-file-name (format "tmux-termgrab-%s" (emacs-pid))
-                              server-socket-dir))
-      (when (file-exists-p termgrab--tmux-socket)
-        (delete-file termgrab--tmux-socket))
-
-      (add-hook 'kill-emacs-hook #'termgrab-stop-server)
+          (new-frame-func (lambda ()
+                            (setq termgrab-frame (selected-frame)))))
+      (setq termgrab-frame nil)
+      (add-hook 'server-after-make-frame-hook new-frame-func)
       (unwind-protect
           (progn
-            (setq proc (make-process :name "*termgrab-server*"
-                                     :buffer termgrab--server-output-buffer-name
-                                     :connection-type 'pty
-                                     :command (append (termgrab--tmux-cmd) '("-D"))))
-            (set-process-query-on-exit-flag proc nil)
-            (termgrab--wait-for 5 "server failed to start"
-             (lambda () (file-exists-p termgrab--tmux-socket)))
-            (setq new-frame-func (lambda ()
-                                   (setq new-frame (selected-frame))))
-            (add-hook 'server-after-make-frame-hook new-frame-func)
-            (unwind-protect
-                (progn
-                  (apply
-                   #'termgrab--tmux
-                   proc nil
-                   "new-session" "-d" "-s" "grab"
-                   "-x" (number-to-string (car termgrab-default-terminal-size))
-                   "-y" (number-to-string (cdr termgrab-default-terminal-size))
-                   termgrab-emacsclient-exe "-nw" "-c"
-                   (if server-use-tcp
-                       `("-f" ,(expand-file-name server-name server-auth-dir))
-                     `("-s" ,(expand-file-name server-name server-socket-dir))))
-                  (termgrab--wait-for 5 "emacsclient failed to connect" (lambda () new-frame)))
-              (remove-hook 'server-after-make-frame-hook new-frame-func)
+            (apply
+             #'termgrab--tmux
+             nil
+             "new-session" "-d" "-s" "grab"
+             "-x" (number-to-string width)
+             "-y" (number-to-string height)
+             termgrab-emacsclient-exe "-nw" "-c"
+             (if server-use-tcp
+                 `("-f" ,(expand-file-name server-name server-auth-dir))
+               `("-s" ,(expand-file-name server-name server-socket-dir))))
+            (termgrab--wait-for 5 "emacsclient failed to connect"
+                                (lambda () termgrab-frame)))
+        (remove-hook 'server-after-make-frame-hook new-frame-func))
 
-              ;; The new frame shouldn't be selected when running
-              ;; interactively. It'll be selected later by the tests.
-              (select-frame old-frame))
-            (setq termgrab-tmux-proc proc)
-            (setq termgrab-frame new-frame)
+      ;; Recover some space
+      (with-selected-frame termgrab-frame
+        (toggle-menu-bar-mode-from-frame -1))
 
-            ;; Recover some space
-            (with-selected-frame termgrab-frame
-              (toggle-menu-bar-mode-from-frame -1))
-
-            ;; Success. Don't kill process in the unwind section
-            (setq proc nil))
-        (when (and proc (termgrab-live-p proc))
-          (kill-process proc)))))
+      ;; The new frame shouldn't be selected when running
+      ;; interactively. It'll be selected later by the tests.
+      (select-frame old-frame)))
 
   ;; Always start tests with the default terminal size and a single
   ;; window showing the scratch buffer
-  (unless (equal termgrab-terminal-size termgrab-default-terminal-size)
-    (termgrab-resize (car termgrab-default-terminal-size)
-                     (cdr termgrab-default-terminal-size)))
   (delete-other-windows (car (window-list termgrab-frame)))
   (set-window-buffer (termgrab-root-window) (get-scratch-buffer-create)))
 
@@ -230,26 +229,11 @@ This is done automatically just before Emacs shuts down."
     (delete-file termgrab--tmux-socket))
   (setq termgrab--tmux-socket nil))
 
-(defun termgrab-resize (width height)
-  "Set the frame size to WIDTH x HEIGHT.
-
-The current frame size is available in `termgrab-terminal-size'.
-
-The default is `termgrab-default-terminal-size'.
-`termgrab-start-server' makes sure to resets the terminal size to
-the default if necessary."
-  (setq termgrab-terminal-size (cons width height))
-  (termgrab--tmux
-   termgrab-tmux-proc nil
-   "resize-pane" "-t" "grab:0"
-   "-x" (number-to-string width)
-   "-y" (number-to-string height)))
-
 (defun termgrab-setup-buffer (&optional buf)
   "Setup the termgrab frame to display BUF in its root window.
 
 If BUF is nil, the current buffer is used instead."
-  (termgrab-require-server)
+  (termgrab-fail-unless-live)
 
   (delete-other-windows (car (window-list termgrab-frame)))
   (let ((win (frame-root-window termgrab-frame)))
@@ -427,6 +411,7 @@ If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
+  (termgrab-fail-unless-live)
   (pcase-let ((`(,grab-face-alist . ,cookies)
                (termgrab--setup-grab-faces grab-faces)))
     (unwind-protect
@@ -438,8 +423,7 @@ so any other face not in GRAB-FACE are absent."
 
           (with-current-buffer buffer
             (delete-region (point-min) (point-max))
-            (termgrab--tmux termgrab-tmux-proc buffer
-                            "capture-pane" "-t" "grab:0" "-e" "-p")
+            (termgrab--tmux buffer "capture-pane" "-t" "grab:0" "-e" "-p")
 
             (if grab-faces
                 ;; Set 'face properties for the faces in grab-faces,
@@ -459,12 +443,11 @@ so any other face not in GRAB-FACE are absent."
                 (ansi-color-apply-on-region (point-min) (point-max))))))
       (termgrab--teardown-grab-faces cookies))))
 
-(defun termgrab--tmux (proc buffer &rest commands)
+(defun termgrab--tmux (buffer &rest commands)
   "Execute the tmux client commands COMMANDS.
 
 Communicates with PROC, usually `termgrab-tmux-proc' and stores
 stdout into BUFFER."
-  (termgrab-require-server proc)
   (with-temp-buffer
     (let ((tmux-cmd (append (termgrab--tmux-cmd) '("-N" "--") commands))
           proc)
