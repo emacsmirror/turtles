@@ -149,7 +149,47 @@ BODY:
     `(let ((,calling-buf (current-buffer)))
        (ert-with-test-buffer (:name ,name)
          (termgrab--internal-grab
-          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces)))))
+          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces)
+
+         ,@body))))
+
+(defmacro termgrab-read-from-minibuffer (read &rest body)
+  "Run BODY while executing READ.
+
+READ is a form that reads from the minibuffer and return the
+result.
+
+BODY is executed while READ is waiting for minibuffer input with
+the minibuffer active. Input can be provided by calling
+`execute-kbd-macro'. BODY must eventually either signal an error
+or exit the minibuffer.
+
+This macro allows mixing `execute-kbd-macro' and commands
+manipulating minibuffer with grab commands such as
+`termgrab-to-string' and `termgrab-with-grab-buffer'. `should'
+can also be called directly on BODY.
+
+This is provided here as a replacement to `ert-simulate-keys', as
+the approach taken by `ert-simulate-keys' doesn't allow grabbing
+intermediate states. This is because Emacs won't redisplay as
+long as there's pending input.
+
+Return whatever READ eventually evaluates to."
+  (declare (indent 1))
+  (let ((mb-result-var (make-symbol "mb-result")))
+    `(progn
+       (run-with-timer
+        0 nil
+        (lambda ()
+          (setq ,mb-result-var (progn ,read))))
+       (run-with-timer
+        0 nil
+        (lambda ()
+          (progn ,@body)
+          (when (active-minibuffer-window)
+            (error "Minibuffer still active at end of body form"))))
+       (sleep-for 0.01)
+       ,mb-result-var)))
 
 (defun termgrab--internal-grab (frame win buf calling-buf minibuffer grab-faces)
   "Internal macro implementation for grabbing into the current buffer.

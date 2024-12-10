@@ -171,3 +171,19 @@
       (should (equal 'error (get-text-property (1- (point)) 'face)))
       (search-forward "success")
       (should (equal 'success (get-text-property (1- (point)) 'face))))))
+
+(ert-deftest termgrab-ert-read-from-minibuffer ()
+  (termgrab-start-server)
+
+  ;; This test fails in batch mode because read-from-minibuffer prints
+  ;; to stdout and reads from stdin unless in a macro, but in a macro
+  ;; read-from-minibuffer ends once there's no more input to process.
+  (should-not noninteractive)
+  (ert-with-buffer-selected ()
+    (should
+     (equal "hello"
+            (termgrab-read-from-minibuffer
+                (read-from-minibuffer "Prompt: ")
+              (execute-kbd-macro (kbd "hello"))
+              (should (equal "Prompt: hello" (termgrab-to-string)))
+              (execute-kbd-macro (kbd "RET")))))))
