@@ -29,22 +29,17 @@
           (progn
             (setq server (turtles-io-server
                           socket
-                          (lambda (proc msg)
-                            (turtles-io-send proc `(from-server . ,msg)))))
+                          `((ping . ,(lambda (conn id method params)
+                                       (turtles-io-send-result conn id "pong"))))))
             (should (turtles-io-server-p server))
             (should (process-live-p (turtles-io-server-proc server)))
             (should (equal socket (turtles-io-server-socket server)))
 
-            (setq client (turtles-io-connect
-                          socket
-                          (lambda (proc msg)
-                            (push msg collected-responses))))
+            (setq client (turtles-io-connect socket))
+            (should (turtles-io-conn-p client))
+            (should (process-live-p (turtles-io-conn-proc client)))
 
-            (should (process-live-p client))
-
-            (turtles-io-send client '(from-client . "hello"))
-            (turtles-io-wait-for 5 "Timed out waiting for a response" (lambda () collected-responses))
-            (should (equal '((from-server . (from-client . "hello"))) collected-responses)))
+            (should (equal "pong" (turtles-io-call-method-and-wait client 'ping))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
@@ -56,64 +51,29 @@
       (unwind-protect
           (progn
             (setq server (turtles-io-server
-                          socket
-                          #'ignore
+                          socket nil
                           (lambda (proc)
                             (push proc connected))))
-            (should (null (turtles-io-server-clients server)))
+            (should (null (turtles-io-server-connections server)))
 
-            (push (turtles-io-connect socket #'ignore) clients)
-            (turtles-io-wait-for 5 "Client #1 not connected" (lambda () connected))
+            (push (turtles-io-connect socket) clients)
+            (turtles-io-wait-for 5 "Client #1 not connected" (lambda () connected) 0.1)
 
             (should (equal 1 (length connected)))
-            (should (equal connected (turtles-io-server-clients server)))
+            (should (equal connected (turtles-io-server-connections server)))
 
-            (push (turtles-io-connect socket #'ignore) clients)
-            (turtles-io-wait-for 5 "Client #2 not connected" (lambda () (length> connected 1)))
+            (push (turtles-io-connect socket) clients)
+            (turtles-io-wait-for 5 "Client #2 not connected" (lambda () (length> connected 1)) 0.1)
 
             (should (equal 2 (length connected)))
-            (should (equal connected (turtles-io-server-clients server)))
+            (should (equal connected (turtles-io-server-connections server)))
 
-            (delete-process (nth 1 clients))
+            (delete-process (turtles-io-conn-proc (nth 1 clients)))
             (turtles-io-wait-for 5 "Client #1 not disconnected"
                                  (lambda ()
-                                   (length< (turtles-io-server-clients server) 2)))
+                                   (length< (turtles-io-server-connections server) 2)) 0.1)
 
-            (should (equal (list (nth 0 connected)) (turtles-io-server-clients server))))
-
-        (dolist (client clients)
-          (ignore-errors (when client (delete-process client))))
-        (ignore-errors (when server (delete-process server)))))))
-
-(ert-deftest turtles-io-test-send-to-all-clients ()
-  (ert-with-temp-directory dir
-    (let ((socket (expand-file-name "socket" dir))
-          received-messages handler server clients)
-      (unwind-protect
-          (progn
-            (setq server (turtles-io-server socket #'ignore))
-            (should (null (turtles-io-server-clients server)))
-
-            (turtles-io-send server "ignored") ;; there are no clients
-
-            (setq handler (lambda (proc msg)
-                            (push (cons proc msg) received-messages)))
-
-            (push (turtles-io-connect socket handler) clients)
-            (push (turtles-io-connect socket handler) clients)
-            (push (turtles-io-connect socket handler) clients)
-            (turtles-io-wait-for 5 "Clients not connected"
-                                 (lambda ()
-                                   (length= (turtles-io-server-clients server) 3)))
-
-            (turtles-io-send server "foo")
-            (turtles-io-wait-for 5 "Clients did not receive messages"
-                                 (lambda ()
-                                   (length= received-messages 3)))
-
-            (should (equal '("foo" "foo" "foo") (mapcar #'cdr received-messages)))
-            (dolist (client clients)
-              (should (memq client (mapcar #'car received-messages)))))
+            (should (equal (list (nth 0 connected)) (turtles-io-server-connections server))))
 
         (dolist (client clients)
           (ignore-errors (when client (delete-process client))))
@@ -124,7 +84,7 @@
     (let ((socket (expand-file-name "socket" dir)) server)
       (unwind-protect
           (progn
-            (setq server (turtles-io-server socket #'ignore))
+            (setq server (turtles-io-server socket))
             (should (file-exists-p socket))
             (delete-process (turtles-io-server-proc server))
             (turtles-io-wait-for 1 "Server did not delete socket"

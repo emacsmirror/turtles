@@ -18,9 +18,9 @@
 
 ;;; Commentary:
 ;;
-;; This package defines some basic socket-based communication
-;; mechanism between two Emacs instance based on printing and reading
-;; elisp objects.
+;; This package defines a socket-based communication mechanism between
+;; Emacs instances based on elisp objects. The protocol is freely
+;; adapted from JSON-RPC.
 ;;
 
 ;;; Code:
@@ -29,33 +29,58 @@
 (cl-defstruct (turtles-io-server
                (:constructor turtles-io--make-server)
                (:copier nil))
-  "A server created by `turtles-io-server'"
+  "A server created by `turtles-io-server'."
 
   (proc nil :documentation "The network process used by the server")
-  (clients nil :documentation "List of connected clients")
-  (on-new-client nil :documentation "Function called when a new client connects")
-  (socket nil :read-only t :documentation "Path to the unix socket file used by the server"))
+  (connections nil :documentation "List of connected clients")
+  (on-new-connection nil :documentation "Function called when a new client connects")
+  (socket nil :read-only t :documentation "Path to the unix socket file used by the server")
+  (method-alist nil :documentation "Alist of method symbols to method handlers.
+
+Method handlers take three arguments, the request id, the method
+symbol and parameters, which might be nil.
+
+This is passed to the connection objects when a new client
+connects."))
+
+(cl-defstruct (turtles-io-conn
+               (:constructor turtles-io--make-conn)
+               (:copier nil))
+  "A connection between two Emacs processes."
+  (proc nil :documentation "The network process for this connection")
+  (last-id 0 :documentation "ID of the last method called on this connection")
+  (method-alist nil :documentation "Alist of method symbols to method handlers.
+
+Method handlers take four arguments, the connection, the request
+id, the method symbol and parameters, which might be nil.")
+
+  (response-alist nil :documentation "Alist of request id to response handlers.
+
+Response handlers take three arguments: result and errors, only
+one of which is ever specified."))
 
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
 
-(defun turtles-io-server (socket handler &optional on-new-client)
+(defun turtles-io-server (socket &optional method-alist on-new-connection)
   "Create a new server.
 
 SOCKET is the path at which the server must create a Unix socket.
 This can be accessed later using `turtles-io-server-socket'.
 
-HANDLER is a function that'll receive messages from clients. It
-should takes arguments, a client process and an elisp object.
+METHOD-ALIST is an alist method handlers to pass to client
+connections. See `turtles-io-conn-method-alist' for details.
 
-ON-NEW-CLIENT, if non-nil, is a function that'll be called
+ON-NEW-CONNECTION, if non-nil, is a function that'll be called
 whenever a new client connect. It takes a single argument, the
-client process. This can be accessed and modified later using
-`turtles-io-server-on-new-client'.
+client `turtles-io-conn' instance. This can be accessed and
+modified later using `turtles-io-server-on-new-connection'.
 
 Return an instance of type `turtles-io-server'."
   (let* ((server (turtles-io--make-server
-                  :on-new-client on-new-client :socket socket))
+                  :on-new-connection on-new-connection
+                  :socket socket
+                  :method-alist method-alist))
          (proc (make-network-process
                  :name " *turtles-io-server*"
                  :family 'local
@@ -65,65 +90,110 @@ Return an instance of type `turtles-io-server'."
                  :stop t
                  :sentinel (lambda (proc _msg)
                              (turtles-io--server-sentinel server proc))
-                 :filter (lambda (proc string)
-                           (turtles-io--connection-filter proc string handler))
-                 :plist `(turtles-io-server ,server))))
+                 :filter nil)))
     (setf (turtles-io-server-proc server) proc)
     (continue-process proc)
 
     server))
 
-(defun turtles-io-connect (socket handler)
+(defun turtles-io-connect (socket &optional method-alist)
   "Connect to a remote server listening at SOCKET.
 
-HANDLER is a function that'll receive messages from the server.
-It should takes arguments, a process and an elisp object.
+METHOD-ALIST is an alist of method handlers. See
+`turtles-io-conn-method-alist' for details.
 
-Return the network process."
-  (let ((buf (generate-new-buffer " *turtles-io-client*" t)))
-    (make-network-process
-     :name (buffer-name buf)
-     :buffer buf
-     :family 'local
-     :service socket
-     :server nil
-     :noquery t
-     :sentinel #'ignore
-     :filter (lambda (proc string)
-               (turtles-io--connection-filter proc string handler)))))
+Return a `turtles-io-conn' instance."
+  (let* ((buf (generate-new-buffer " *turtles-io-client*" t))
+         (conn (turtles-io--make-conn :method-alist method-alist))
+         (proc (make-network-process
+                :name (buffer-name buf)
+                :buffer buf
+                :family 'local
+                :service socket
+                :server nil
+                :noquery t
+                :sentinel #'ignore
+                :stop t
+                :filter (lambda (_proc string)
+                          (turtles-io--connection-filter conn string)))))
+    (setf (turtles-io-conn-proc conn) proc)
+    (continue-process proc)
 
-(defun turtles-io-send (proc-or-server msg)
-  "Send MSG to PROC-OR-SERVER.
+    conn))
 
-PROC-OR-SERVER might be a process to send the message to, gotten
-from `turtles-io-connect' or `turtles-io-server-clients'.
+(defun turtles-io-send-error (conn id error)
+  "Send an error back to the caller.
 
-PROC-OR-SERVER might also be a server, created with
-`turtles-io-server', in which case the message is sent to all
-clients (or not sent at all if there are no clients.)
+CONN is the connection on which the call was made, ID the request
+id and ERROR an object describing the error."
+  (turtles-io--send conn `(:id ,id :error ,error)))
+
+(defun turtles-io-send-result (conn id result)
+  "Send a succesful response back to the caller.
+
+CONN is the connection on which the call was made, ID the request
+id and RESULT the result of the call, which might be nil."
+  (turtles-io--send conn `(:id ,id :result ,result)))
+
+(defun turtles-io-call-method (conn method params handler)
+  "Call METHOD on CONN with parameters PARAMS.
+
+This function calls a method and expects the response to be
+passed back to HANDLER. HANDLER should be a function that takes
+two arguments: a result and an error, only on of which is ever
+set at a time.
+
+Returns immediately after the request is sent. If you'd like to
+wait for the response, use `turtles-io-call-method-and-wait'
+instead."
+  (let ((id (cl-incf (turtles-io-conn-last-id conn))))
+    (setf (alist-get id (turtles-io-conn-response-alist conn)) handler)
+    (turtles-io--send conn `(:id ,id :method ,method :params ,params))))
+
+(defun turtles-io-call-method-and-wait (conn method &optional params timeout)
+  "Call METHOD on CONN with PARAMS and wait for the result.
+
+Only wait up to TIMEOUT seconds for the result."
+  (let (received-result received-error)
+    (turtles-io-call-method
+     conn method params
+     (lambda (result err)
+       (setq received-error err)
+       (setq received-result result)))
+    (turtles-io-wait-for (or timeout 5) "No response from server"
+                         (lambda () (or received-result received-error)))
+    (when received-error
+      (error "%s failed: %s" method received-error))
+
+    received-result))
+
+(defun turtles-io--send (conn msg)
+  "Send MSG to CONN.
 
 MSG can be any lisp object that can be printed."
-  (unless (and (turtles-io-server-p proc-or-server)
-             (null (turtles-io-server-clients proc-or-server)))
-    (with-temp-buffer
-      (prin1 msg (current-buffer) t)
-      (insert "\n\"\"\"\n")
-      ;; """ will not appear in a stream generated by prin1.
-
-      (dolist (proc (if (turtles-io-server-p proc-or-server)
-                        (turtles-io-server-clients proc-or-server)
-                      (list proc-or-server)))
-        (process-send-string proc (buffer-string))))))
+  (with-temp-buffer
+    (prin1 msg (current-buffer) t)
+    (insert "\n\"\"\"\n")
+    ;; """ will not appear in a stream generated by prin1.
+    
+    (process-send-string (turtles-io-conn-proc conn) (buffer-string))))
 
 (defun turtles-io--server-sentinel (server proc)
   "Process sentinel for server connections"
   ;; New connection
   (when (and (eq (process-status proc) 'open)
              (not (process-contact proc :server)))
-    (push proc (turtles-io-server-clients server))
     (set-process-query-on-exit-flag proc nil)
-    (when-let ((f (turtles-io-server-on-new-client server)))
-      (funcall f proc)))
+    (let ((conn (turtles-io--make-conn
+                 :proc proc
+                 :method-alist (turtles-io-server-method-alist server))))
+      (set-process-filter proc
+                          (lambda (_proc string)
+                            (turtles-io--connection-filter conn string)))
+      (push conn (turtles-io-server-connections server))
+      (process-put proc 'turtles-io-conn conn)
+      (when-let ((f (turtles-io-server-on-new-connection server)))
+        (funcall f conn))))
 
   (when (eq (process-status proc) 'closed)
     (if (process-contact proc :server)
@@ -131,10 +201,14 @@ MSG can be any lisp object that can be printed."
         (ignore-errors
           (delete-file (turtles-io-server-socket server)))
       ;; Client connection closed
-      (setf (turtles-io-server-clients server)
-            (delq proc (turtles-io-server-clients server))))))
+      (setf (turtles-io-server-connections server)
+            (delq (process-get proc 'turtles-io-conn)
+                  (turtles-io-server-connections server))))))
 
-(defun turtles-io--connection-filter (proc string handler)
+(defun turtles-io--connection-filter (conn string)
+  "Process STRING sent to CONN.
+
+Must be called with the current buffer being the process buffer."
   (insert string)
 
   (when (save-excursion
@@ -143,20 +217,52 @@ MSG can be any lisp object that can be printed."
       (unless (and (boundp 'turtles-io--marker) turtles-io--marker)
         (setq-local turtles-io--marker (copy-marker (point-min))))
       (unwind-protect
-          (funcall handler proc (read turtles-io--marker))
+          (turtles-io--dispatch conn (read turtles-io--marker))
 
         ;; Consume the region up to """ whether processing it
         ;; succeeded or not.
         (delete-region (point-min) end)))))
 
+(defun turtles-io--dispatch (conn msg)
+  "Dispatch a MSG received on CONN to the method or response alists."
+  (let ((id (plist-get msg :id))
+        (method (plist-get msg :method))
+        (result (plist-get msg :result))
+        (err (plist-get msg :errr)))
+    (cond
+     (method
+      (funcall (or (alist-get method (turtles-io-conn-method-alist conn))
+                   #'turtles-io--default-method-handler)
+               conn id method (plist-get msg :params)))
+     ((or result err)
+      (if-let ((handler (alist-get id (turtles-io-conn-response-alist conn))))
+          (funcall handler result err)
+        (warn "Unexpected response: %s" msg)))
+     (id
+      (turtles-io-send-error conn id '(malformed-message)))
+     (t (warn "Malformed message: %s" msg)))))
 
-(defun turtles-io-wait-for (timeout error-message predicate)
+(defun turtles-io--default-method-handler (conn id _method _params)
+  "Handle an unsupported method with ID received from CONN."
+  (turtles-io-send-error conn id '(unknown-method)))
+
+(defun turtles-io-wait-for (timeout error-message predicate &optional max-wait-time)
   "Wait for up to TIMEOUT seconds for PREDICATE to become non-nil.
 
-Fails with ERROR-MESSAGE if it times out."
+Fails with ERROR-MESSAGE if it times out.
+
+This function assumes that PREDICATE becomes non-nil as a result
+of processing some process output. If that's not always the case,
+set MAX-WAIT-TIME to some small, but reasonable value."
   (let ((start (current-time)) remaining)
-    (while (and (< (setq remaining (time-to-seconds (time-subtract (current-time) start))) timeout)
+    (while (and (> (setq remaining
+                         (- timeout
+                            (time-to-seconds
+                             (time-subtract (current-time) start))))
+                   0)
                 (not (funcall predicate)))
+      (when (and max-wait-time (> remaining max-wait-time))
+        (setq remaining max-wait-time))
       (accept-process-output nil remaining)))
   (unless (funcall predicate)
     (error (concat error-message))))
