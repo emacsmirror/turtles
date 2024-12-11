@@ -63,6 +63,20 @@ one of which is ever specified.")
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
 
+(defun turtles-io-conn-live-p (conn)
+  "Return non-nil if CONN is a connnection with a live process."
+  (and conn
+       (turtles-io-conn-p conn)
+       (turtles-io-conn-proc conn)
+       (process-live-p (turtles-io-conn-proc conn))))
+
+(defun turtles-io-server-live-p (server)
+  "Return non-nil if SERVER is a server with a live process."
+  (and server
+       (turtles-io-server-p server)
+       (turtles-io-server-proc server)
+       (process-live-p (turtles-io-server-proc server))))
+
 (defun turtles-io-server (socket &optional method-alist on-new-connection)
   "Create a new server.
 
