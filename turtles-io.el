@@ -48,7 +48,7 @@ connects."))
                (:copier nil))
   "A connection between two Emacs processes."
   (proc nil :documentation "The network process for this connection")
-  (last-id 0 :documentation "ID of the last method called on this connection")
+  (alist nil :documentation "Associate arbitrary data to this connection")
   (method-alist nil :documentation "Alist of method symbols to method handlers.
 
 Method handlers take four arguments, the connection, the request
@@ -57,7 +57,8 @@ id, the method symbol and parameters, which might be nil.")
   (response-alist nil :documentation "Alist of request id to response handlers.
 
 Response handlers take three arguments: result and errors, only
-one of which is ever specified."))
+one of which is ever specified.")
+  (last-id 0 :documentation "ID of the last method called on this connection"))
 
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
