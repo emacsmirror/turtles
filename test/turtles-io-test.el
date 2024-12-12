@@ -179,3 +179,24 @@
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
+
+(ert-deftest turtles-io-test-method-return-nil ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server
+                  (turtles-io-server
+                   socket
+                   `((ping . ,(turtles-io-method-handler (index)
+                               nil)))))
+
+            (setq client (turtles-io-connect socket))
+            (should (turtles-io-conn-p client))
+            (should (process-live-p (turtles-io-conn-proc client)))
+
+            (should (null (turtles-io-call-method-and-wait client 'ping))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
