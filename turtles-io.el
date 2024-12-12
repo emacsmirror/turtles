@@ -190,16 +190,18 @@ instead."
   "Call METHOD on CONN with PARAMS and wait for the result.
 
 Only wait up to TIMEOUT seconds for the result."
-  (let (received-result received-error)
+  (let (got-response received-result received-error)
     (turtles-io-call-method
      conn method params
      (lambda (result err)
        (setq received-error err)
-       (setq received-result result)))
+       (setq received-result result)
+       (setq got-response t)))
     (turtles-io-wait-for (or timeout 5) "No response from server"
-                         (lambda () (or received-result received-error)))
+                         (lambda () got-response))
     (when received-error
-      (error "%s failed: %s" method received-error))
+      (if (and (consp received-error) (symbolp (car received-error)))
+      (signal (car received-error) (cdr received-error))))
 
     received-result))
 
@@ -282,9 +284,10 @@ MSG can be any lisp object that can be printed."
      ;; invalid
      (t (warn "Malformed message: %s" msg)))))
 
+(define-error 'turtles-io-unknown-method "Unknown method")
 (defun turtles-io--default-method-handler (conn id _method _params)
   "Handle an unsupported method with ID received from CONN."
-  (turtles-io-send-error conn id '(unknown-method)))
+  (turtles-io-send-error conn id '(turtles-io-unknown-method)))
 
 (defun turtles-io-wait-for (timeout error-message predicate &optional max-wait-time)
   "Wait for up to TIMEOUT seconds for PREDICATE to become non-nil.
