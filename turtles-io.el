@@ -242,22 +242,21 @@ MSG can be any lisp object that can be printed."
                   (turtles-io-server-connections server))))))
 
 (defun turtles-io--connection-filter (conn string)
-  "Process STRING sent to CONN.
+  "Process STRING sent to CONN."
+  (with-current-buffer (process-buffer (turtles-io-conn-proc conn))
+    (insert string)
 
-Must be called with the current buffer being the process buffer."
-  (insert string)
+    (when (save-excursion
+            (search-backward "\"\"\"\n" nil 'noerror))
+      (let ((end (match-end 0)))
+        (unless (and (boundp 'turtles-io--marker) turtles-io--marker)
+          (setq-local turtles-io--marker (copy-marker (point-min))))
+        (unwind-protect
+            (turtles-io--dispatch conn (read turtles-io--marker))
 
-  (when (save-excursion
-          (search-backward "\"\"\"\n" nil 'noerror))
-    (let ((end (match-end 0)))
-      (unless (and (boundp 'turtles-io--marker) turtles-io--marker)
-        (setq-local turtles-io--marker (copy-marker (point-min))))
-      (unwind-protect
-          (turtles-io--dispatch conn (read turtles-io--marker))
-
-        ;; Consume the region up to """ whether processing it
-        ;; succeeded or not.
-        (delete-region (point-min) end)))))
+          ;; Consume the region up to """ whether processing it
+          ;; succeeded or not.
+          (delete-region (point-min) end))))))
 
 (defun turtles-io--dispatch (conn msg)
   "Dispatch a MSG received on CONN to the method or response alists."
