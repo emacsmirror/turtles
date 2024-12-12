@@ -35,21 +35,28 @@
 (require 'server)
 (require 'turtles-io)
 
+(defvar term-home-marker) ;; declared in term.el
+
 (defvar turtles--server nil)
 (defvar turtles--conn nil)
 (defvar turtles--file-name (or (when load-file-name
                                  (expand-file-name load-file-name default-directory))
                                (buffer-file-name)))
+(defconst turtles-buffer-name " *turtles-term*")
 
 (defun turtles-start ()
   (interactive)
   (unless (turtles-io-server-live-p turtles--server)
     (server-ensure-safe-dir server-socket-dir)
-    (setq turtles--server (turtles-io-server
-                           (expand-file-name (format "turtles-%s" (emacs-pid))
-                                             server-socket-dir))))
+    (setq turtles--server
+          (turtles-io-server
+           (expand-file-name (format "turtles-%s" (emacs-pid))
+                             server-socket-dir)
+           `((grab . ,(turtles-io-method-handler (_ignored)
+                        (with-current-buffer (get-buffer turtles-buffer-name)
+                          (buffer-substring term-home-marker (point-max)))))))))
 
-  (let ((buf (get-buffer-create " *turtles-term*")))
+  (let ((buf (get-buffer-create turtles-buffer-name)))
     (unless (and (turtles-io-conn-live-p turtles--conn)
                  (term-check-proc buf))
       (mapc (lambda (c) (delete-process (turtles-io-conn-proc c)))
@@ -69,7 +76,6 @@
       (setf (turtles-io-server-on-new-connection turtles--server)
             (lambda (conn)
               (setf turtles--conn conn)
-              (setf (alist-get 'term-buffer (turtles-io-conn-alist conn)) buf)
               (setf (turtles-io-server-on-new-connection turtles--server) nil)))
 
       (with-current-buffer buf
@@ -89,6 +95,9 @@
 
 (defun turtles--launch (socket)
   (interactive "F")
-  (turtles-io-connect socket))
+  (setq turtles--conn
+        (turtles-io-connect socket
+                            `((eval . ,(turtles-io-method-handler (expr)
+                                         (eval expr)))))))
 
 (provide 'turtles)
