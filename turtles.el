@@ -59,40 +59,43 @@
   (let ((buf (get-buffer-create turtles-buffer-name)))
     (unless (and (turtles-io-conn-live-p turtles--conn)
                  (term-check-proc buf))
-      (mapc (lambda (c) (delete-process (turtles-io-conn-proc c)))
+      (mapc (lambda (c) (turtles-io-call-method c 'exit nil nil))
             (turtles-io-server-connections turtles--server))
       (setq turtles--conn nil)
-
-      (with-current-buffer buf (term-mode))
-      (term-exec
-       buf
-       "*turtles*"
-       (expand-file-name invocation-name invocation-directory)
-       nil
-       (append '("-nw" "-Q")
-               (turtles--dirs-from-load-path)
-               `("-l" ,turtles--file-name "--" "boo")))
-
       (setf (turtles-io-server-on-new-connection turtles--server)
             (lambda (conn)
               (setf turtles--conn conn)
               (setf (turtles-io-server-on-new-connection turtles--server) nil)))
+      (unwind-protect
+          (progn
+           (with-current-buffer buf (term-mode))
+           (term-exec
+            buf
+            "*turtles*"
+            (expand-file-name invocation-name invocation-directory)
+            nil
+            (append '("-nw" "-Q")
+                    (turtles--dirs-from-load-path)
+                    `("-l" ,turtles--file-name)))
 
-      (with-current-buffer buf
-        (term-send-raw-string
-         (format "\033xturtles--launch\n%s\n"
-                 (turtles-io-server-socket turtles--server))))
+           (with-current-buffer (get-buffer turtles-buffer-name) ;; buf
+             (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
+             (term-send-raw-string
+              (format "\033xturtles--launch\n%s\n"
+                      (turtles-io-server-socket turtles--server))))
 
-      (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
-                           (lambda () turtles--conn)))))
+           (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
+                                (lambda () turtles--conn)))
+        (setf (turtles-io-server-on-new-connection turtles--server) nil)))))
 
 (defun turtles-stop ()
   (interactive)
   (when (turtles-io-server-live-p turtles--server)
-    (mapc (lambda (conn) (delete-process (turtles-io-connection-proc conn))))
+    (mapc (lambda (c) (turtles-io-call-method c 'exit nil nil))
+          (turtles-io-server-connections turtles--server))
     (delete-process (turtles-io-server-proc turtles--server)))
   (setq turtles--server nil)
-  (setq turtles--con nil)
+  (setq turtles--conn nil)
 
   (when-let ((buf (get-buffer turtles-buffer-name)))
     (kill-buffer buf)))
@@ -109,6 +112,8 @@
   (setq turtles--conn
         (turtles-io-connect socket
                             `((eval . ,(turtles-io-method-handler (expr)
-                                         (eval expr)))))))
+                                         (eval expr)))
+                              (exit . ,(lambda (_conn _id _method _params)
+                                         (kill-emacs nil)))))))
 
 (provide 'turtles)
