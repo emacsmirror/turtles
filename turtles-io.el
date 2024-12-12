@@ -43,6 +43,10 @@ symbol and parameters, which might be nil.
 This is passed to the connection objects when a new client
 connects."))
 
+(defsubst turtles-io-server-add-method (server method handler)
+  "Register HANDLER as handler for METHOD in SERVER."
+  (setf (alist-get method (turtles-io-server-method-alist server)) handler))
+
 (cl-defstruct (turtles-io-conn
                (:constructor turtles-io--make-conn)
                (:copier nil))
@@ -59,6 +63,10 @@ id, the method symbol and parameters, which might be nil.")
 Response handlers take three arguments: result and errors, only
 one of which is ever specified.")
   (last-id 0 :documentation "ID of the last method called on this connection"))
+
+(defsubst turtles-io-conn-add-method (conn method handler)
+  "Register HANDLER as handler for METHOD in CONN."
+  (setf (alist-get method (turtles-io-conn-method-alist conn)) handler))
 
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
@@ -135,6 +143,27 @@ Return a `turtles-io-conn' instance."
     (continue-process proc)
 
     conn))
+
+(cl-defmacro turtles-io-method-handler ((var) &rest body)
+  "Build a method handler.
+
+This macro returns a method handler that'll call BODY with VAR
+bound to the method parameters and return BODY evaluation result
+to the caller.
+
+If BODY signals an error, that error is sent back to the caller
+as an error response."
+  (declare (indent 1))
+  (let ((conn-var (make-symbol "conn"))
+        (id-var (make-symbol "id"))
+        (method-var (make-symbol "_method")))
+  `(lambda (,conn-var ,id-var ,method-var ,var)
+     (turtles-io--send
+      ,conn-var
+      (cons :id (cons ,id-var
+                      (condition-case err
+                          (cons :result (cons (progn ,@body) nil))
+                        (error (cons :error (cons err nil))))))))))
 
 (defun turtles-io-send-error (conn id error)
   "Send an error back to the caller.

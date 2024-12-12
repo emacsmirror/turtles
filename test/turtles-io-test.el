@@ -128,3 +128,52 @@
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
+
+(ert-deftest turtles-io-test-method-handler ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server (turtles-io-server socket))
+            (turtles-io-server-add-method
+             server 'inc (turtles-io-method-handler (index)
+                           (1+ index)))
+
+            (setq client (turtles-io-connect socket))
+            (should (turtles-io-conn-p client))
+            (should (process-live-p (turtles-io-conn-proc client)))
+
+            (should (equal 2 (turtles-io-call-method-and-wait client 'inc 1))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
+
+
+(ert-deftest turtles-io-test-method-handler-with-error ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server (turtles-io-server socket))
+            (turtles-io-server-add-method
+             server 'inc (turtles-io-method-handler (index)
+                           (1+ index)))
+
+            (setq client (turtles-io-connect socket))
+            (should (turtles-io-conn-p client))
+            (should (process-live-p (turtles-io-conn-proc client)))
+
+            (let ((response))
+              (turtles-io-call-method
+               client 'inc "cannot-add"
+               (lambda (result err)
+                 (should-not result)
+                 (setq response err)))
+              (turtles-io-wait-for 5 "No response from server"
+                                   (lambda () response))
+              (should (equal 'wrong-type-argument (car response)))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
