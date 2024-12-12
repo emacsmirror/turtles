@@ -86,6 +86,17 @@
       (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
                            (lambda () turtles--conn)))))
 
+(defun turtles-stop ()
+  (interactive)
+  (when (turtles-io-server-live-p turtles--server)
+    (mapc (lambda (conn) (delete-process (turtles-io-connection-proc conn))))
+    (delete-process (turtles-io-server-proc turtles--server)))
+  (setq turtles--server nil)
+  (setq turtles--con nil)
+
+  (when-let ((buf (get-buffer turtles-buffer-name)))
+    (kill-buffer buf)))
+
 (defun turtles--dirs-from-load-path ()
   (let ((args nil))
     (dolist (path load-path)
