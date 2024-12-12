@@ -35,7 +35,7 @@
   (connections nil :documentation "List of connected clients")
   (on-new-connection nil :documentation "Function called when a new client connects")
   (socket nil :read-only t :documentation "Path to the unix socket file used by the server")
-  (method-alist nil :documentation "Alist of method symbols to method handlers.
+  (method-alist nil :read-only t :documentation "Alist of method symbols to method handlers.
 
 Method handlers take three arguments, the request id, the method
 symbol and parameters, which might be nil.
@@ -43,17 +43,13 @@ symbol and parameters, which might be nil.
 This is passed to the connection objects when a new client
 connects."))
 
-(defsubst turtles-io-server-add-method (server method handler)
-  "Register HANDLER as handler for METHOD in SERVER."
-  (setf (alist-get method (turtles-io-server-method-alist server)) handler))
-
 (cl-defstruct (turtles-io-conn
                (:constructor turtles-io--make-conn)
                (:copier nil))
   "A connection between two Emacs processes."
   (proc nil :documentation "The network process for this connection")
   (alist nil :documentation "Associate arbitrary data to this connection")
-  (method-alist nil :documentation "Alist of method symbols to method handlers.
+  (method-alist nil :read-only t :documentation "Alist of method symbols to method handlers.
 
 Method handlers take four arguments, the connection, the request
 id, the method symbol and parameters, which might be nil.")
@@ -63,10 +59,6 @@ id, the method symbol and parameters, which might be nil.")
 Response handlers take three arguments: result and errors, only
 one of which is ever specified.")
   (last-id 0 :documentation "ID of the last method called on this connection"))
-
-(defsubst turtles-io-conn-add-method (conn method handler)
-  "Register HANDLER as handler for METHOD in CONN."
-  (setf (alist-get method (turtles-io-conn-method-alist conn)) handler))
 
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")

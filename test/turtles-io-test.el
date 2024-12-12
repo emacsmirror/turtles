@@ -135,10 +135,11 @@
           server client collected-responses)
       (unwind-protect
           (progn
-            (setq server (turtles-io-server socket))
-            (turtles-io-server-add-method
-             server 'inc (turtles-io-method-handler (index)
-                           (1+ index)))
+            (setq server
+                  (turtles-io-server
+                   socket
+                   `((inc . ,(turtles-io-method-handler (index)
+                               (1+ index))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
@@ -156,10 +157,11 @@
           server client collected-responses)
       (unwind-protect
           (progn
-            (setq server (turtles-io-server socket))
-            (turtles-io-server-add-method
-             server 'inc (turtles-io-method-handler (index)
-                           (1+ index)))
+            (setq server
+                  (turtles-io-server
+                   socket
+                   `((inc . ,(turtles-io-method-handler (index)
+                               (1+ index))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
