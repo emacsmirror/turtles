@@ -21,7 +21,7 @@
 
 (require 'turtles-io)
 
-(ert-deftest turtles-io-test-send-message ()
+(ert-deftest turtles-io-test-send-message-to-server ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -90,4 +90,39 @@
             (turtles-io-wait-for 1 "Server did not delete socket"
                                  (lambda () (not (file-exists-p socket)))))
 
+        (ignore-errors (when server (delete-process server)))))))
+
+(ert-deftest turtles-io-test-send-message-to-client ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server (turtles-io-server socket))
+            (should (turtles-io-server-p server))
+            (setq client (turtles-io-connect
+                          socket `((ping . ,(lambda (conn id method params)
+                                              (turtles-io-send-result conn id "pong"))))))
+            (turtles-io-wait-for 5 "Client not connected"
+                                 (lambda () (turtles-io-server-connections server)) 0.1)
+
+            (should (equal "pong" (turtles-io-call-method-and-wait
+                                   (car (turtles-io-server-connections server)) 'ping))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
+
+
+(ert-deftest turtles-io-test-call-unknown-method ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server (turtles-io-server socket))
+            (setq client (turtles-io-connect socket))
+
+            (turtles-io-call-method-and-wait client 'ping))
+
+        (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
