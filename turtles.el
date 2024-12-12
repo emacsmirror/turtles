@@ -100,6 +100,10 @@
   (when-let ((buf (get-buffer turtles-buffer-name)))
     (kill-buffer buf)))
 
+(defun turtles-fail-unless-live ()
+  (unless (turtles-io-conn-live-p turtles--conn)
+    (error "No Turtles! Call turtles-start")))
+
 (defun turtles--dirs-from-load-path ()
   (let ((args nil))
     (dolist (path load-path)
@@ -115,5 +119,17 @@
                                          (eval expr)))
                               (exit . ,(lambda (_conn _id _method _params)
                                          (kill-emacs nil)))))))
+
+(defun turtles-grab-frame-into (buffer)
+  "Grab a snapshot current frame into BUFFER.
+
+This includes all windows and decorations. Unless that's what you
+want to test, it's usually better to call `turtles-grab-buffer'
+or `turtles-grab-win', which just return the window body."
+  (turtles-fail-unless-live)
+  (with-current-buffer buffer
+    (delete-region (point-min) (point-max))
+    (insert (turtles-io-call-method-and-wait turtles--conn 'grab))
+    (font-lock-mode)))
 
 (provide 'turtles)

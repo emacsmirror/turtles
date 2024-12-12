@@ -33,3 +33,16 @@
   (should-not turtles--server)
   (should-not turtles--conn)
   (should-not (get-buffer turtles-buffer-name)))
+
+(ert-deftest turtles-grab-frame-into ()
+  (turtles-start)
+  (should
+   (turtles-io-call-method-and-wait
+    turtles--conn 'eval
+    '(with-current-buffer-window (get-scratch-buffer-create)
+         (insert "De Chelonian Mobile")
+         (with-temp-buffer
+           (turtles-grab-frame-into (current-buffer))
+           (goto-char (point-min))
+           (search-forward "De Chelonian Mobile"))))))
+
