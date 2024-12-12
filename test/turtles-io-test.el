@@ -122,7 +122,9 @@
             (setq server (turtles-io-server socket))
             (setq client (turtles-io-connect socket))
 
-            (turtles-io-call-method-and-wait client 'ping))
+            (condition-case err
+                (turtles-io-call-method-and-wait client 'ping)
+              (error (should (equal '(error "ping failed: (unknown-method)") err)))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
