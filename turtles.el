@@ -44,6 +44,9 @@
                                (buffer-file-name)))
 (defconst turtles-buffer-name " *turtles-term*")
 
+(defun turtles-client-p ()
+  (and turtles--conn (not turtles--server)))
+
 (defun turtles-start ()
   (interactive)
   (unless (turtles-io-server-live-p turtles--server)
