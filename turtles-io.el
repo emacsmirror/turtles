@@ -200,8 +200,10 @@ Only wait up to TIMEOUT seconds for the result."
     (turtles-io-wait-for (or timeout 5) "No response from server"
                          (lambda () got-response))
     (when received-error
-      (if (and (consp received-error) (symbolp (car received-error)))
-      (signal (car received-error) (cdr received-error))))
+      (if (and (consp received-error)
+               (symbolp (car received-error)))
+          (signal (car received-error) (cdr received-error))
+        (error "Remote method %s failed: %s" method received-error)))
 
     received-result))
 

@@ -168,15 +168,63 @@
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
-            (let ((response))
-              (turtles-io-call-method
-               client 'inc "cannot-add"
-               (lambda (result err)
-                 (should-not result)
-                 (setq response err)))
-              (turtles-io-wait-for 5 "No response from server"
-                                   (lambda () response))
-              (should (equal 'wrong-type-argument (car response)))))
+            (should
+             (condition-case err
+                 (prog1 nil
+                   (turtles-io-call-method-and-wait client 'inc "cannot-add"))
+               (wrong-type-argument err))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
+
+(ert-deftest turtles-io-test-method-handler-with-error-bad-symbol ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server
+                  (turtles-io-server
+                   socket
+                   `((inc . ,(turtles-io-method-handler (index)
+                               (signal 'fake-error "foobar"))))))
+
+            (setq client (turtles-io-connect socket))
+            (should (turtles-io-conn-p client))
+            (should (process-live-p (turtles-io-conn-proc client)))
+
+            (should
+             (equal '(fake-error . "foobar")
+                    (condition-case err
+                        (prog1 nil
+                          (turtles-io-call-method-and-wait client 'inc "cannot-add"))
+                      (error err)))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
+
+(ert-deftest turtles-io-test-method-handler-with-error-not-a-symbol ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server
+                  (turtles-io-server
+                   socket
+                   `((inc . ,(lambda (conn id method _params)
+                               (turtles-io-send-error conn id "error string"))))))
+
+            (setq client (turtles-io-connect socket))
+            (should (turtles-io-conn-p client))
+            (should (process-live-p (turtles-io-conn-proc client)))
+
+            (should
+             (equal '(error "Remote method inc failed: error string")
+                    (condition-case err
+                        (prog1 nil
+                          (turtles-io-call-method-and-wait client 'inc "cannot-add"))
+                      (error err)))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
