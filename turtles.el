@@ -44,6 +44,18 @@
                                (buffer-file-name)))
 (defconst turtles-buffer-name " *turtles-term*")
 
+(defvar-local turtles-source-window nil
+  "The turtles frame window the current buffer was grabbed from.
+
+This is local variable set in a grab buffer filled by
+`turtles-grab-window-into' or `turtles-grab-buffer-into'.")
+
+(defvar-local turtles-source-buffer nil
+  "The buffer the current buffer was grabbed from.
+
+This is local variable set in a grab buffer filled by
+`turtles-grab-window-into' or `turtles-grab-buffer-into'.")
+
 (defun turtles-client-p ()
   (and turtles--conn (not turtles--server)))
 
@@ -77,7 +89,13 @@
               (setf (turtles-io-server-on-new-connection turtles--server) nil)))
       (unwind-protect
           (progn
-           (with-current-buffer buf (term-mode))
+           (with-current-buffer buf
+             (term-mode)
+             (setq-local term-width 80)
+
+             ;; Height is 22 to remain compatible with termgrab
+             ;; TODO: update the tests and switch to 20
+             (setq-local term-height 22))
            (term-exec
             buf
             "*turtles*"
@@ -130,19 +148,432 @@
                               (exit . ,(lambda (_conn _id _method _params)
                                          (kill-emacs nil)))))))
 
-(defun turtles-grab-frame-into (buffer)
+(defun turtles-grab-frame-into (buffer &optional grab-faces)
   "Grab a snapshot current frame into BUFFER.
 
 This includes all windows and decorations. Unless that's what you
 want to test, it's usually better to call `turtles-grab-buffer'
-or `turtles-grab-win', which just return the window body."
+or `turtles-grab-win', which just return the window body.
+
+If GRAB-FACES is empty, the colors are copied as
+\\='font-lock-face text properties, with as much fidelity as the
+terminal allows.
+
+If GRAB-FACES is not empty, the faces on that list - and only
+these faces - are recovered into \\='face text properties. Note
+that in such case, no other face or color information is grabbed,
+so any other face not in GRAB-FACE are absent."
   (turtles-fail-unless-live)
   (unless (redisplay t)
     (error "Emacs won't redisplay in this context, likely because of pending input."))
-  (with-current-buffer buffer
-    (delete-region (point-min) (point-max))
-    (let ((grab (turtles-io-call-method-and-wait turtles--conn 'grab)))
-      (insert grab))
-    (font-lock-mode)))
+
+  (pcase-let ((`(,grab-face-alist . ,cookies)
+               (turtles--setup-grab-faces grab-faces)))
+    (unwind-protect
+        (with-current-buffer buffer
+          (delete-region (point-min) (point-max))
+          (let ((grab (turtles-io-call-method-and-wait turtles--conn 'grab)))
+            (insert grab))
+          (font-lock-mode)
+          (when grab-faces
+              (turtles--faces-from-color grab-face-alist)))
+      (turtles--teardown-grab-faces cookies))))
+
+(defun turtles-setup-buffer (&optional buf)
+  "Setup the turtles frame to display BUF in its root window.
+
+If BUF is nil, the current buffer is used instead."
+  (display-buffer buf '(display-buffer-full-frame . nil)))
+
+(defun turtles-grab-buffer-into (buf output-buf &optional grab-faces)
+  "Display BUF in the grabbed frame and grab it into OUTPUT-BUF.
+
+When this function returns, OUTPUT-BUF contains the textual
+representation of BUF as displayed in the root window of the
+grabbed frame.
+
+This function uses `turtles-grab-window-into' after setting up
+the buffer. See the documentation of that function for details on
+the buffer content and the effect of GRAB-FACES."
+  (turtles-grab-window-into (turtles-setup-buffer buf) output-buf grab-faces))
+
+(defun turtles-grab-window-into (win output-buf &optional grab-faces)
+  "Grab WIN into output-buf.
+
+WIN must be a window on the turtles frame.
+
+When this function returns, OUTPUT-BUF contains the textual
+representation of the content of that window. The point, mark and
+region are also set to corresponding positions in OUTPUT-BUF, if
+possible.
+
+If GRAB-FACES is empty, the colors are copied as
+\\='font-lock-face text properties, with as much fidelity as the
+terminal allows.
+
+If GRAB-FACES is not empty, the faces on that list - and only
+these faces - are recovered into \\='face text properties. Note
+that in such case, no other face or color information is grabbed,
+so any other face not in GRAB-FACE are absent."
+  (turtles-grab-frame-into output-buf grab-faces)
+  (with-current-buffer output-buf
+    (setq turtles-source-window win)
+    (setq turtles-source-buffer (window-buffer win))
+    (turtles--clip-in-frame-grab win)
+
+    (let ((point-pos (turtles-pos-in-window-grab (window-point win)))
+          (mark-pos (turtles-pos-in-window-grab
+                     (with-selected-window win (mark)) 'range)))
+      (when point-pos
+        (goto-char point-pos))
+      (when mark-pos
+        (push-mark mark-pos 'nomsg nil))
+
+      (when (and point-pos
+                 mark-pos
+                 (with-selected-window win
+                   (region-active-p)))
+        (activate-mark)))))
+
+(defun turtles-pos-in-window-grab (pos-in-source-buf &optional range)
+  "Convert a position in the source buffer to the current buffer.
+
+For this to work, the current buffer must be a grab buffer
+created by `turtles-grab-window-into' or
+`turtles-grab-buffer-into' and neither its content nor the
+source buffer or source window must have changed since the grab.
+
+POS-IN-SOURCE-BUF should be a position in the source buffer. It
+might be nil, in which case this function returns nil.
+
+When RANGE is non-nil, if the position is before window start,
+set it at (point-min), if it is after window end, set it
+at (point-max). This is appropriate when highlighting range
+boundaries.
+
+Return a position in the current buffer. If the point does not
+appear in the grab, return nil."
+  (unless turtles-source-window
+    (error "Current buffer does not contain a window grab"))
+
+  (cond
+   ((null pos-in-source-buf) nil)
+   ((and range (<= pos-in-source-buf
+                   (window-start turtles-source-window)))
+    (point-min))
+   ((and range (>= pos-in-source-buf
+                   (window-end turtles-source-window)))
+    (point-max))
+   (t (pcase-let ((`(,x . ,y) (window-absolute-pixel-position
+                               pos-in-source-buf turtles-source-window)))
+        (when (and x y)
+          (save-excursion
+            (goto-char (point-min))
+            (forward-line (1- y))
+            (move-to-column x)
+            (point)))))))
+
+(defun turtles--clip-in-frame-grab (win)
+  "Clip the frame grab in the current buffer to the body of WIN."
+  (save-excursion
+    (pcase-let ((`(,left ,top ,right ,bottom) (window-body-edges win)))
+      (goto-char (point-min))
+      (while (progn
+               (move-to-column right)
+               (delete-region (point) (pos-eol))
+               (= (forward-line 1) 0)))
+
+      (when (> left 0)
+        (goto-char (point-min))
+        (while (progn
+                 (move-to-column left)
+                 (when (and noninteractive
+                            (not (char-before ?|)))
+                   (error
+                    (concat "Capturing a window to the right of another "
+                            "doesn't work because of rendering errors in "
+                            "batch mode. Either always split horizontally "
+                            "or run tests in non-batch mode.")))
+                 (delete-region (pos-bol) (point))
+                 (= (forward-line 1) 0))))
+
+      (goto-char (point-min))
+      (forward-line bottom)
+      (delete-region (point) (point-max))
+
+      (when (> top 0)
+        (goto-char (point-min))
+        (forward-line top)
+        (delete-region (point-min) (point))))))
+
+(defun turtles--setup-grab-faces (grab-faces)
+  "Prepare buffer faces for grabbing GRAB-FACES.
+
+This function modifies the faces in all buffers so that they can
+be detected from color by `turtles--faces-from-color'.
+
+The color changes are reverted by `turtles--teardown-grab-faces'
+or the grabbed buffers will look very ugly.
+
+Return a (cons grab-face-alist cookies) with grab-face-alist the
+alist to pass to `turtles--faces-from-color' and cookies to pass
+to `turtles--teardown-grab-faces'."
+  (when grab-faces
+    (let (grab-face-alist cookies remapping)
+
+      ;; This algorithm limits itself to normal (non-bright) ansi
+      ;; colors, excluding black and white, for simplicity. That gives
+      ;; us 6 color - 36 combination of background and foreground - to
+      ;; work with. That should be enough for most reasonable tests,
+      ;; but if not, it could be extended to use more colors, as we
+      ;; normally have access to 256 colors.
+      (when (> (length grab-faces) 36)
+        (error "Too many faces to highlight"))
+
+      (dolist (face grab-faces)
+        (let* ((idx (length remapping))
+               (bg (face-background
+                    (aref ansi-color-normal-colors-vector
+                          (1+ (% idx 6)))))
+               (fg (face-foreground
+                    (aref ansi-color-bright-colors-vector
+                          (1+ (/ idx 6))))))
+          (push (cons face `(:background ,bg :foreground ,fg)) remapping)))
+
+      (setq grab-face-alist (cl-copy-list remapping))
+
+      ;; Set *all* other faces to white-on-black so there won't be any
+      ;; confusion.
+      (let* ((white-fg (face-foreground 'ansi-color-white))
+             (black-bg (face-background 'ansi-color-black))
+             (white-on-black
+              `(:foreground ,white-fg :background ,black-bg)))
+        (dolist (face (face-list))
+          (unless (memq face grab-faces)
+            (push (cons face white-on-black) remapping))))
+
+      (dolist (buf (let ((bufs (list)))
+                     (dolist (win (window-list))
+                       (when-let ((buf (window-buffer win)))
+                         (unless (memq buf bufs)
+                           (push buf bufs))))
+
+                     bufs))
+        (with-current-buffer buf
+          (push (cons buf (buffer-local-value 'face-remapping-alist buf))
+                cookies)
+          (setq-local face-remapping-alist remapping)))
+
+      (cons grab-face-alist cookies))))
+
+(defun turtles--teardown-grab-faces (cookies)
+  "Revert buffer colors modified by `turtles--setup-grab-faces'.
+
+COOKIES is one of the return values of
+`turtles--setup-grab-faces'."
+  (pcase-dolist (`(,buf . ,remapping) cookies)
+    (with-current-buffer buf
+      (setq-local face-remapping-alist remapping))))
+
+(defun turtles--faces-from-color (face-alist)
+  "Recognize faces from FACE-ALIST in current buffer.
+
+This function replaces the font-lock-face color properties set by
+ansi-color with face properties from FACE-ALIST.
+
+FACE-ALIST must be an alist of face symbol to face spec, as
+returned by turtles--setup-grab-faces. The colors in this alist
+are mapped back to the symbols.
+
+When this function returns, the buffer content should look like
+the original content, but with only the faces from FACE-ALIST
+set."
+  (let ((reverse-face-alist
+         (mapcar (lambda (cell)
+                   (cons (turtles--color-values (cdr cell)) (car cell)))
+                 face-alist))
+        current-face range-start next)
+    (save-excursion
+      (goto-char (point-min))
+      (setq next (point-min))
+      (while
+          (progn
+            (goto-char next)
+            (when-let* ((spec (get-text-property (point) 'font-lock-face))
+                        (col (turtles--color-values spec))
+                        (face (alist-get col reverse-face-alist nil nil #'equal)))
+              (setq current-face face)
+              (setq range-start (point)))
+            (setq next (next-property-change (point)))
+
+            (let ((next (or next (point-max))))
+              (when (> next (point))
+                (remove-text-properties (point) next '(font-lock-face nil)))
+              (when current-face
+                (add-text-properties range-start next `(face ,current-face))
+                (setq range-start nil)
+                (setq current-face nil)))
+
+            next)))))
+
+(defun turtles--color-values (spec)
+  "Extract fg/bg color values from SPEC.
+
+The color values are constrained to colors inside of the terminal.
+
+SPEC might be a face symbol, a face attribute list or a list of
+face attribute lists.
+
+Returns a (cons fg bg) with fg and bg a list of 3 integers (red
+green blue) between 0 and 65535."
+  (cons (color-values (or (turtles--face-attr spec :foreground)
+                          "unspecified-fg"))
+        (color-values (or (turtles--face-attr spec :background)
+                          "unspecified-bg"))))
+
+(defun turtles--face-attr (spec attr)
+  "Extract ATTR from SPEC.
+
+SPEC might be a face symbol, a face attribute list or a list of
+face attribute lists."
+  (cond
+   ((symbolp spec)
+    (face-attribute-specified-or
+     (face-attribute spec attr nil t)
+     nil))
+   ((consp spec)
+    (or (cadr (memq attr spec))
+        (car (delq nil
+                   (mapcar
+                    (lambda (s) (when (consp s) (turtles--face-attr s attr)))
+                    spec)))))))
+
+(defsubst turtles-mark-text-with-face (face marker &optional closing-marker)
+  "Put section of text marked with FACE within MARKERS.
+
+MARKER should either be a string made up of two markers of the
+same length, such as \"[]\" or the opening marker string, with
+the closing marker defined by CLOSING-MARKER.
+
+This function is a thin wrapper around
+`turtles-mark-text-with-face'. See the documentatin of that
+function for details."
+  (turtles-mark-text-with-faces
+   `((,face ,marker . ,(when closing-marker (cons closing-marker nil))))))
+
+(defun turtles-mark-text-with-faces (face-marker-alist)
+  "Put section of text marked with specific faces with text markers.
+
+FACE-MARKER-ALIST should be an alist of (face markers),
+with face a face symbol to detect and marker.
+
+The idea behind this function is to make face properties visible
+in the text, to make easier to test buffer content with faces by
+comparing two strings.
+
+markers should be, either:
+
+- a string made up an opening and closing substring of the same
+  length or two strings. For example, \"()\" \"[]\" \"<<>>\"
+  \"/**/\".
+
+- two strings, the opening and closing substrings.
+  For example: (\"s[\" \"]\")
+
+This function is meant to highlight faces setup by turtles when
+asked to grab faces. It won't work in the general case."
+  (save-excursion
+    (let ((next (point-min))
+          (closing nil))
+      (while
+          (progn
+            (goto-char next)
+            (when-let* ((face (get-text-property (point) 'face))
+                        (markers (alist-get face face-marker-alist)))
+              (pcase-let ((`(,op . ,close) (turtles--split-markers markers)))
+                (insert op)
+                (setq closing close)))
+            (setq next (next-property-change (point)))
+
+            (when closing
+              (goto-char (or next (point-max)))
+              (insert closing)
+              (setq closing nil))
+
+            next)))))
+
+(defun turtles--split-markers (markers)
+  "Return an opening and closing marker.
+
+MARKERS must be either a string, to be split into two strings of
+the same length or a list of two elements.
+
+The return value is a (cons opening closing) containing two
+strings"
+  (cond
+   ((and (consp markers) (length= markers 1))
+    (turtles--split-markers (car markers)))
+   ((and (consp markers) (length= markers 2))
+    (cons (nth 0 markers) (nth 1 markers)))
+   ((stringp markers)
+    (let ((mid (/ (length markers) 2)))
+      (cons (substring markers 0 mid) (substring markers mid))))
+   (t (error "Unsupported markers: %s" markers))))
+
+(defun turtles-mark-region (marker &optional closing-marker)
+  "Surround the active region with markers.
+
+This function does nothing if the region is inactive.
+
+If only MARKER is specified, it must be a string composed of two
+strings of the same size that will be used as opening and closing
+marker, such as \"[]\" or \"/**/\".
+
+If both MARKER and CLOSING-MARKER are specified, MARKER is used
+as opening marker and CLOSING-MARKER as closing."
+  (when (region-active-p)
+    (pcase-let ((`(,opening . ,closing)
+                 (turtles--split-markers
+                  (if closing-marker
+                      (list marker closing-marker)
+                    marker))))
+      (let ((beg (min (point-marker) (mark-marker)))
+            (end (max (point-marker) (mark-marker))))
+        (save-excursion
+          (goto-char end)
+          (insert closing)
+          (goto-char beg)
+          (insert opening))))))
+
+(defun turtles--set-window-size (width height)
+  "Set the process terminal size to WIDTH x HEIGHT."
+  (with-current-buffer (get-buffer turtles-buffer-name)
+    (set-process-window-size
+     (get-buffer-process (current-buffer)) height width)
+    (term-reset-size height width)))
+
+(defun turtles-grab-buffer-to-string (buf)
+  "Grab BUF into a string.
+
+See `turtles-grab-buffer-into' for more details."
+  (with-temp-buffer
+    (turtles-grab-buffer-into buf (current-buffer))
+    (buffer-string)))
+
+(defun turtles-grab-window-to-string (win)
+  "Grab WIN into a string.
+
+See `turtles-grab-window-into' for more details."
+  (with-temp-buffer
+    (turtles-grab-window-into win (current-buffer))
+    (buffer-string)))
+
+(defun turtles-grab-frame-to-string ()
+  "Grab the frame into a string.
+
+See `turtles-grab-frame-into' for more details."
+  (with-temp-buffer
+    (turtles-grab-frame-into (current-buffer))
+    (buffer-string)))
 
 (provide 'turtles)

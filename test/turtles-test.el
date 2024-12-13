@@ -23,6 +23,10 @@
 (require 'turtles-io)
 (require 'turtles-ert)
 
+(defun turtles-test-init-buffer ()
+  (setq-local truncate-lines t)
+  (setq-local left-margin-width 0))
+
 (ert-deftest turtles-start-stop ()
   (unwind-protect
       (progn
@@ -45,3 +49,604 @@
       (turtles-grab-frame-into (current-buffer))
       (goto-char (point-min))
       (should (search-forward "De Chelonian Mobile")))))
+
+(ert-deftest turtles-test-grab-buffer-head ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (turtles-test-init-buffer)
+    (dotimes (i 100)
+      (insert (format "line %d\n" i)))
+    (goto-char (point-min))
+    (should (equal
+             (concat "line 0\n"
+                     "line 1\n"
+                     "line 2\n"
+                     "line 3\n"
+                     "line 4\n"
+                     "line 5\n"
+                     "line 6\n"
+                     "line 7\n"
+                     "line 8\n"
+                     "line 9\n"
+                     "line 10\n"
+                     "line 11\n"
+                     "line 12\n"
+                     "line 13\n"
+                     "line 14\n"
+                     "line 15\n"
+                     "line 16\n"
+                     "line 17\n")
+             (turtles-grab-buffer-to-string (current-buffer))))))
+
+
+(ert-deftest turtles-test-grab-buffer-tail ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (turtles-test-init-buffer)
+    (dotimes (i 100)
+      (insert (format "line %d\n" i)))
+    (goto-char (point-max))
+    (should (equal
+             (concat "line 91\n"
+                     "line 92\n"
+                     "line 93\n"
+                     "line 94\n"
+                     "line 95\n"
+                     "line 96\n"
+                     "line 97\n"
+                     "line 98\n"
+                     "line 99\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n"
+                     "\n")
+             (turtles-grab-buffer-to-string (current-buffer))))))
+
+(ert-deftest turtles-test-grab-buffer-full-lines ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (turtles-test-init-buffer)
+    (dotimes (i 100)
+      (insert (format "line %d%s\n" i (make-string 80 ?-))))
+    (goto-char (point-min))
+    (should (equal
+             (concat "line 0-------------------------------------------------------------------------$\n"
+                     "line 1-------------------------------------------------------------------------$\n"
+                     "line 2-------------------------------------------------------------------------$\n"
+                     "line 3-------------------------------------------------------------------------$\n"
+                     "line 4-------------------------------------------------------------------------$\n"
+                     "line 5-------------------------------------------------------------------------$\n"
+                     "line 6-------------------------------------------------------------------------$\n"
+                     "line 7-------------------------------------------------------------------------$\n"
+                     "line 8-------------------------------------------------------------------------$\n"
+                     "line 9-------------------------------------------------------------------------$\n"
+                     "line 10------------------------------------------------------------------------$\n"
+                     "line 11------------------------------------------------------------------------$\n"
+                     "line 12------------------------------------------------------------------------$\n"
+                     "line 13------------------------------------------------------------------------$\n"
+                     "line 14------------------------------------------------------------------------$\n"
+                     "line 15------------------------------------------------------------------------$\n"
+                     "line 16------------------------------------------------------------------------$\n"
+                     "line 17------------------------------------------------------------------------$\n")
+             (turtles-grab-buffer-to-string (current-buffer))))))
+
+
+(ert-deftest turtles-test-grab-window-horiz-center ()
+  (turtles-ert-test)
+
+  (let (buf1 buf2 center-win)
+    (ert-with-test-buffer (:name "buf1")
+      (turtles-test-init-buffer)
+      (setq buf1 (current-buffer))
+      (dotimes (i 40)
+        (insert (format "line %d%s\n" i (make-string 80 ?-))))
+      (goto-char (point-min))
+
+      (ert-with-test-buffer (:name "buf2")
+        (turtles-test-init-buffer)
+        (setq buf2 (current-buffer))
+        (dotimes (_ 40)
+          (insert (make-string 80 ?x)))
+        (goto-char (point-min))
+
+        (set-window-buffer (frame-root-window) buf2)
+        (setq center-win (split-window-below 5 (frame-root-window)))
+        (split-window-below 10 center-win)
+        (set-window-buffer center-win buf1)
+
+        (should
+         (equal
+          (concat
+           "line 0-------------------------------------------------------------------------$\n"
+           "line 1-------------------------------------------------------------------------$\n"
+           "line 2-------------------------------------------------------------------------$\n"
+           "line 3-------------------------------------------------------------------------$\n"
+           "line 4-------------------------------------------------------------------------$\n"
+           "line 5-------------------------------------------------------------------------$\n"
+           "line 6-------------------------------------------------------------------------$\n"
+           "line 7-------------------------------------------------------------------------$\n"
+           "line 8-------------------------------------------------------------------------$\n")
+          (turtles-grab-window-to-string center-win)))))))
+
+
+(ert-deftest turtles-test-grab-window-vert-center ()
+  (turtles-ert-test)
+
+  (let (buf1 buf2 center-win)
+    (ert-with-test-buffer (:name "buf1")
+      (turtles-test-init-buffer)
+      (setq buf1 (current-buffer))
+      (dotimes (i 40)
+        (insert (format "line %d%s\n" i (make-string 80 ?-))))
+      (goto-char (point-min))
+
+      (ert-with-test-buffer (:name "buf2")
+        (turtles-test-init-buffer)
+
+        (setq buf2 (current-buffer))
+        (insert "begin")
+        (dotimes (_ 40)
+          (insert "\n"))
+        (insert "end")
+        (goto-char (point-min))
+
+        (set-window-buffer (frame-root-window) buf2)
+        (setq center-win (split-window-right 20 (frame-root-window)))
+        (split-window-right 20 center-win)
+        (set-window-buffer center-win buf1)
+
+        (should
+         (equal
+          (concat
+           "line 0------------$\n"
+           "line 1------------$\n"
+           "line 2------------$\n"
+           "line 3------------$\n"
+           "line 4------------$\n"
+           "line 5------------$\n"
+           "line 6------------$\n"
+           "line 7------------$\n"
+           "line 8------------$\n"
+           "line 9------------$\n"
+           "line 10-----------$\n"
+           "line 11-----------$\n"
+           "line 12-----------$\n"
+           "line 13-----------$\n"
+           "line 14-----------$\n"
+           "line 15-----------$\n"
+           "line 16-----------$\n"
+           "line 17-----------$\n")
+          (turtles-grab-window-to-string center-win)))))))
+
+
+(ert-deftest turtles-test-grab-window-vert-center-empty-buffer ()
+  ;; Terminal display is broken when run in batch mode: the lines of a
+  ;; window to the right of a buffer showing a line with no final \n
+  ;; on it are truncated, so the positions don't align.
+  ;;
+  ;; So the terminal would look like this:
+  ;;
+  ;; mostly empty       |line 0------------$|mostly empty
+  ;;                    |line 1------------$|
+  ;; . |line 2------------$|.
+  ;;  |line 3------------$|
+  ;;  |line 4------------$|
+  ;;  |line 5------------$|
+  ;;  |line 6------------$|
+  ;;  |line 7------------$|
+  ;; [...]
+  ;;
+  ;; This is puzzling and very annoying as tests are primarily run in
+  ;; batch modes.
+  (turtles-ert-test)
+
+  (let (buf1 buf2 center-win)
+    (ert-with-test-buffer (:name "buf1")
+      (turtles-test-init-buffer)
+      (setq buf1 (current-buffer))
+      (dotimes (i 40)
+        (insert (format "line %d%s\n" i (make-string 80 ?-))))
+      (goto-char (point-min))
+
+      (ert-with-test-buffer (:name "buf2")
+        (turtles-test-init-buffer)
+
+        (setq buf2 (current-buffer))
+        (insert "mostly empty\n\n.")
+        (goto-char (point-min))
+
+        (set-window-buffer (frame-root-window) buf2)
+        (setq center-win (split-window-right 20 (frame-root-window)))
+        (split-window-right 20 center-win)
+        (set-window-buffer center-win buf1)
+
+        (should
+         (equal
+          (concat
+           "line 0------------$\n"
+           "line 1------------$\n"
+           "line 2------------$\n"
+           "line 3------------$\n"
+           "line 4------------$\n"
+           "line 5------------$\n"
+           "line 6------------$\n"
+           "line 7------------$\n"
+           "line 8------------$\n"
+           "line 9------------$\n"
+           "line 10-----------$\n"
+           "line 11-----------$\n"
+           "line 12-----------$\n"
+           "line 13-----------$\n"
+           "line 14-----------$\n"
+           "line 15-----------$\n"
+           "line 16-----------$\n"
+           "line 17-----------$\n")
+          (turtles-grab-window-to-string center-win)))))))
+
+(ert-deftest turtles-test-grab-point ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+      (goto-char (point-min))
+      (search-forward "line 6")
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line 6<>..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (insert "<>")
+           (buffer-string))))))))
+
+
+(ert-deftest turtles-test-grab-active-mark ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (push-mark (match-beginning 0) 'nomsg)
+      (search-forward "line 6")
+      (activate-mark)
+      (should (and t (region-active-p)))
+
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                ;; The active regions has spaces after the text
+                ;; because the region is highlighted on the screen.
+                "[line 3..                                                                        \n"
+                "line 4..                                                                        \n"
+                "line 5..                                                                        \n"
+                "line 6]..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+           (should (region-active-p))
+
+           (buffer-string))))))))
+
+
+(ert-deftest turtles-test-grab-inactive-mark ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (push-mark (match-beginning 0) 'nomsg)
+      (search-forward "line 6")
+      (deactivate-mark)
+      (should (not (region-active-p)))
+
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "[line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line 6]..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+           (should-not (region-active-p))
+
+           (buffer-string))))))))
+
+(ert-deftest turtles-test-grab-mark-before-window-start ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (dotimes (i 100)
+        (insert (format "line %d.\n" i)))
+
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (push-mark (match-beginning 0) 'nomsg)
+      (search-forward "line 90")
+
+      (should
+       (equal
+        (concat "[line 81.\n"
+                "line 82.\n"
+                "line 83.\n"
+                "line 84.\n"
+                "line 85.\n"
+                "line 86.\n"
+                "line 87.\n"
+                "line 88.\n"
+                "line 89.\n"
+                "line 90].\n"
+                "line 91.\n"
+                "line 92.\n"
+                "line 93.\n"
+                "line 94.\n"
+                "line 95.\n"
+                "line 96.\n"
+                "line 97.\n"
+                "line 98.")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+
+           (buffer-string))))))))
+
+(ert-deftest turtles-test-grab-mark-after-window-start ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (dotimes (i 100)
+        (insert (format "line %d.\n" i)))
+
+      (goto-char (point-min))
+      (search-forward "line 90")
+      (push-mark (point) 'nomsg)
+      (goto-char (point-min))
+      (search-forward "line 9")
+      (goto-char (match-beginning 0))
+
+      (should
+       (equal
+        (concat
+         "line 0.\n"
+         "line 1.\n"
+         "line 2.\n"
+         "line 3.\n"
+         "line 4.\n"
+         "line 5.\n"
+         "line 6.\n"
+         "line 7.\n"
+         "line 8.\n"
+         "[line 9.\n"
+         "line 10.\n"
+         "line 11.\n"
+         "line 12.\n"
+         "line 13.\n"
+         "line 14.\n"
+         "line 15.\n"
+         "line 16.\n"
+         "line 17.\n"
+         "]")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (insert "[")
+           (goto-char (mark))
+           (insert "]")
+
+           (buffer-string))))))))
+
+
+(ert-deftest turtles-test-grab-invisible-mark ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+
+      ;; Put the mark in the middle of an invisible section.
+      (goto-char (point-min))
+      (search-forward "line 3")
+      (search-forward "invisible")
+      (push-mark (point) 'nomsg)
+      (search-forward "line 6")
+
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "line 3.[.\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line 6]..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (insert "]")
+           (goto-char (mark))
+           (insert "[")
+
+           (buffer-string))))))))
+
+(ert-deftest turtles-test-grab-buffer-position ()
+  (turtles-ert-test)
+
+  (let (test-buffer pos)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (dotimes (i 10)
+        (insert (format "line %d." i))
+        ;; Make sure position computation isn't confused by invisible
+        ;; text.
+        (insert (propertize "invisible text" 'invisible t))
+        (insert ".\n"))
+      (goto-char (point-min))
+      (search-forward "line 6")
+      (setq pos (1- (match-end 0)))
+      (goto-char (point-min))
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line <>6..\n"
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (goto-char (turtles-pos-in-window-grab pos))
+           (insert "<>")
+           (buffer-string))))))))
+
+(ert-deftest turtles-test-mark-region ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "Too")
+   (push-mark (match-beginning 0))
+   (search-forward "kills")
+   (activate-mark)
+
+   (turtles-mark-region "[]")
+
+   (should (equal "Time is a drug. [Too much of it kills] you."
+                  (buffer-string)))))
+
+(ert-deftest turtles-test-mark-region-swapped ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "kills")
+   (push-mark (point) 'nomsg)
+   (goto-char (point-min))
+   (search-forward "Too")
+   (goto-char (match-beginning 0))
+   (activate-mark)
+
+   (turtles-mark-region "[]")
+
+   (should (equal "Time is a drug. [Too much of it kills] you."
+                  (buffer-string)))))
+
+(ert-deftest turtles-test-mark-region-twochars ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "kills")
+   (push-mark (point) 'nomsg)
+   (goto-char (point-min))
+   (search-forward "Too")
+   (goto-char (match-beginning 0))
+   (activate-mark)
+
+   (turtles-mark-region "/**/")
+
+   (should (equal "Time is a drug. /*Too much of it kills*/ you."
+                  (buffer-string)))))
+
+(ert-deftest turtles-test-mark-region-opening-and-closing ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "kills")
+   (push-mark (point) 'nomsg)
+   (goto-char (point-min))
+   (search-forward "Too")
+   (goto-char (match-beginning 0))
+   (activate-mark)
+
+   (turtles-mark-region ">>" "<")
+
+   (should (equal "Time is a drug. >>Too much of it kills< you."
+                  (buffer-string)))))
