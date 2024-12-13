@@ -155,7 +155,7 @@ as an error response."
       (cons :id (cons ,id-var
                       (condition-case err
                           (cons :result (cons (progn ,@body) nil))
-                        (error (cons :error (cons err nil))))))))))
+                        (t (cons :error (cons err nil))))))))))
 
 (defun turtles-io-send-error (conn id error)
   "Send an error back to the caller.
@@ -199,11 +199,15 @@ Only wait up to TIMEOUT seconds for the result."
        (setq got-response t)))
     (turtles-io-wait-for (or timeout 5) "No response from server"
                          (lambda () got-response))
-    (when received-error
-      (if (and (consp received-error)
-               (symbolp (car received-error)))
-          (signal (car received-error) (cdr received-error))
-        (error "Remote method %s failed: %s" method received-error)))
+
+    (pcase received-error
+      (`(,(and (pred symbolp) sym) . ,data)
+       ;; This might signal symbols that are defined as errors on the
+       ;; client side, but not on the server side, so won't be caught
+       ;; by (condition-case ... (error ...)).
+       (signal sym data))
+      ((and (pred (not null)) any)
+       (error "Remote method %s failed: %s" method any)))
 
     received-result))
 

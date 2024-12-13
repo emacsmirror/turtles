@@ -193,12 +193,11 @@
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
-            (should
-             (equal '(fake-error . "foobar")
-                    (condition-case err
-                        (prog1 nil
-                          (turtles-io-call-method-and-wait client 'inc "cannot-add"))
-                      (error err)))))
+            (should (equal '(fake-error . "foobar")
+                           (condition-case err
+                               (turtles-io-call-method-and-wait
+                                client 'inc "cannot-add")
+                             (t err)))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
@@ -213,14 +212,14 @@
                   (turtles-io-server
                    socket
                    `((inc . ,(lambda (conn id method _params)
-                               (turtles-io-send-error conn id "error string"))))))
+                               (turtles-io-send-error conn id '("error string" 3)))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
             (should
-             (equal '(error "Remote method inc failed: error string")
+             (equal '(error "Remote method inc failed: (error string 3)")
                     (condition-case err
                         (prog1 nil
                           (turtles-io-call-method-and-wait client 'inc "cannot-add"))
