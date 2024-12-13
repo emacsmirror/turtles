@@ -31,9 +31,44 @@
 
 (advice-add 'ert-run-test :around #'turtles-ert--around-ert-run-test)
 
-(defvar turtles-ert--result nil)
+(defvar turtles-ert--result nil
+  "Result of running a test in another Emacs instance.")
+
+(defun turtles-ert-test ()
+  "Run the current test in another Emacs instance."
+  (unless (turtles-client-p)
+    (let* ((test (ert-running-test))
+           (test-sym (when test (ert-test-name test)))
+           (file-name (when test (ert-test-file-name test))))
+      (unless test
+        (error "Call turtles-ert-test from inside a ERT test."))
+      (cl-assert test-sym)
+
+      ;; TODO: if no file-name is available, transfer the test
+      (unless file-name
+        (error "No file available for %s" test-sym))
+
+      (turtles-start)
+      (setq turtles-ert--result
+            (turtles-io-call-method-and-wait
+             turtles--conn 'eval
+             `(progn
+                (load-library ,file-name)
+                (let ((test (ert-get-test (quote ,test-sym))))
+                  (ert-run-test test)
+                  (ert-test-most-recent-result test)))))
+
+      ;; ert-pass interrupt the server-side portion of the test. The
+      ;; real result will be collected from turtles-ert--result by
+      ;; turtles-ert--around-ert-run-test. What follows is the
+      ;; client-side portion of the test only.
+      (ert-pass))))
 
 (defun turtles-ert--around-ert-run-test (func test)
+  "Collect test results sent by another Emacs instance.
+
+This function takes results set up by `turtles-ert-test' and puts
+them into the local `ert-test' instance."
   (let ((turtles-ert--result nil))
     (funcall func test)
     (when turtles-ert--result

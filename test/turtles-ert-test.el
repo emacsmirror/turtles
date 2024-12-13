@@ -17,31 +17,16 @@
 ;; `http://www.gnu.org/licenses/'.
 
 (require 'ert)
-(require 'ert-x)
-(require 'cl-lib)
 
-(require 'turtles)
-(require 'turtles-io)
 (require 'turtles-ert)
 
-(ert-deftest turtles-ert-test-smoke ()
-  (if (turtles-client-p)
-      (progn
-        (should (equal 1 1)))
-    (let* ((test (ert-running-test))
-           (test-sym (ert-test-name test))
-           (file-name (ert-test-file-name test)))
-      (cl-assert test)
-      (cl-assert test-sym)
-      (cl-assert file-name)
+(ert-deftest turtles-ert-test-pass ()
+  (turtles-ert-test)
 
-      (turtles-start)
-      (unwind-protect
-          (setq turtles-ert--result
-                (turtles-io-call-method-and-wait
-                 turtles--conn 'eval
-                 `(progn
-                    (load-library ,file-name)
-                    (let ((test (ert-get-test (quote ,test-sym))))
-                      (ert-run-test test)
-                      (ert-test-most-recent-result test)))))))))
+  (should (equal 1 1)))
+
+(ert-deftest turtles-ert-test-fail ()
+  :expected-result :failed
+  (turtles-ert-test)
+
+  (should (equal 1 2)))
