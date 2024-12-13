@@ -57,6 +57,12 @@
                              server-socket-dir)
            `((grab . ,(turtles-io-method-handler (_ignored)
                         (with-current-buffer (get-buffer turtles-buffer-name)
+                          ;; Wait until all output from the other
+                          ;; Emacs instance have been processed, as
+                          ;; it's likely in the middle of a redisplay.
+                          (while (accept-process-output
+                                  (get-buffer-process (current-buffer)) 0 500))
+
                           (buffer-substring term-home-marker (point-max)))))))))
 
   (let ((buf (get-buffer-create turtles-buffer-name)))
@@ -131,9 +137,12 @@ This includes all windows and decorations. Unless that's what you
 want to test, it's usually better to call `turtles-grab-buffer'
 or `turtles-grab-win', which just return the window body."
   (turtles-fail-unless-live)
+  (unless (redisplay t)
+    (error "Emacs won't redisplay in this context, likely because of pending input."))
   (with-current-buffer buffer
     (delete-region (point-min) (point-max))
-    (insert (turtles-io-call-method-and-wait turtles--conn 'grab))
+    (let ((grab (turtles-io-call-method-and-wait turtles--conn 'grab)))
+      (insert grab))
     (font-lock-mode)))
 
 (provide 'turtles)
