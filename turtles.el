@@ -80,9 +80,10 @@
             (append '("-nw" "-Q")
                     (turtles--dirs-from-load-path)
                     `("-l" ,turtles--file-name)))
-
-           (with-current-buffer (get-buffer turtles-buffer-name) ;; buf
+           (with-current-buffer buf
+             (term-char-mode)
              (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
+
              (term-send-raw-string
               (format "\033xturtles--launch\n%s\n"
                       (turtles-io-server-socket turtles--server))))
