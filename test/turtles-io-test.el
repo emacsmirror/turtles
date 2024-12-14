@@ -248,3 +248,25 @@
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
+
+(ert-deftest turtles-io-test-method-return-unreadable ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          server client collected-responses)
+      (unwind-protect
+          (progn
+            (setq server
+                  (turtles-io-server
+                   socket
+                   `((get-unreadable . ,(turtles-io-method-handler (index)
+                                          (list "before" (current-buffer) "after"))))))
+
+            (setq client (turtles-io-connect socket))
+            (should (turtles-io-conn-p client))
+            (should (process-live-p (turtles-io-conn-proc client)))
+
+            (should (equal '("before" (unreadable buffer) "after")
+                           (turtles-io-call-method-and-wait client 'get-unreadable))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
