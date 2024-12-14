@@ -650,3 +650,37 @@
 
    (should (equal "Time is a drug. >>Too much of it kills< you."
                   (buffer-string)))))
+
+(ert-deftest turtles-test-colors ()
+  (turtles-ert-test)
+
+  (let (orig-buf capture-buf)
+    (ert-with-test-buffer (:name "orig")
+      (setq orig-buf (current-buffer))
+      (turtles-test-init-buffer)
+      (insert (propertize "green on red" 'face
+                          `(:foreground ,(face-foreground 'ansi-color-green)
+                                        :background ,(face-background 'ansi-color-red))))
+      (insert "\n")
+      (insert (propertize "yellow on blue" 'face
+                          `(:foreground ,(face-foreground 'ansi-color-yellow)
+                                        :background ,(face-background 'ansi-color-blue))))
+      (insert "\n")
+      (ert-with-test-buffer (:name "capture")
+        (setq capture-buf (current-buffer))
+        (turtles-grab-buffer-into orig-buf capture-buf)
+        (goto-char (point-min))
+
+        (should (search-forward "green on red"))
+        (goto-char (match-beginning 0))
+        (should (equal (color-values (face-foreground 'ansi-color-green))
+                       (color-values (foreground-color-at-point))))
+        (should (equal (color-values (face-background 'ansi-color-red))
+                       (color-values (background-color-at-point))))
+
+        (should (search-forward "yellow on blue"))
+        (goto-char (match-beginning 0))
+        (should (equal (color-values (face-foreground 'ansi-color-yellow))
+                       (color-values (foreground-color-at-point))))
+        (should (equal (color-values (face-background 'ansi-color-blue))
+                       (color-values (background-color-at-point))))))))

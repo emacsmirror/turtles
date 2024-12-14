@@ -99,9 +99,17 @@ This is local variable set in a grab buffer filled by
            (term-exec
             buf
             "*turtles*"
-            (expand-file-name invocation-name invocation-directory)
+            "env"
             nil
-            (append '("-nw" "-Q")
+
+            ;; COLORTERM=truecolor tells Emacs to use 24 terminal
+            ;; colors even though the termcap entry for eterm-color
+            ;; only defines 256. That works, because term.el does
+            ;; support 24 bit colors.
+            (append `("COLORTERM=truecolor"
+                      ,(expand-file-name invocation-name invocation-directory)
+                      "-nw"
+                      "-Q")
                     (turtles--dirs-from-load-path)
                     `("-l" ,turtles--file-name)))
            (with-current-buffer buf
