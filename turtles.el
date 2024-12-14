@@ -197,6 +197,28 @@ the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
   (turtles-grab-window-into (turtles-setup-buffer buf) output-buf grab-faces))
 
+(defun turtles-new-client-frame ()
+  "Ask the client instance to create a new frame.
+
+This opens a new frame on the Emacs instance run by turtles on a
+window system, which is convenient for debugging.
+
+The frame that is created is on the same display as the current
+frame, which only makes sense for graphical displays."
+  (interactive)
+  (turtles-fail-unless-live)
+  (let ((params (frame-parameters)))
+    (unless (alist-get 'window-system params)
+      (error "No window system"))
+    (message "New client frame: %s"
+             (turtles-io-call-method-and-wait
+              turtles--conn 'eval
+              `(progn
+                 (prin1-to-string
+                  (make-frame
+                   '((window-system . ,(alist-get 'window-system params))
+                     (display . ,(alist-get 'display params))))))))))
+
 (defun turtles-grab-window-into (win output-buf &optional grab-faces)
   "Grab WIN into output-buf.
 
