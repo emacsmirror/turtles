@@ -44,6 +44,26 @@
                                (buffer-file-name)))
 (defconst turtles-buffer-name " *turtles-term*")
 
+(defconst turtles-basic-colors
+  ["#ff0000" ;; red
+   "#00ff00" ;; lime
+   "#0000ff" ;; blue
+   "#ffff00" ;; yellow
+   "#00ffff" ;; cyan
+   "#ff00ff" ;; magenta
+   "#808080" ;; grey
+   "#800000" ;; maroon
+   "#808000" ;; olive
+   "#800080" ;; purple
+   "#008080" ;; teal
+   "#000080" ;; navy
+   ]
+  "Vector of basic colors used to detect faces.
+
+These colors are chosen to be distinctive and easy to recognize
+automatically. They don't need to be pretty, as they're never
+actually visible.")
+
 (defvar-local turtles-source-window nil
   "The turtles frame window the current buffer was grabbed from.
 
@@ -172,19 +192,19 @@ these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
   (turtles-fail-unless-live)
-  (unless (redisplay t)
-    (error "Emacs won't redisplay in this context, likely because of pending input."))
-
   (pcase-let ((`(,grab-face-alist . ,cookies)
                (turtles--setup-grab-faces grab-faces)))
     (unwind-protect
+      (unless (redisplay t)
+        (error "Emacs won't redisplay in this context, likely because of pending input."))
+
         (with-current-buffer buffer
           (delete-region (point-min) (point-max))
           (let ((grab (turtles-io-call-method-and-wait turtles--conn 'grab)))
             (insert grab))
           (font-lock-mode)
           (when grab-faces
-              (turtles--faces-from-color grab-face-alist)))
+            (turtles--faces-from-color grab-face-alist)))
       (turtles--teardown-grab-faces cookies))))
 
 (defun turtles-setup-buffer (&optional buf)
@@ -349,35 +369,26 @@ Return a (cons grab-face-alist cookies) with grab-face-alist the
 alist to pass to `turtles--faces-from-color' and cookies to pass
 to `turtles--teardown-grab-faces'."
   (when grab-faces
-    (let (grab-face-alist cookies remapping)
+    (let ((color-count (length turtles-basic-colors))
+          grab-face-alist cookies remapping)
 
-      ;; This algorithm limits itself to normal (non-bright) ansi
-      ;; colors, excluding black and white, for simplicity. That gives
-      ;; us 6 color - 36 combination of background and foreground - to
-      ;; work with. That should be enough for most reasonable tests,
-      ;; but if not, it could be extended to use more colors, as we
-      ;; normally have access to 256 colors.
-      (when (> (length grab-faces) 36)
+      ;; That should be enough for any reasonable number of faces, but
+      ;; if not, the vector can could be extended to use more
+      ;; distinctive colors.
+      (when (> (length grab-faces) (* color-count color-count))
         (error "Too many faces to highlight"))
 
       (dolist (face grab-faces)
         (let* ((idx (length remapping))
-               (bg (face-background
-                    (aref ansi-color-normal-colors-vector
-                          (1+ (% idx 6)))))
-               (fg (face-foreground
-                    (aref ansi-color-bright-colors-vector
-                          (1+ (/ idx 6))))))
+               (bg (aref turtles-basic-colors (% idx color-count)))
+               (fg (aref turtles-basic-colors (/ idx color-count))))
           (push (cons face `(:background ,bg :foreground ,fg)) remapping)))
 
       (setq grab-face-alist (cl-copy-list remapping))
 
       ;; Set *all* other faces to white-on-black so there won't be any
       ;; confusion.
-      (let* ((white-fg (face-foreground 'ansi-color-white))
-             (black-bg (face-background 'ansi-color-black))
-             (white-on-black
-              `(:foreground ,white-fg :background ,black-bg)))
+      (let* ((white-on-black `(:foreground "#ffffff" :background "#000000")))
         (dolist (face (face-list))
           (unless (memq face grab-faces)
             (push (cons face white-on-black) remapping))))
@@ -447,19 +458,21 @@ set."
             next)))))
 
 (defun turtles--color-values (spec)
-  "Extract fg/bg color values from SPEC.
+  "Extract fg/bg color values from SPEC with low precision.
 
-The color values are constrained to colors inside of the terminal.
+The color values are constrained to `turtles-color-precision' and
+are meant to be safely compared.
 
 SPEC might be a face symbol, a face attribute list or a list of
 face attribute lists.
 
-Returns a (cons fg bg) with fg and bg a list of 3 integers (red
-green blue) between 0 and 65535."
-  (cons (color-values (or (turtles--face-attr spec :foreground)
-                          "unspecified-fg"))
-        (color-values (or (turtles--face-attr spec :background)
-                          "unspecified-bg"))))
+Returns a list of 6 color values, first fg RGB, then bg RGB, all
+integers between 0 and 65535."
+  (append
+   (color-values (or (turtles--face-attr spec :foreground)
+                     "#ffffff"))
+   (color-values (or (turtles--face-attr spec :background)
+                     "#000000"))))
 
 (defun turtles--face-attr (spec attr)
   "Extract ATTR from SPEC.

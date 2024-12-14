@@ -585,6 +585,133 @@
            (insert "<>")
            (buffer-string))))))))
 
+(ert-deftest turtles-test-grab-faces ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "link" 'face 'link) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (ert-with-test-buffer (:name "grab")
+        (turtles-grab-buffer-into
+         test-buffer (current-buffer)
+         ;; list of faces to be grabbed
+         '(highlight error success))
+
+        (goto-char (point-min))
+
+        (should (equal 'success (get-text-property (point-min) 'face)))
+
+        (search-forward "faces")
+        (should (equal nil (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "highlight")
+        (should (equal 'highlight (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "error")
+        (should (equal 'error (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "link")
+        ;; link isn't on the list of faces to be grabbed
+        (should (equal nil (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
+
+        (search-forward "success")
+        (should (equal 'success (get-text-property (1- (point)) 'face)))
+        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))))))
+
+(ert-deftest turtles-test-grab-and-mark-faces ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (should
+       (equal
+        "{Some} faces:\n  [highlight]\n  <<error>>\n  {success}"
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into
+            test-buffer (current-buffer)
+            '(highlight error success))
+
+           (delete-trailing-whitespace)
+           (turtles-mark-text-with-faces '((highlight "[]")
+                                            (error "<<>>")
+                                            (success "{}")))
+
+           (buffer-string))))))))
+
+(ert-deftest turtles-test-grab-and-mark-faces-assymetric-markers ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (should
+       (equal
+        "#s[Some] faces:\n  #h[highlight]\n  #e[error]\n  #s[success]"
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into
+            test-buffer (current-buffer)
+            '(highlight error success))
+
+           (delete-trailing-whitespace)
+           (turtles-mark-text-with-faces '((highlight "#h[" "]")
+                                            (error "#e[" "]")
+                                            (success "#s[" "]")))
+
+           (buffer-string))))))))
+
+(ert-deftest turtles-test-grab-and-mark-faces-single-call ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (insert (concat (propertize "Some" 'face 'success) " faces:\n"))
+      (insert (concat "  " (propertize "highlight" 'face 'highlight) "\n"))
+      (insert (concat "  " (propertize "error" 'face 'error) "\n"))
+      (insert (concat "  " (propertize "success" 'face 'success) "\n"))
+
+      (should
+       (equal
+        "Some faces:\n  [highlight]\n  e[error]\n  success"
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into
+            test-buffer (current-buffer)
+            '(highlight error success))
+
+           (delete-trailing-whitespace)
+           (turtles-mark-text-with-face 'highlight "[]")
+           (turtles-mark-text-with-face 'error "e[" "]")
+
+           (buffer-string))))))))
+
 (ert-deftest turtles-test-mark-region ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
