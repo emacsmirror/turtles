@@ -208,10 +208,11 @@ so any other face not in GRAB-FACE are absent."
       (turtles--teardown-grab-faces cookies))))
 
 (defun turtles-setup-buffer (&optional buf)
-  "Setup the turtles frame to display BUF in its root window.
+  "Setup the turtles frame to display BUF and return the window.
 
 If BUF is nil, the current buffer is used instead."
-  (display-buffer buf '(display-buffer-full-frame . nil)))
+  (or (get-buffer-window buf)
+      (display-buffer buf '(display-buffer-full-frame . nil))))
 
 (defun turtles-grab-buffer-into (buf output-buf &optional grab-faces)
   "Display BUF in the grabbed frame and grab it into OUTPUT-BUF.
