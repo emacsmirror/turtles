@@ -54,7 +54,9 @@
             (turtles-io-call-method 
              turtles--conn 'eval
              `(progn
-                (load-library ,file-name)
+                (load ,file-name nil 'nomessage 'nosuffix)
+                (clear-minibuffer-message)
+                (menu-bar-mode -1)
                 (let ((test (ert-get-test (quote ,test-sym))))
                   (ert-run-test test)
                   (ert-test-most-recent-result test)))))

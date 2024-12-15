@@ -104,10 +104,7 @@ This is local variable set in a grab buffer filled by
            (with-current-buffer buf
              (term-mode)
              (setq-local term-width 80)
-
-             ;; Height is 22 to remain compatible with termgrab
-             ;; TODO: update the tests and switch to 20
-             (setq-local term-height 22))
+             (setq-local term-height 20))
            (term-exec
             buf
             "*turtles*"
@@ -336,7 +333,7 @@ appear in the grab, return nil."
         (when (and x y)
           (save-excursion
             (goto-char (point-min))
-            (forward-line (1- y))
+            (forward-line y)
             (move-to-column x)
             (point)))))))
 
