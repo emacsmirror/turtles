@@ -45,24 +45,14 @@
 (defconst turtles-buffer-name " *turtles-term*")
 
 (defconst turtles-basic-colors
-  ["#ff0000" ;; red
-   "#00ff00" ;; lime
-   "#0000ff" ;; blue
-   "#ffff00" ;; yellow
-   "#00ffff" ;; cyan
-   "#ff00ff" ;; magenta
-   "#808080" ;; grey
-   "#800000" ;; maroon
-   "#808000" ;; olive
-   "#800080" ;; purple
-   "#008080" ;; teal
-   "#000080" ;; navy
-   ]
-  "Vector of basic colors used to detect faces.
+  ["#ff0000" "#00ff00" "#0000ff" "#ffff00" "#00ffff" "#ff00ff"
+   "#800000" "#008000" "#000080" "#808000" "#008080" "#800080"]
+  "Color vector used to detect faces, excluding white and black.
 
 These colors are chosen to be distinctive and easy to recognize
-automatically. They don't need to be pretty, as they're never
-actually visible.")
+automatically even with the low precision of
+`turtles--color-values'. They don't need to be pretty, as they're
+never actually visible.")
 
 (defvar-local turtles-source-window nil
   "The turtles frame window the current buffer was grabbed from.
@@ -193,7 +183,12 @@ that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
   (turtles-fail-unless-live)
   (pcase-let ((`(,grab-face-alist . ,cookies)
-               (turtles--setup-grab-faces grab-faces)))
+               (turtles--setup-grab-faces
+                grab-faces
+                
+                ;; TODO: when grabbing just one buffer or window, just
+                ;; pass in that buffer.
+                (turtles--all-displayed-buffers))))
     (unwind-protect
       (unless (redisplay t)
         (error "Emacs won't redisplay in this context, likely because of pending input."))
@@ -206,6 +201,16 @@ so any other face not in GRAB-FACE are absent."
           (when grab-faces
             (turtles--faces-from-color grab-face-alist)))
       (turtles--teardown-grab-faces cookies))))
+
+(defun turtles--all-displayed-buffers ()
+  "Return a list of all buffers shown in a window."
+  (let ((bufs (list)))
+    (dolist (win (window-list))
+      (when-let ((buf (window-buffer win)))
+        (unless (memq buf bufs)
+          (push buf bufs))))
+    
+    bufs))
 
 (defun turtles-setup-buffer (&optional buf)
   "Setup the turtles frame to display BUF and return the window.
@@ -357,8 +362,8 @@ appear in the grab, return nil."
         (forward-line top)
         (delete-region (point-min) (point))))))
 
-(defun turtles--setup-grab-faces (grab-faces)
-  "Prepare buffer faces for grabbing GRAB-FACES.
+(defun turtles--setup-grab-faces (grab-faces buffers)
+  "Prepare buffer faces for grabbing GRAB-FACES on BUFFERS.
 
 This function modifies the faces in all buffers so that they can
 be detected from color by `turtles--faces-from-color'.
@@ -394,13 +399,7 @@ to `turtles--teardown-grab-faces'."
           (unless (memq face grab-faces)
             (push (cons face white-on-black) remapping))))
 
-      (dolist (buf (let ((bufs (list)))
-                     (dolist (win (window-list))
-                       (when-let ((buf (window-buffer win)))
-                         (unless (memq buf bufs)
-                           (push buf bufs))))
-
-                     bufs))
+      (dolist (buf buffers)
         (with-current-buffer buf
           (push (cons buf (buffer-local-value 'face-remapping-alist buf))
                 cookies)
@@ -441,11 +440,12 @@ set."
       (while
           (progn
             (goto-char next)
-            (when-let* ((spec (get-text-property (point) 'font-lock-face))
-                        (col (turtles--color-values spec))
-                        (face (alist-get col reverse-face-alist nil nil #'equal)))
-              (setq current-face face)
-              (setq range-start (point)))
+            (let* ((spec (get-text-property (point) 'font-lock-face))
+                   (col (when spec (turtles--color-values spec)))
+                   (face (when col (alist-get col reverse-face-alist nil nil #'equal))))
+              (when face
+                (setq current-face face)
+                (setq range-start (point))))
             (setq next (next-property-change (point)))
 
             (let ((next (or next (point-max))))
@@ -467,13 +467,13 @@ are meant to be safely compared.
 SPEC might be a face symbol, a face attribute list or a list of
 face attribute lists.
 
-Returns a list of 6 color values, first fg RGB, then bg RGB, all
-integers between 0 and 65535."
-  (append
-   (color-values (or (turtles--face-attr spec :foreground)
-                     "#ffffff"))
-   (color-values (or (turtles--face-attr spec :background)
-                     "#000000"))))
+Returns a list of 6 low-precision color values, first fg RGB,
+then bg RGB, all integers between 0 and 4."
+  (mapcar
+   (lambda (c) (round (* 4.0 c)))
+   (append
+    (color-name-to-rgb (or (turtles--face-attr spec :foreground) "#ffffff"))
+    (color-name-to-rgb (or (turtles--face-attr spec :background) "#000000")))))
 
 (defun turtles--face-attr (spec attr)
   "Extract ATTR from SPEC.

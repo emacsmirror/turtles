@@ -811,3 +811,52 @@
                        (color-values (foreground-color-at-point))))
         (should (equal (color-values (face-background 'ansi-color-blue))
                        (color-values (background-color-at-point))))))))
+
+(ert-deftest turtles-test-faces-from-color ()
+  (ert-with-test-buffer ()
+    (insert (propertize "red" 'font-lock-face '(:foreground "#ff0000" :background "#000000")))
+    (insert " ")
+    (insert (propertize "green" 'font-lock-face '(:foreground "#00ff00" :background "#000000")))
+    (insert " ")
+    (insert (propertize "blue" 'font-lock-face '(:foreground "#0000ff" :background "#000000")))
+    (insert "\n")
+
+    (insert (propertize "red bg" 'font-lock-face '(:foreground "#ffffff" :background "#ff0000")))
+    (insert " ")
+    (insert (propertize "green bg" 'font-lock-face '(:foreground "#ffffff" :background "#00ff00")))
+    (insert " ")
+    (insert (propertize "blue bg" 'font-lock-face '(:foreground "#ffffff" :background "#0000ff")))
+
+    (turtles--faces-from-color '((error . (:foreground "#ff0000" :background "#000000"))
+                                 (success . (:foreground "#00ff00" :background "#000000"))
+                                 (link . (:foreground "#ffffff" :background "#0000ff"))))
+
+    (turtles-mark-text-with-face 'error "[" "](error)")
+    (turtles-mark-text-with-face 'success "[" "](success)")
+    (turtles-mark-text-with-face 'link "[" "](link)")
+
+    (should (equal (concat "[red](error) [green](success) blue\n"
+                           "red bg green bg [blue bg](link)")
+                   (buffer-string)))
+
+    (should-not (get-text-property (point-min) 'font-lock-face))
+    (should-not (next-single-property-change (point-min) 'font-lock-face))))
+
+(ert-deftest turtles-test-faces-from-color-inexact ()
+  (ert-with-test-buffer ()
+    (insert (propertize "red" 'font-lock-face '(:foreground "#e10000" :background "black")))
+    (insert " ")
+    (insert (propertize "green" 'font-lock-face '(:foreground "#007100" :background "black")))
+    (insert " ")
+    (insert (propertize "blue" 'font-lock-face '(:foreground "#0000ef" :background "black")))
+
+    (turtles--faces-from-color '((error . (:foreground "#ff0000" :background "#000000"))
+                                 (success . (:foreground "#008000" :background "#000000"))
+                                 (link . (:foreground "#0000ff" :background "#000000"))))
+
+    (turtles-mark-text-with-face 'error "[" "](error)")
+    (turtles-mark-text-with-face 'success "[" "](success)")
+    (turtles-mark-text-with-face 'link "[" "](link)")
+
+    (should (equal "[red](error) [green](success) [blue](link)"
+                   (buffer-string)))))
