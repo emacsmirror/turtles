@@ -860,3 +860,17 @@
 
     (should (equal "[red](error) [green](success) [blue](link)"
                    (buffer-string)))))
+
+(ert-deftest turtles-test-message ()
+  (turtles-start)
+
+  (ert-with-message-capture messages
+    (let* ((pid (turtles-io-call-method-and-wait
+                 turtles--conn
+                 'eval
+                 `(progn
+                   (message "hello from turtles-test-message")
+                   (emacs-pid))))
+           (message (format "[PID %s] hello from turtles-test-message" pid)))
+      (unless (member message (string-split messages "\n" 'omit-nulls))
+        (error "message not found in %s" messages)))))

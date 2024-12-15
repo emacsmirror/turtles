@@ -85,7 +85,9 @@ This is local variable set in a grab buffer filled by
                           (while (accept-process-output
                                   (get-buffer-process (current-buffer)) 0 500))
 
-                          (buffer-substring term-home-marker (point-max)))))))))
+                          (buffer-substring term-home-marker (point-max)))))
+             (message . ,(lambda (_conn _id _method msg)
+                           (message msg)))))))
 
   (let ((buf (get-buffer-create turtles-buffer-name)))
     (unless (and (turtles-io-conn-live-p turtles--conn)
@@ -160,11 +162,20 @@ This is local variable set in a grab buffer filled by
 (defun turtles--launch (socket)
   (interactive "F")
   (setq turtles--conn
-        (turtles-io-connect socket
-                            `((eval . ,(turtles-io-method-handler (expr)
-                                         (eval expr)))
-                              (exit . ,(lambda (_conn _id _method _params)
-                                         (kill-emacs nil)))))))
+        (turtles-io-connect
+         socket
+         `((eval . ,(turtles-io-method-handler (expr)
+                      (let ((set-message-function #'turtles--send-message-to-server))
+                        (eval expr))))
+           (exit . ,(lambda (_conn _id _method _params)
+                      (kill-emacs nil)))))))
+
+(defun turtles--send-message-to-server (msg)
+  "Send a message to the server."
+  (turtles-io-notify turtles--conn 'message (format "[PID %s] %s" (emacs-pid) msg))
+
+  ;; Echo message normally
+  nil)
 
 (defun turtles-grab-frame-into (buffer &optional grab-faces)
   "Grab a snapshot current frame into BUFFER.
