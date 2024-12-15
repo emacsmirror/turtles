@@ -83,7 +83,7 @@ This is local variable set in a grab buffer filled by
                           ;; Emacs instance have been processed, as
                           ;; it's likely in the middle of a redisplay.
                           (while (accept-process-output
-                                  (get-buffer-process (current-buffer)) 0 500))
+                                  (get-buffer-process (current-buffer)) 0.05))
 
                           (buffer-substring term-home-marker (point-max)))))
              (message . ,(lambda (_conn _id _method msg)
