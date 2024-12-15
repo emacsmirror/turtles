@@ -39,7 +39,7 @@
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
-            (should (equal "pong" (turtles-io-call-method-and-wait client 'ping))))
+            (should (equal "pong" (turtles-io-call-method  client 'ping))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
@@ -106,7 +106,7 @@
             (turtles-io-wait-for 5 "Client not connected"
                                  (lambda () (turtles-io-server-connections server)) 0.1)
 
-            (should (equal "pong" (turtles-io-call-method-and-wait
+            (should (equal "pong" (turtles-io-call-method 
                                    (car (turtles-io-server-connections server)) 'ping))))
 
         (ignore-errors (when client (delete-process client)))
@@ -123,7 +123,7 @@
             (setq client (turtles-io-connect socket))
 
             (condition-case err
-                (turtles-io-call-method-and-wait client 'ping)
+                (turtles-io-call-method  client 'ping)
               (turtles-io-unknown-method
                (should (equal '(turtles-io-unknown-method) err)))))
 
@@ -146,7 +146,7 @@
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
-            (should (equal 2 (turtles-io-call-method-and-wait client 'inc 1))))
+            (should (equal 2 (turtles-io-call-method  client 'inc 1))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
@@ -171,7 +171,7 @@
             (should
              (condition-case err
                  (prog1 nil
-                   (turtles-io-call-method-and-wait client 'inc "cannot-add"))
+                   (turtles-io-call-method  client 'inc "cannot-add"))
                (wrong-type-argument err))))
 
         (ignore-errors (when client (delete-process client)))
@@ -195,7 +195,7 @@
 
             (should (equal '(fake-error . "foobar")
                            (condition-case err
-                               (turtles-io-call-method-and-wait
+                               (turtles-io-call-method 
                                 client 'inc "cannot-add")
                              (t err)))))
 
@@ -222,7 +222,7 @@
              (equal '(error "Remote method inc failed: (error string 3)")
                     (condition-case err
                         (prog1 nil
-                          (turtles-io-call-method-and-wait client 'inc "cannot-add"))
+                          (turtles-io-call-method  client 'inc "cannot-add"))
                       (error err)))))
 
         (ignore-errors (when client (delete-process client)))
@@ -244,7 +244,7 @@
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
-            (should (null (turtles-io-call-method-and-wait client 'ping))))
+            (should (null (turtles-io-call-method  client 'ping))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
@@ -266,7 +266,7 @@
             (should (process-live-p (turtles-io-conn-proc client)))
 
             (should (equal '("before" (unreadable buffer) "after")
-                           (turtles-io-call-method-and-wait client 'get-unreadable))))
+                           (turtles-io-call-method  client 'get-unreadable))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))

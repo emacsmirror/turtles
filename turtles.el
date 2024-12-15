@@ -92,7 +92,7 @@ This is local variable set in a grab buffer filled by
   (let ((buf (get-buffer-create turtles-buffer-name)))
     (unless (and (turtles-io-conn-live-p turtles--conn)
                  (term-check-proc buf))
-      (mapc (lambda (c) (turtles-io-call-method c 'exit nil nil))
+      (mapc (lambda (c) (turtles-io-call-method-async c 'exit nil nil))
             (turtles-io-server-connections turtles--server))
       (setq turtles--conn nil)
       (setf (turtles-io-server-on-new-connection turtles--server)
@@ -139,7 +139,7 @@ This is local variable set in a grab buffer filled by
 (defun turtles-stop ()
   (interactive)
   (when (turtles-io-server-live-p turtles--server)
-    (mapc (lambda (c) (turtles-io-call-method c 'exit nil nil))
+    (mapc (lambda (c) (turtles-io-call-method-async c 'exit nil nil))
           (turtles-io-server-connections turtles--server))
     (delete-process (turtles-io-server-proc turtles--server)))
   (setq turtles--server nil)
@@ -206,7 +206,7 @@ so any other face not in GRAB-FACE are absent."
 
         (with-current-buffer buffer
           (delete-region (point-min) (point-max))
-          (let ((grab (turtles-io-call-method-and-wait turtles--conn 'grab)))
+          (let ((grab (turtles-io-call-method  turtles--conn 'grab)))
             (insert grab))
           (font-lock-mode)
           (when grab-faces
@@ -256,7 +256,7 @@ frame, which only makes sense for graphical displays."
     (unless (alist-get 'window-system params)
       (error "No window system"))
     (message "New client frame: %s"
-             (turtles-io-call-method-and-wait
+             (turtles-io-call-method 
               turtles--conn 'eval
               `(progn
                  (prin1-to-string

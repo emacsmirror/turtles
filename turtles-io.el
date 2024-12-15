@@ -173,7 +173,7 @@ CONN is the connection on which the call was made, ID the request
 id and RESULT the result of the call, which might be nil."
   (turtles-io--send conn `(:id ,id :result ,result)))
 
-(defun turtles-io-call-method (conn method params handler)
+(defun turtles-io-call-method-async (conn method params handler)
   "Call METHOD on CONN with parameters PARAMS.
 
 This function calls a method and expects the response to be
@@ -182,7 +182,7 @@ two arguments: a result and an error, only on of which is ever
 set at a time.
 
 Returns immediately after the request is sent. If you'd like to
-wait for the response, use `turtles-io-call-method-and-wait'
+wait for the response, use `turtles-io-call-method '
 instead."
   (let ((id (cl-incf (turtles-io-conn-last-id conn))))
     (setf (alist-get id (turtles-io-conn-response-alist conn)) handler)
@@ -191,16 +191,16 @@ instead."
 (defun turtles-io-notify (conn method &optional params)
   "Call METHOD on CONN with parameters PARAMS with no id.
 
-This function behaves like `turtles-io-call-method', except it
+This function behaves like `turtles-io-call-method-async', except it
 doesn't expect a response, so doesn't even bother setting the id."
   (turtles-io--send conn `(:method ,method :params ,params)))
 
-(defun turtles-io-call-method-and-wait (conn method &optional params timeout)
+(defun turtles-io-call-method  (conn method &optional params timeout)
   "Call METHOD on CONN with PARAMS and wait for the result.
 
 Only wait up to TIMEOUT seconds for the result."
   (let (got-response received-result received-error)
-    (turtles-io-call-method
+    (turtles-io-call-method-async
      conn method params
      (lambda (result err)
        (setq received-error err)

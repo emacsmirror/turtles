@@ -33,7 +33,7 @@
         (turtles-start)
         (should turtles--server)
         (should turtles--conn)
-        (should (equal "ok" (turtles-io-call-method-and-wait turtles--conn 'eval "ok"))))
+        (should (equal "ok" (turtles-io-call-method  turtles--conn 'eval "ok"))))
     (turtles-stop))
   (should-not turtles--server)
   (should-not turtles--conn)
@@ -865,7 +865,7 @@
   (turtles-start)
 
   (ert-with-message-capture messages
-    (let* ((pid (turtles-io-call-method-and-wait
+    (let* ((pid (turtles-io-call-method 
                  turtles--conn
                  'eval
                  `(progn

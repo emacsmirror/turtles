@@ -51,7 +51,7 @@
 
       (turtles-start)
       (setq turtles-ert--result
-            (turtles-io-call-method-and-wait
+            (turtles-io-call-method 
              turtles--conn 'eval
              `(progn
                 (load-library ,file-name)
