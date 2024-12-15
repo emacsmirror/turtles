@@ -199,16 +199,17 @@ so any other face not in GRAB-FACE are absent."
                 ;; pass in that buffer.
                 (turtles--all-displayed-buffers))))
     (unwind-protect
-      (unless (redisplay t)
-        (error "Emacs won't redisplay in this context, likely because of pending input."))
-
-        (with-current-buffer buffer
-          (delete-region (point-min) (point-max))
-          (let ((grab (turtles-io-call-method  turtles--conn 'grab)))
-            (insert grab))
-          (font-lock-mode)
-          (when grab-faces
-            (turtles--faces-from-color grab-face-alist)))
+        (progn
+          (redraw-frame)
+          (unless (redisplay t)
+            (error "Emacs won't redisplay in this context, likely because of pending input."))
+          (with-current-buffer buffer
+            (delete-region (point-min) (point-max))
+            (let ((grab (turtles-io-call-method  turtles--conn 'grab)))
+              (insert grab))
+            (font-lock-mode)
+            (when grab-faces
+              (turtles--faces-from-color grab-face-alist))))
       (turtles--teardown-grab-faces cookies))))
 
 (defun turtles--all-displayed-buffers ()
