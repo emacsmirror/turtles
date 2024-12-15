@@ -158,6 +158,7 @@ This is local variable set in a grab buffer filled by
 
 (defun turtles--launch (socket)
   (interactive "F")
+  (setq load-prefer-newer t)
   (setq turtles--conn
         (turtles-io-connect
          socket
