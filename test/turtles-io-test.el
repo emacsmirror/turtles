@@ -270,3 +270,24 @@
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
+
+(ert-deftest turtles-io-test-notify ()
+  (ert-with-temp-directory dir
+    (let ((socket (expand-file-name "socket" dir))
+          (ping-count 0)
+          server client)
+      (unwind-protect
+          (progn
+            (setq server (turtles-io-server
+                          socket
+                          `((ping . ,(turtles-io-method-handler (_ignored)
+                                       (cl-incf ping-count))))))
+            (setq client (turtles-io-connect socket))
+
+            (turtles-io-notify client 'ping)
+            (turtles-io-notify client 'ping)
+            (turtles-io-wait-for 5 "Not enough pings"
+                                 (lambda () (equal 2 ping-count))))
+
+        (ignore-errors (when client (delete-process client)))
+        (ignore-errors (when server (delete-process server)))))))
