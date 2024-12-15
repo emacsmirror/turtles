@@ -216,3 +216,21 @@
               (execute-kbd-macro (kbd "hello"))
               (should (equal "Prompt: hello" (turtles-to-string)))
               (execute-kbd-macro (kbd "RET")))))))
+
+;; Snippet shown in README.md
+(ert-deftest turtles-test-hello-world ()
+  (turtles-ert-test)             ;; Start a secondary Emacs instance
+                                 ;; Everything below this point runs
+                                 ;; in the secondary instance.
+
+  (ert-with-test-buffer ()
+    (insert "hello, ")           ;; Fill in the buffer
+    (insert (propertize "the " 'invisible t))
+    (insert "world!\n")
+
+    (turtles-with-grab-buffer () ;; Grab the current buffer content
+      (turtles-trim-buffer)      ;; Remove any extra newlines
+
+      ;; Check the buffer content that was displayed
+      (should (equal "hello, world!"
+                     (buffer-string))))))
