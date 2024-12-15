@@ -324,7 +324,6 @@
            (insert "<>")
            (buffer-string))))))))
 
-
 (ert-deftest turtles-test-grab-active-mark ()
   (turtles-ert-test)
 
@@ -873,3 +872,13 @@
            (message (format "[PID %s] hello from turtles-test-message" pid)))
       (unless (member message (string-split messages "\n" 'omit-nulls))
         (error "message not found in %s" messages)))))
+
+(ert-deftest turtles-test-trim-buffer ()
+  (ert-with-test-buffer ()
+    (insert "  line 1         \n")
+    (insert "line 2\t\t         \n")
+    (insert "\n\n\n\n")
+
+    (turtles-trim-buffer)
+
+    (should (equal "  line 1\nline 2" (buffer-string)))))

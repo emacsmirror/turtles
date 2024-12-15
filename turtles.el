@@ -628,6 +628,16 @@ See `turtles-grab-frame-into' for more details."
     (turtles-grab-frame-into (current-buffer))
     (buffer-string)))
 
+(defun turtles-trim-buffer ()
+  "Remove trailing spaces and final newlines.
+
+This function avoids having to hardcode many spaces and newlines
+resulting from frame capture in tests. It removes trailing spaces
+in the whole buffer and any newlines at the end of the buffer."
+  (delete-trailing-whitespace)
+  (while (eq ?\n (char-before (point-max)))
+    (delete-region (1- (point-max)) (point-max))))
+
 (provide 'turtles)
 
 ;;; turtles.el ends here
