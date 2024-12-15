@@ -191,6 +191,20 @@
       (search-forward "success")
       (should (equal 'success (get-text-property (1- (point)) 'face))))))
 
+(ert-deftest turtles-ert-test-with-grab-buffer-faces-and-marks ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (insert (propertize "error" 'face 'error))
+    (insert ", ")
+    (insert (propertize "success" 'face 'success))
+    (turtles-with-grab-buffer (:faces '(success (error . "{}") ))
+      (turtles-trim-buffer)
+      (should (equal "{error}, success" (buffer-string)))
+      (goto-char (point-min))
+      (search-forward "success")
+      (should (equal 'success (get-text-property (1- (point)) 'face))))))
+
 (ert-deftest turtles-ert-read-from-minibuffer ()
   (turtles-ert-test)
 

@@ -536,25 +536,26 @@ markers should be, either:
 
 This function is meant to highlight faces setup by turtles when
 asked to grab faces. It won't work in the general case."
-  (save-excursion
-    (let ((next (point-min))
-          (closing nil))
-      (while
-          (progn
-            (goto-char next)
-            (when-let* ((face (get-text-property (point) 'face))
-                        (markers (alist-get face face-marker-alist)))
-              (pcase-let ((`(,op . ,close) (turtles--split-markers markers)))
-                (insert op)
-                (setq closing close)))
-            (setq next (next-property-change (point)))
+  (when face-marker-alist
+    (save-excursion
+      (let ((next (point-min))
+            (closing nil))
+        (while
+            (progn
+              (goto-char next)
+              (when-let* ((face (get-text-property (point) 'face))
+                          (markers (alist-get face face-marker-alist)))
+                (pcase-let ((`(,op . ,close) (turtles--split-markers markers)))
+                  (insert op)
+                  (setq closing close)))
+              (setq next (next-property-change (point)))
 
-            (when closing
-              (goto-char (or next (point-max)))
-              (insert closing)
-              (setq closing nil))
+              (when closing
+                (goto-char (or next (point-max)))
+                (insert closing)
+                (setq closing nil))
 
-            next)))))
+              next))))))
 
 (defun turtles--split-markers (markers)
   "Return an opening and closing marker.

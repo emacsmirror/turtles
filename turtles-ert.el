@@ -51,7 +51,7 @@
 
       (turtles-start)
       (setq turtles-ert--result
-            (turtles-io-call-method 
+            (turtles-io-call-method
              turtles--conn 'eval
              `(progn
                 (load ,file-name nil 'nomessage 'nosuffix)
@@ -135,17 +135,15 @@ The following keyword arguments post-process what was grabbed:
   (let ((calling-buf (current-buffer)))
     (ert-with-test-buffer (:name name)
       (turtles--internal-grab
-       frame win buf calling-buf minibuffer (mapcar #'car faces))
+       frame win buf calling-buf minibuffer faces)
       (when region
         (turtles-mark-region (if (consp region) (car region) region)
                               (if (consp region) (nth 1 region))))
       (when point
         (insert point))
-      (when faces (turtles-mark-text-with-faces faces))
+      (turtles-mark-text-with-faces (turtles-ert--filter-faces-for-mark faces))
       (when trim
-        (delete-trailing-whitespace)
-        (while (eq ?\n (char-before (point-max)))
-          (delete-region (1- (point-max)) (point-max))))
+        (turtles-trim-buffer))
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
@@ -195,11 +193,14 @@ BODY:
     Note that colors won't be available in the grabbed buffer
     content when FACES is specified."
   (declare (indent 1))
-  (let ((calling-buf (make-symbol "calling-buf")))
-    `(let ((,calling-buf (current-buffer)))
+  (let ((calling-buf (make-symbol "calling-buf"))
+        (faces-var (make-symbol "faces")))
+    `(let ((,calling-buf (current-buffer))
+           (,faces-var ,faces))
        (ert-with-test-buffer (:name ,name)
          (turtles--internal-grab
-          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces)
+          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces-var)
+         (turtles-mark-text-with-faces (turtles-ert--filter-faces-for-mark ,faces-var))
 
          ,@body))))
 
@@ -245,13 +246,21 @@ Return whatever READ eventually evaluates to."
   "Internal macro implementation for grabbing into the current buffer.
 
 Do not call this function outside of this file."
-  (let ((cur (current-buffer)))
-  (cond
-   (buf (turtles-grab-buffer-into buf cur grab-faces))
-   (win (turtles-grab-window-into win cur grab-faces))
-   (minibuffer (turtles-grab-window-into (active-minibuffer-window) cur grab-faces))
-   (frame (turtles-grab-frame-into cur grab-faces))
-   (t (turtles-grab-buffer-into calling-buf cur grab-faces)))))
+  (let ((cur (current-buffer))
+        (grab-faces (turtles-ert--filter-faces-for-grab grab-faces)))
+    (cond
+     (buf (turtles-grab-buffer-into buf cur grab-faces))
+     (win (turtles-grab-window-into win cur grab-faces))
+     (minibuffer (turtles-grab-window-into (active-minibuffer-window) cur grab-faces))
+     (frame (turtles-grab-frame-into cur grab-faces))
+     (t (turtles-grab-buffer-into calling-buf cur grab-faces)))))
+
+(defun turtles-ert--filter-faces-for-grab (faces)
+  "Filter FACES t pass to `turtles-grab-buffer-into'"
+  (mapcar (lambda (c) (if (consp c) (car c) c)) faces))
+
+(defun turtles-ert--filter-faces-for-mark (faces)
+  (delq nil (mapcar (lambda (c) (if (consp c) c)) faces)))
 
 (provide 'turtles-ert)
 
