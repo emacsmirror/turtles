@@ -306,10 +306,10 @@ MSG can be any lisp object that can be printed."
                     ;; Consume the region up to """ whether processing it
                     ;; succeeded or not.
                     (delete-region (point-min) end)))
-        (with-temp-buffer
-          ;; Something in dispatch sometimes changes the buffer.
-          ;; TODO: figure out what's happening
-          (turtles-io--dispatch conn obj))))))
+        ;; Use timer as a run queue of sorts, so commands that fail or
+        ;; commands like (top-level), which break the flow, don't
+        ;; destroy message processing.
+        (run-at-time 0 nil #'turtles-io--dispatch conn obj)))))
 
 (defun turtles-io--dispatch (conn msg)
   "Dispatch a MSG received on CONN to the method or response alists."
@@ -322,14 +322,15 @@ MSG can be any lisp object that can be printed."
     (cond
      ;; method call
      (method
-      (funcall (or (alist-get method (turtles-io-conn-method-alist conn))
-                   #'turtles-io--default-method-handler)
-               conn id method (plist-get msg :params)))
+      (with-temp-buffer ;; Isolates handlers.
+        (funcall (or (alist-get method (turtles-io-conn-method-alist conn))
+                     #'turtles-io--default-method-handler)
+                 conn id method (plist-get msg :params))))
 
      ;; call response
      ((or has-result err)
       (if-let ((handler (alist-get id (turtles-io-conn-response-alist conn))))
-          (funcall handler (plist-get msg :result) err)
+          (with-temp-buffer (funcall handler (plist-get msg :result) err))
         (warn "Unexpected response: %s" msg)))
 
      ;; invalid
