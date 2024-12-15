@@ -136,7 +136,7 @@ This is local variable set in a grab buffer filled by
 (defun turtles-stop ()
   (interactive)
   (when (turtles-io-server-live-p turtles--server)
-    (mapc (lambda (c) (turtles-io-call-method-async c 'exit nil nil))
+    (mapc (lambda (c) (turtles-io-notify c 'exit))
           (turtles-io-server-connections turtles--server))
     (delete-process (turtles-io-server-proc turtles--server)))
   (setq turtles--server nil)
