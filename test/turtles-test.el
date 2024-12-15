@@ -351,11 +351,9 @@
         (concat "line 0..\n"
                 "line 1..\n"
                 "line 2..\n"
-                ;; The active regions has spaces after the text
-                ;; because the region is highlighted on the screen.
-                "[line 3..                                                                        \n"
-                "line 4..                                                                        \n"
-                "line 5..                                                                        \n"
+                "[line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
                 "line 6]..\n"
                 "line 7..\n"
                 "line 8..\n"
@@ -367,6 +365,7 @@
            (goto-char (mark))
            (insert "[")
            (should (region-active-p))
+           (delete-trailing-whitespace)
 
            (buffer-string))))))))
 
