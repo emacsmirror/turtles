@@ -581,6 +581,10 @@ strings"
       (cons (substring markers 0 mid) (substring markers mid))))
    (t (error "Unsupported markers: %s" markers))))
 
+(defun turtles-mark-point (mark)
+  "Add a mark on the current point, so `buffer-string' shows it."
+  (insert mark))
+
 (defun turtles-mark-region (marker &optional closing-marker)
   "Surround the active region with markers.
 

@@ -715,6 +715,18 @@
 
            (buffer-string))))))))
 
+(ert-deftest turtles-test-mark-point ()
+  (ert-with-test-buffer ()
+   (insert "Time is a drug. Too much of it kills you.")
+
+   (goto-char (point-min))
+   (search-forward "kills")
+
+   (turtles-mark-point "<>")
+
+   (should (equal "Time is a drug. Too much of it kills<> you."
+                  (buffer-string)))))
+
 (ert-deftest turtles-test-mark-region ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
@@ -866,7 +878,7 @@
   (turtles-start)
 
   (ert-with-message-capture messages
-    (let* ((pid (turtles-io-call-method 
+    (let* ((pid (turtles-io-call-method
                  turtles--conn
                  'eval
                  `(progn
