@@ -49,14 +49,25 @@
 (defconst turtles-buffer-name " *turtles-term*")
 
 (defconst turtles-basic-colors
-  ["#ff0000" "#00ff00" "#0000ff" "#ffff00" "#00ffff" "#ff00ff"
-   "#800000" "#008000" "#000080" "#808000" "#008080" "#800080"]
+  ["#ff0000" "#00ff00" "#0000ff" "#ffff00" "#00ffff" "#ff00ff"]
   "Color vector used to detect faces, excluding white and black.
 
 These colors are chosen to be distinctive and easy to recognize
 automatically even with the low precision of
 `turtles--color-values'. They don't need to be pretty, as they're
 never actually visible.")
+
+(defconst turtles-term-face-remapping-alist
+  '((term :foreground "#ffffff" :background "#000000")
+    (term-color-black :foreground "#000000" :background "#000000")
+    (term-color-red :foreground "#ff0000" :background "#ff0000")
+    (term-color-green :foreground "#00ff00" :background "#00ff00")
+    (term-color-blue :foreground "#0000ff" :background "#0000ff")
+    (term-color-yellow :foreground "#ffff00" :background "#ffff0")
+    (term-color-magenta :foreground "#ff00ff" :background "#ff00ff")
+    (term-color-cyan :foreground "#00ffff" :background "#00ffff")
+    (term-color-white :foreground "#ffffff" :background "#fffff"))
+  "Hardcoded color faces for term-mode, for consistency.")
 
 (defvar-local turtles-source-window nil
   "The turtles frame window the current buffer was grabbed from.
@@ -114,8 +125,10 @@ into a loop, sending messages while sending messages.")
     (unwind-protect
         (with-current-buffer (get-buffer-create turtles-buffer-name)
           (term-mode)
+          (setq-local face-remapping-alist turtles-term-face-remapping-alist)
           (setq-local term-width 80)
           (setq-local term-height 20)
+
           (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
                            "-nw" "-Q")))
             (setq cmdline (append cmdline (turtles--dirs-from-load-path)))
