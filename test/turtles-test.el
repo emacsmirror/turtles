@@ -326,7 +326,45 @@
         (string-trim
          (ert-with-test-buffer (:name "grab")
            (turtles-grab-buffer-into test-buffer (current-buffer))
-           (insert "<>")
+           (turtles-mark-point "<>")
+           (buffer-string))))))))
+
+(ert-deftest turtles-test-grab-point-bottom-windows ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+
+      ;; Above, show the scratch buffer, below, show this buffer. This
+      ;; test makes sure that the point location computation is not
+      ;; confused when window coordinate != display coordinate.
+      (turtles-display-buffer-full-frame (get-scratch-buffer-create))
+      (let ((win (split-window-below)))
+        (set-window-buffer win (current-buffer))
+        (select-window win))
+
+      (dotimes (i 10)
+        (insert (format "line %d..\n" i)))
+
+      (goto-char (point-min))
+      (search-forward "line 6")
+
+      (should
+       (equal
+        (concat "line 0..\n"
+                "line 1..\n"
+                "line 2..\n"
+                "line 3..\n"
+                "line 4..\n"
+                "line 5..\n"
+                "line 6<>..\n"
+                "line 7..")
+        (string-trim
+         (ert-with-test-buffer (:name "grab")
+           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-mark-point "<>")
            (buffer-string))))))))
 
 (ert-deftest turtles-test-grab-active-mark ()

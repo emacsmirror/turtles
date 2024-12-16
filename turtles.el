@@ -347,25 +347,24 @@ boundaries.
 
 Return a position in the current buffer. If the point does not
 appear in the grab, return nil."
-  (unless turtles-source-window
-    (error "Current buffer does not contain a window grab"))
-
-  (cond
-   ((null pos-in-source-buf) nil)
-   ((and range (<= pos-in-source-buf
-                   (window-start turtles-source-window)))
-    (point-min))
-   ((and range (>= pos-in-source-buf
-                   (window-end turtles-source-window)))
-    (point-max))
-   (t (pcase-let ((`(,x . ,y) (window-absolute-pixel-position
-                               pos-in-source-buf turtles-source-window)))
-        (when (and x y)
-          (save-excursion
-            (goto-char (point-min))
-            (forward-line y)
-            (move-to-column x)
-            (point)))))))
+  (let ((win turtles-source-window))
+    (unless win
+      (error "Current buffer does not contain a window grab"))
+    (cond
+     ((null pos-in-source-buf) nil)
+     ((and range (<= pos-in-source-buf (window-start win)))
+      (point-min))
+     ((and range (>= pos-in-source-buf (window-end win)))
+      (point-max))
+     (t (pcase-let ((`(,left ,top _ _) (window-body-edges win))
+                    (`(,x . ,y) (window-absolute-pixel-position
+                                 pos-in-source-buf win)))
+          (when (and x y)
+            (save-excursion
+              (goto-char (point-min))
+              (forward-line (- y top))
+              (move-to-column (- x left))
+              (point))))))))
 
 (defun turtles--clip-in-frame-grab (win)
   "Clip the frame grab in the current buffer to the body of WIN."
