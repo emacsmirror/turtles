@@ -16,6 +16,7 @@
 ;; along with this program.  If not, see
 ;; `http://www.gnu.org/licenses/'.
 
+(require 'compat)
 (require 'ert)
 
 (require 'turtles-ert)
@@ -59,7 +60,8 @@
         (setq buf2 (current-buffer))
         (insert "foobar")
 
-        (split-window-below nil (frame-root-window))
+        (select-window (frame-root-window))
+        (split-window-below nil)
         (pcase-let ((`(,win1 ,win2) (window-list)))
           (set-window-buffer win1 buf1)
           (set-window-buffer win2 buf2)
@@ -165,7 +167,8 @@
         (setq buf2 (current-buffer))
         (insert "foobar")
 
-        (split-window-below nil (frame-root-window))
+        (select-window (frame-root-window))
+        (split-window-below)
         (pcase-let ((`(,win1 ,win2) (window-list)))
           (set-window-buffer win1 buf1)
           (set-window-buffer win2 buf2)
@@ -208,7 +211,8 @@
 (ert-deftest turtles-ert-read-from-minibuffer ()
   (turtles-ert-test)
 
-  (ert-with-buffer-selected ()
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
     (should
      (equal "hello"
             (turtles-read-from-minibuffer

@@ -1,5 +1,7 @@
 ; -*- mode: emacs-lisp; lexical-binding: t -*-
 
+(eldev-use-package-archive 'gnu-elpa)
+
 (setq eldev-build-treat-warnings-as-errors t)
 (setf eldev-project-loading-mode 'byte-compiled)
 (setq sentence-end-double-space nil)

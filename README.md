@@ -24,7 +24,7 @@ and shouldn't be used by anyone.
 
 ## Installation
 
-Emacs 29.1 or later is required.
+Emacs 26.1 or later is required.
 
 The easiest way to install this package is to do: `M-x
 package-vc-install https://www.github.com/szermatt/turtles`

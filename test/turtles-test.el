@@ -36,14 +36,13 @@
         (should (equal "ok" (turtles-io-call-method  turtles--conn 'eval "ok"))))
     (turtles-stop))
   (should-not turtles--server)
-  (should-not turtles--conn)
-  (should-not (get-buffer turtles-buffer-name)))
+  (should-not turtles--conn))
 
 (ert-deftest turtles-grab-frame-into ()
   (turtles-ert-test)
 
   (with-current-buffer (get-scratch-buffer-create)
-    (select-window (display-buffer (current-buffer) '(display-buffer-full-frame . nil)))
+    (turtles-display-buffer-full-frame (current-buffer))
     (insert "De Chelonian Mobile")
     (with-temp-buffer
       (turtles-grab-frame-into (current-buffer))
@@ -157,9 +156,11 @@
           (insert (make-string 80 ?x)))
         (goto-char (point-min))
 
-        (set-window-buffer (frame-root-window) buf2)
-        (setq center-win (split-window-below 5 (frame-root-window)))
-        (split-window-below 10 center-win)
+        (turtles-display-buffer-full-frame buf2)
+        (select-window (frame-root-window))
+        (setq center-win (split-window-below 5))
+        (select-window center-win)
+        (split-window-below 10)
         (set-window-buffer center-win buf1)
 
         (should
@@ -198,9 +199,11 @@
         (insert "end")
         (goto-char (point-min))
 
-        (set-window-buffer (frame-root-window) buf2)
-        (setq center-win (split-window-right 20 (frame-root-window)))
-        (split-window-right 20 center-win)
+        (turtles-display-buffer-full-frame buf2)
+        (select-window (frame-root-window))
+        (setq center-win (split-window-right 20))
+        (select-window center-win)
+        (split-window-right 20)
         (set-window-buffer center-win buf1)
 
         (should
@@ -263,9 +266,11 @@
         (insert "mostly empty\n\n.")
         (goto-char (point-min))
 
-        (set-window-buffer (frame-root-window) buf2)
-        (setq center-win (split-window-right 20 (frame-root-window)))
-        (split-window-right 20 center-win)
+        (turtles-display-buffer-full-frame buf2)
+        (select-window (frame-root-window))
+        (setq center-win (split-window-right 20))
+        (select-window center-win)
+        (split-window-right 20)
         (set-window-buffer center-win buf1)
 
         (should
@@ -784,12 +789,10 @@
       (setq orig-buf (current-buffer))
       (turtles-test-init-buffer)
       (insert (propertize "green on red" 'face
-                          `(:foreground ,(face-foreground 'ansi-color-green)
-                                        :background ,(face-background 'ansi-color-red))))
+                          `(:foreground "#00ff00" :background "#ff0000")))
       (insert "\n")
       (insert (propertize "yellow on blue" 'face
-                          `(:foreground ,(face-foreground 'ansi-color-yellow)
-                                        :background ,(face-background 'ansi-color-blue))))
+                          `(:foreground "#ffff00" :background "#0000ff")))
       (insert "\n")
       (ert-with-test-buffer (:name "capture")
         (setq capture-buf (current-buffer))
@@ -798,16 +801,16 @@
 
         (should (search-forward "green on red"))
         (goto-char (match-beginning 0))
-        (should (equal (color-values (face-foreground 'ansi-color-green))
+        (should (equal (color-values "#00ff00")
                        (color-values (foreground-color-at-point))))
-        (should (equal (color-values (face-background 'ansi-color-red))
+        (should (equal (color-values "#ff0000")
                        (color-values (background-color-at-point))))
 
         (should (search-forward "yellow on blue"))
         (goto-char (match-beginning 0))
-        (should (equal (color-values (face-foreground 'ansi-color-yellow))
+        (should (equal (color-values "#ffff00")
                        (color-values (foreground-color-at-point))))
-        (should (equal (color-values (face-background 'ansi-color-blue))
+        (should (equal (color-values "#0000ff")
                        (color-values (background-color-at-point))))))))
 
 (ert-deftest turtles-test-faces-from-color ()

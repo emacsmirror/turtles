@@ -18,6 +18,7 @@
 
 (require 'ert)
 (require 'ert-x)
+(require 'compat)
 
 (require 'turtles-io)
 
@@ -106,7 +107,7 @@
             (turtles-io-wait-for 5 "Client not connected"
                                  (lambda () (turtles-io-server-connections server)) 0.1)
 
-            (should (equal "pong" (turtles-io-call-method 
+            (should (equal "pong" (turtles-io-call-method
                                    (car (turtles-io-server-connections server)) 'ping))))
 
         (ignore-errors (when client (delete-process client)))
@@ -151,7 +152,6 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-
 (ert-deftest turtles-io-test-method-handler-with-error ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
@@ -168,16 +168,21 @@
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
-            (should
-             (condition-case err
-                 (prog1 nil
-                   (turtles-io-call-method  client 'inc "cannot-add"))
-               (wrong-type-argument err))))
+            (should-error (turtles-io-call-method  client 'inc "cannot-add")
+                          :type 'wrong-type-argument)
+            )
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
 (ert-deftest turtles-io-test-method-handler-with-error-bad-symbol ()
+  ;; Emacs 26 doesn't allow catching non-error symbols
+  ;; using t as a condition, so this test just isn't possible.
+  ;;
+  ;; Using t as a condition in condition-case might have been added
+  ;; before Emacs 29. This is likely too aggressive a skip.
+  (skip-unless (>= emacs-major-version 29))
+
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -195,7 +200,7 @@
 
             (should (equal '(fake-error . "foobar")
                            (condition-case err
-                               (turtles-io-call-method 
+                               (turtles-io-call-method
                                 client 'inc "cannot-add")
                              (t err)))))
 
@@ -265,8 +270,11 @@
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
-            (should (equal '("before" (unreadable buffer) "after")
-                           (turtles-io-call-method  client 'get-unreadable))))
+            (let ((expr (turtles-io-call-method  client 'get-unreadable)))
+              (should (equal "before" (nth 0 expr)))
+              (should (equal "after" (nth 2 expr)))
+              (should (equal 'unreadable (car (nth 1 expr))))
+              (should (string-match-p "buffer  \\*temp.*" (nth 1 (nth 1 expr))))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))

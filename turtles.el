@@ -5,7 +5,7 @@
 ;; Author: Stephane Zermatten <szermatt@gmx.net>
 ;; Maintainer: Stephane Zermatten <szermatt@gmail.com>
 ;; Version: 0.1snapshot
-;; Package-Requires: ((emacs "29.1"))
+;; Package-Requires: ((emacs "26.1") (compat "30.0.1.0"))
 ;; Keywords: testing, unix
 ;; URL: http://github.com/szermatt/turtles
 
@@ -31,11 +31,15 @@
 
 ;;; Code:
 
+(require 'compat)
 (require 'term)
 (require 'server)
 (require 'turtles-io)
+(require 'subr-x) ;; when-let
 
 (defvar term-home-marker) ;; declared in term.el
+(defvar term-width) ;; declared in term.el
+(defvar term-height) ;; declared in term.el
 
 (defvar turtles--server nil)
 (defvar turtles--conn nil)
@@ -89,49 +93,40 @@ This is local variable set in a grab buffer filled by
              (message . ,(lambda (_conn _id _method msg)
                            (message msg)))))))
 
-  (let ((buf (get-buffer-create turtles-buffer-name)))
-    (unless (and (turtles-io-conn-live-p turtles--conn)
-                 (term-check-proc buf))
-      (mapc (lambda (c) (turtles-io-call-method-async c 'exit nil nil))
-            (turtles-io-server-connections turtles--server))
-      (setq turtles--conn nil)
-      (setf (turtles-io-server-on-new-connection turtles--server)
-            (lambda (conn)
-              (setf turtles--conn conn)
-              (setf (turtles-io-server-on-new-connection turtles--server) nil)))
-      (unwind-protect
-          (progn
-           (with-current-buffer buf
-             (term-mode)
-             (setq-local term-width 80)
-             (setq-local term-height 20))
-           (term-exec
-            buf
-            "*turtles*"
-            "env"
-            nil
+  (unless (and (turtles-io-conn-live-p turtles--conn)
+               (term-check-proc (get-buffer-create turtles-buffer-name)))
+    (mapc (lambda (c) (turtles-io-call-method-async c 'exit nil nil))
+          (turtles-io-server-connections turtles--server))
+    (setq turtles--conn nil)
+    (setf (turtles-io-server-on-new-connection turtles--server)
+          (lambda (conn)
+            (setf turtles--conn conn)
+            (setf (turtles-io-server-on-new-connection turtles--server) nil)))
+    (unwind-protect
+        (with-current-buffer (get-buffer-create turtles-buffer-name)
+          (term-mode)
+          (setq-local term-width 80)
+          (setq-local term-height 20)
+          (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
+                           "-nw" "-Q")))
+            (setq cmdline (append cmdline (turtles--dirs-from-load-path)))
+            (setq cmdline (append cmdline `("-l" ,turtles--file-name)))
+            (when (>= emacs-major-version 29)
+              ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
+              ;; colors even though the termcap entry for eterm-color
+              ;; only defines 256. That works, because term.el in
+              ;; Emacs 29.1 and later support 24 bit colors.
+              (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
+            (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
+          (term-char-mode)
+          (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
 
-            ;; COLORTERM=truecolor tells Emacs to use 24 terminal
-            ;; colors even though the termcap entry for eterm-color
-            ;; only defines 256. That works, because term.el does
-            ;; support 24 bit colors.
-            (append `("COLORTERM=truecolor"
-                      ,(expand-file-name invocation-name invocation-directory)
-                      "-nw"
-                      "-Q")
-                    (turtles--dirs-from-load-path)
-                    `("-l" ,turtles--file-name)))
-           (with-current-buffer buf
-             (term-char-mode)
-             (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
-
-             (term-send-raw-string
-              (format "\033xturtles--launch\n%s\n"
-                      (turtles-io-server-socket turtles--server))))
-
-           (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
-                                (lambda () turtles--conn)))
-        (setf (turtles-io-server-on-new-connection turtles--server) nil)))))
+          (term-send-raw-string
+           (format "\033xturtles--launch\n%s\n"
+                   (turtles-io-server-socket turtles--server)))
+          (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
+                               (lambda () turtles--conn)))
+      (setf (turtles-io-server-on-new-connection turtles--server) nil))))
 
 (defun turtles-stop ()
   (interactive)
@@ -140,10 +135,7 @@ This is local variable set in a grab buffer filled by
           (turtles-io-server-connections turtles--server))
     (delete-process (turtles-io-server-proc turtles--server)))
   (setq turtles--server nil)
-  (setq turtles--conn nil)
-
-  (when-let ((buf (get-buffer turtles-buffer-name)))
-    (kill-buffer buf)))
+  (setq turtles--conn nil))
 
 (defun turtles-fail-unless-live ()
   (unless (turtles-io-conn-live-p turtles--conn)
@@ -156,21 +148,33 @@ This is local variable set in a grab buffer filled by
       (push path args))
     (nreverse args)))
 
+(defun turtles-display-buffer-full-frame (buf)
+  "Display BUF in the frame root window.
+
+This is similar to Emacs 29's `display-buffer-full-frame', but
+rougher and available in Emacs 26."
+  (set-window-buffer (frame-root-window) buf))
+
 (defun turtles--launch (socket)
   (interactive "F")
+  (turtles-display-buffer-full-frame (messages-buffer))
   (setq load-prefer-newer t)
   (setq turtles--conn
         (turtles-io-connect
          socket
          `((eval . ,(turtles-io-method-handler (expr)
-                      (let ((set-message-function #'turtles--send-message-to-server))
-                        (eval expr))))
+                      (advice-add 'message :after #'turtles--send-message-to-server)
+                      (unwind-protect
+                          (eval expr)
+                        (advice-remove 'message #'turtles--send-message-to-server))))
            (exit . ,(lambda (_conn _id _method _params)
                       (kill-emacs nil)))))))
 
-(defun turtles--send-message-to-server (msg)
+(defun turtles--send-message-to-server (msg &rest args)
   "Send a message to the server."
-  (turtles-io-notify turtles--conn 'message (format "[PID %s] %s" (emacs-pid) msg))
+  (turtles-io-notify turtles--conn 'message
+                     (concat (format "[PID %s] " (emacs-pid))
+                             (apply #'format msg args)))
 
   ;; Echo message normally
   nil)
@@ -194,7 +198,7 @@ so any other face not in GRAB-FACE are absent."
   (pcase-let ((`(,grab-face-alist . ,cookies)
                (turtles--setup-grab-faces
                 grab-faces
-                
+
                 ;; TODO: when grabbing just one buffer or window, just
                 ;; pass in that buffer.
                 (turtles--all-displayed-buffers))))
@@ -219,7 +223,7 @@ so any other face not in GRAB-FACE are absent."
       (when-let ((buf (window-buffer win)))
         (unless (memq buf bufs)
           (push buf bufs))))
-    
+
     bufs))
 
 (defun turtles-setup-buffer (&optional buf)
@@ -227,7 +231,9 @@ so any other face not in GRAB-FACE are absent."
 
 If BUF is nil, the current buffer is used instead."
   (or (get-buffer-window buf)
-      (display-buffer buf '(display-buffer-full-frame . nil))))
+      (progn
+        (turtles-display-buffer-full-frame buf)
+        (frame-root-window))))
 
 (defun turtles-grab-buffer-into (buf output-buf &optional grab-faces)
   "Display BUF in the grabbed frame and grab it into OUTPUT-BUF.
@@ -255,7 +261,7 @@ frame, which only makes sense for graphical displays."
     (unless (alist-get 'window-system params)
       (error "No window system"))
     (message "New client frame: %s"
-             (turtles-io-call-method 
+             (turtles-io-call-method
               turtles--conn 'eval
               `(progn
                  (prin1-to-string

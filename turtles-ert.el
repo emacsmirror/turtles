@@ -35,12 +35,17 @@
 (defvar turtles-ert--result nil
   "Result of running a test in another Emacs instance.")
 
-(defun turtles-ert-test ()
+(defmacro turtles-ert-test ()
   "Run the current test in another Emacs instance."
+  `(turtles-ert--test ,(macroexp-file-name)))
+
+(defun turtles-ert--test (file-name)
+  "Run the current test in another Emacs instance.
+
+Expects the current test to be defined in FILE-NAME."
   (unless (turtles-client-p)
     (let* ((test (ert-running-test))
-           (test-sym (when test (ert-test-name test)))
-           (file-name (when test (ert-test-file-name test))))
+           (test-sym (when test (ert-test-name test))))
       (unless test
         (error "Call turtles-ert-test from inside a ERT test."))
       (cl-assert test-sym)
@@ -55,7 +60,9 @@
              turtles--conn 'eval
              `(progn
                 (load ,file-name nil 'nomessage 'nosuffix)
-                (clear-minibuffer-message)
+
+                (when (eval-when-compile (>= emacs-major-version 29))
+                  (clear-minibuffer-message))
                 (menu-bar-mode -1)
                 (let ((test (ert-get-test (quote ,test-sym))))
                   (ert-run-test test)
