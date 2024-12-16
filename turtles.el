@@ -70,6 +70,15 @@ This is local variable set in a grab buffer filled by
 This is local variable set in a grab buffer filled by
 `turtles-grab-window-into' or `turtles-grab-buffer-into'.")
 
+(defvar turtles--should-send-messages-up 0
+  "When this is > 0, send messages to the server.")
+
+(defvar turtles--sending-messages-up 0
+  "Set to > 0 while processing code to send messages to the server.
+
+This is used in `tultles--send-messages-up' to avoid entering
+into a loop, sending messages while sending messages.")
+
 (defun turtles-client-p ()
   (and turtles--conn (not turtles--server)))
 
@@ -155,29 +164,42 @@ This is similar to Emacs 29's `display-buffer-full-frame', but
 rougher and available in Emacs 26."
   (set-window-buffer (frame-root-window) buf))
 
+(defmacro turtles--with-incremented-var (var &rest body)
+  "Increment VAR while BODY is running.
+
+This is used instead of a let to account for the possibility of
+more than one instance of BODY running at the same time, with
+special cases like reading from the minibuffer."
+  (declare (indent 1))
+  `(progn
+     (cl-incf ,var)
+     (unwind-protect
+         (progn ,@body)
+       (cl-decf ,var))))
+
 (defun turtles--launch (socket)
   (interactive "F")
   (turtles-display-buffer-full-frame (messages-buffer))
   (setq load-prefer-newer t)
+  (advice-add 'message :after #'turtles--send-message-up)
   (setq turtles--conn
         (turtles-io-connect
          socket
          `((eval . ,(turtles-io-method-handler (expr)
-                      (advice-add 'message :after #'turtles--send-message-to-server)
-                      (unwind-protect
-                          (eval expr)
-                        (advice-remove 'message #'turtles--send-message-to-server))))
+                      (turtles--with-incremented-var turtles--should-send-messages-up
+                        (eval expr))))
            (exit . ,(lambda (_conn _id _method _params)
                       (kill-emacs nil)))))))
 
-(defun turtles--send-message-to-server (msg &rest args)
+(defun turtles--send-message-up (msg &rest args)
   "Send a message to the server."
-  (turtles-io-notify turtles--conn 'message
-                     (concat (format "[PID %s] " (emacs-pid))
-                             (apply #'format msg args)))
-
-  ;; Echo message normally
-  nil)
+  (when (and turtles--conn
+             (> turtles--should-send-messages-up 0)
+             (not (> turtles--sending-messages-up 0)))
+    (turtles--with-incremented-var turtles--sending-messages-up
+      (turtles-io-notify turtles--conn 'message
+                         (concat (format "[PID %s] " (emacs-pid))
+                                 (apply #'format msg args))))))
 
 (defun turtles-grab-frame-into (buffer &optional grab-faces)
   "Grab a snapshot current frame into BUFFER.
