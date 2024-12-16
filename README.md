@@ -1,5 +1,7 @@
 # It's turtles all the way down
 
+[![test](https://github.com/szermatt/turtles/workflows/test/badge.svg)](https://github.com/szermatt/turtles/actions)
+
 This package help write ERT-based tests to that check how Emacs
 renders buffers and windows. The ERT tests can be run interactively or
 in batch mode.
