@@ -34,7 +34,6 @@
 
   (proc nil :documentation "The network process used by the server")
   (connections nil :documentation "List of connected clients")
-  (on-new-connection nil :documentation "Function called when a new client connects")
   (socket nil :read-only t :documentation "Path to the unix socket file used by the server")
   (method-alist nil :read-only t :documentation "Alist of method symbols to method handlers.
 
@@ -78,7 +77,7 @@ one of which is ever specified.")
        (turtles-io-server-proc server)
        (process-live-p (turtles-io-server-proc server))))
 
-(defun turtles-io-server (socket &optional method-alist on-new-connection)
+(defun turtles-io-server (socket &optional method-alist)
   "Create a new server.
 
 SOCKET is the path at which the server must create a Unix socket.
@@ -87,14 +86,8 @@ This can be accessed later using `turtles-io-server-socket'.
 METHOD-ALIST is an alist method handlers to pass to client
 connections. See `turtles-io-conn-method-alist' for details.
 
-ON-NEW-CONNECTION, if non-nil, is a function that'll be called
-whenever a new client connect. It takes a single argument, the
-client `turtles-io-conn' instance. This can be accessed and
-modified later using `turtles-io-server-on-new-connection'.
-
 Return an instance of type `turtles-io-server'."
   (let* ((server (turtles-io--make-server
-                  :on-new-connection on-new-connection
                   :socket socket
                   :method-alist method-alist))
          (proc (make-network-process
@@ -396,9 +389,7 @@ any unreadable object."
                           (lambda (_proc string)
                             (turtles-io--connection-filter conn string)))
       (push conn (turtles-io-server-connections server))
-      (process-put proc 'turtles-io-conn conn)
-      (when-let ((f (turtles-io-server-on-new-connection server)))
-        (funcall f conn))))
+      (process-put proc 'turtles-io-conn conn)))
 
   (when (eq (process-status proc) 'closed)
     (if (process-contact proc :server)

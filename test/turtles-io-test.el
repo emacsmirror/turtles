@@ -45,41 +45,6 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-client-connect ()
-  (ert-with-temp-directory dir
-    (let ((socket (expand-file-name "socket" dir))
-          server clients connected)
-      (unwind-protect
-          (progn
-            (setq server (turtles-io-server
-                          socket nil
-                          (lambda (proc)
-                            (push proc connected))))
-            (should (null (turtles-io-server-connections server)))
-
-            (push (turtles-io-connect socket) clients)
-            (turtles-io-wait-for 5 "Client #1 not connected" (lambda () connected) 0.1)
-
-            (should (equal 1 (length connected)))
-            (should (equal connected (turtles-io-server-connections server)))
-
-            (push (turtles-io-connect socket) clients)
-            (turtles-io-wait-for 5 "Client #2 not connected" (lambda () (length> connected 1)) 0.1)
-
-            (should (equal 2 (length connected)))
-            (should (equal connected (turtles-io-server-connections server)))
-
-            (delete-process (turtles-io-conn-proc (nth 1 clients)))
-            (turtles-io-wait-for 5 "Client #1 not disconnected"
-                                 (lambda ()
-                                   (length< (turtles-io-server-connections server) 2)) 0.1)
-
-            (should (equal (list (nth 0 connected)) (turtles-io-server-connections server))))
-
-        (dolist (client clients)
-          (ignore-errors (when client (delete-process client))))
-        (ignore-errors (when server (delete-process server)))))))
-
 (ert-deftest turtles-io-test-delete-socket-file ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir)) server)

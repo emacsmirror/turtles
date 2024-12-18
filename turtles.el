@@ -107,7 +107,11 @@ into a loop, sending messages while sending messages.")
           (turtles-io-server
            (expand-file-name (format "turtles-%s" (emacs-pid))
                              server-socket-dir)
-           `((grab . ,(turtles-io-method-handler (_ignored)
+           `((register . ,(lambda (conn id _method _params)
+                            (setq turtles--conn conn)
+                            (when id
+                              (turtles-io--send conn `(:id ,id :result nil)))))
+             (grab . ,(turtles-io-method-handler (_ignored)
                         (with-current-buffer (get-buffer turtles-buffer-name)
                           ;; Wait until all output from the other
                           ;; Emacs instance have been processed, as
@@ -124,37 +128,31 @@ into a loop, sending messages while sending messages.")
     (mapc (lambda (c) (turtles-io-call-method-async c 'exit nil nil))
           (turtles-io-server-connections turtles--server))
     (setq turtles--conn nil)
-    (setf (turtles-io-server-on-new-connection turtles--server)
-          (lambda (conn)
-            (setf turtles--conn conn)
-            (setf (turtles-io-server-on-new-connection turtles--server) nil)))
-    (unwind-protect
-        (with-current-buffer (get-buffer-create turtles-buffer-name)
-          (term-mode)
-          (setq-local face-remapping-alist turtles-term-face-remapping-alist)
-          (setq-local term-width 80)
-          (setq-local term-height 20)
+    (with-current-buffer (get-buffer-create turtles-buffer-name)
+      (term-mode)
+      (setq-local face-remapping-alist turtles-term-face-remapping-alist)
+      (setq-local term-width 80)
+      (setq-local term-height 20)
 
-          (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
-                           "-nw" "-Q")))
-            (setq cmdline (append cmdline (turtles--dirs-from-load-path)))
-            (setq cmdline (append cmdline `("-l" ,turtles--file-name)))
-            (when (>= emacs-major-version 29)
-              ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
-              ;; colors even though the termcap entry for eterm-color
-              ;; only defines 256. That works, because term.el in
-              ;; Emacs 29.1 and later support 24 bit colors.
-              (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
-            (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
-          (term-char-mode)
-          (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
+      (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
+                       "-nw" "-Q")))
+        (setq cmdline (append cmdline (turtles--dirs-from-load-path)))
+        (setq cmdline (append cmdline `("-l" ,turtles--file-name)))
+        (when (>= emacs-major-version 29)
+          ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
+          ;; colors even though the termcap entry for eterm-color
+          ;; only defines 256. That works, because term.el in
+          ;; Emacs 29.1 and later support 24 bit colors.
+          (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
+        (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
+      (term-char-mode)
+      (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
 
-          (term-send-raw-string
-           (format "\033xturtles--launch\n%s\n"
-                   (turtles-io-server-socket turtles--server)))
-          (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
-                               (lambda () turtles--conn)))
-      (setf (turtles-io-server-on-new-connection turtles--server) nil))))
+      (term-send-raw-string
+       (format "\033xturtles--launch\n%s\n"
+               (turtles-io-server-socket turtles--server)))
+      (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
+                           (lambda () turtles--conn)))))
 
 (defun turtles-stop ()
   (interactive)
@@ -215,7 +213,8 @@ special cases like reading from the minibuffer."
                                                          (eval expr))))
                             (t (turtles-io--send conn `(:id ,id :error ,err))))))
            (exit . ,(lambda (_conn _id _method _params)
-                      (kill-emacs nil)))))))
+                      (kill-emacs nil))))))
+  (turtles-io-notify turtles--conn 'register))
 
 (defun turtles--send-message-up (msg &rest args)
   "Send a message to the server."
