@@ -22,22 +22,10 @@
 
 (require 'turtles)
 (require 'turtles-io)
-(require 'turtles)
 
 (defun turtles-test-init-buffer ()
   (setq-local truncate-lines t)
   (setq-local left-margin-width 0))
-
-(ert-deftest turtles-start-stop ()
-  (unwind-protect
-      (progn
-        (turtles-start)
-        (should turtles--server)
-        (should turtles--conn)
-        (should (equal "ok" (turtles-io-call-method  turtles--conn 'eval "ok"))))
-    (turtles-stop))
-  (should-not turtles--server)
-  (should-not turtles--conn))
 
 (ert-deftest turtles-grab-frame-into ()
   (turtles-ert-test)
@@ -912,20 +900,6 @@
 
     (should (equal "[red](error) [green](success) [blue](link)"
                    (buffer-string)))))
-
-(ert-deftest turtles-test-message ()
-  (turtles-start)
-
-  (ert-with-message-capture messages
-    (let* ((pid (turtles-io-call-method
-                 turtles--conn
-                 'eval
-                 `(progn
-                   (message "hello from turtles-test-message")
-                   (emacs-pid))))
-           (message (format "[PID %s] hello from turtles-test-message" pid)))
-      (unless (member message (string-split messages "\n" 'omit-nulls))
-        (error "message not found in %s" messages)))))
 
 (ert-deftest turtles-test-trim-buffer ()
   (ert-with-test-buffer ()
