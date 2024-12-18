@@ -207,6 +207,13 @@ special cases like reading from the minibuffer."
          `((eval . ,(turtles-io-method-handler (expr)
                       (turtles--with-incremented-var turtles--should-send-messages-up
                         (eval expr))))
+           (eval-ert . ,(lambda (conn id _method expr)
+                          (condition-case-unless-debug err
+                              (turtles-io--send
+                               conn `(:id ,id :result ,(turtles--with-incremented-var
+                                                           turtles--should-send-messages-up
+                                                         (eval expr))))
+                            (t (turtles-io--send conn `(:id ,id :error ,err))))))
            (exit . ,(lambda (_conn _id _method _params)
                       (kill-emacs nil)))))))
 
@@ -715,7 +722,7 @@ Expects the current test to be defined in FILE-NAME."
       (turtles-start)
       (setq turtles-ert--result
             (turtles-io-call-method
-             turtles--conn 'eval
+             turtles--conn 'eval-ert
              `(progn
                 (load ,file-name nil 'nomessage 'nosuffix)
 
