@@ -45,6 +45,8 @@ Here's a quick example of a test that checks a text with an invisible
 section:
 
 ```elisp
+(require 'turtles)
+
 (ert-deftest turtles-test-hello-world ()
   (turtles-ert-test)             ;; Start a secondary Emacs instance
                                  ;; Everything below this point runs
