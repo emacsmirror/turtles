@@ -85,7 +85,8 @@ If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
-  (turtles-fail-unless-live)
+  (unless (turtles-io-conn-live-p (turtles-upstream))
+    (error "No upstream connection"))
   (pcase-let ((`(,grab-face-alist . ,cookies)
                (turtles--setup-grab-faces
                 grab-faces
@@ -100,7 +101,8 @@ so any other face not in GRAB-FACE are absent."
             (error "Emacs won't redisplay in this context, likely because of pending input."))
           (with-current-buffer buffer
             (delete-region (point-min) (point-max))
-            (let ((grab (turtles-io-call-method  turtles--conn 'grab)))
+            (let ((grab (turtles-io-call-method
+                         (turtles-upstream) 'grab (turtles-this-instance))))
               (insert grab))
             (font-lock-mode)
             (when grab-faces
@@ -512,19 +514,24 @@ in the whole buffer and any newlines at the end of the buffer."
   (while (eq ?\n (char-before (point-max)))
     (delete-region (1- (point-max)) (point-max))))
 
-(defmacro turtles-ert-test ()
-  "Run the current test in another Emacs instance."
-  `(turtles-ert--test ,(macroexp-file-name)))
+(cl-defmacro turtles-ert-test (&key instance)
+  "Run the current test in another Emacs instance.
+
+INSTANCE is the instance to start, the instance \\='default is used
+if none is specified."
+  `(turtles-ert--test ,instance ,(macroexp-file-name)))
 
 (advice-add 'ert-run-test :around #'turtles-ert--around-ert-run-test)
 
-(defun turtles-ert--test (file-name)
+(defun turtles-ert--test (inst-id file-name)
   "Run the current test in another Emacs instance.
 
 Expects the current test to be defined in FILE-NAME."
-  (unless (turtles-client-p)
+  (unless (turtles-this-instance)
     (let* ((test (ert-running-test))
-           (test-sym (when test (ert-test-name test))))
+           (test-sym (when test (ert-test-name test)))
+           (inst-id (or inst-id 'default))
+           (inst (turtles-get-instance inst-id)))
       (unless test
         (error "Call turtles-ert-test from inside a ERT test."))
       (cl-assert test-sym)
@@ -533,16 +540,16 @@ Expects the current test to be defined in FILE-NAME."
       (unless file-name
         (error "No file available for %s" test-sym))
 
-      (turtles-start)
+      (unless inst
+        (error "No turtles instance defined with ID %s" inst-id))
+
+      (turtles-start-instance inst)
       (setq turtles-ert--result
             (turtles-io-call-method
-             turtles--conn 'eval-ert
+             (turtles-instance-conn inst)
+             'ert-test
              `(progn
                 (load ,file-name nil 'nomessage 'nosuffix)
-
-                (when (eval-when-compile (>= emacs-major-version 29))
-                  (clear-minibuffer-message))
-                (menu-bar-mode -1)
                 (let ((test (ert-get-test (quote ,test-sym))))
                   (ert-run-test test)
                   (ert-test-most-recent-result test)))))
