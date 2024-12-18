@@ -264,17 +264,17 @@
                   (turtles-io-server
                    socket
                    `((get-unreadable . ,(turtles-io-method-handler (index)
-                                          (list "before" (current-buffer) "after"))))))
+                                          (current-buffer))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
             (should (process-live-p (turtles-io-conn-proc client)))
 
             (let ((expr (turtles-io-call-method  client 'get-unreadable)))
-              (should (equal "before" (nth 0 expr)))
-              (should (equal "after" (nth 2 expr)))
-              (should (equal 'unreadable (car (nth 1 expr))))
-              (should (string-match-p "buffer  \\*temp.*" (nth 1 (nth 1 expr))))))
+              (should (consp expr))
+              (should (equal 'turtles-buffer (nth 0 expr)))
+              (should (equal :name (nth 1 expr)))
+              (should (stringp (nth 2 expr)))))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
@@ -299,3 +299,63 @@
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
+
+(defun turtles-io--print-msg-to-string (msg)
+  (with-temp-buffer
+    (turtles-io--print-msg msg)
+    (buffer-string)))
+
+(ert-deftest turtles-io-test-print-msg ()
+  (should (equal "(:id 12 :method ping :params \"ping\")"
+                  (turtles-io--print-msg-to-string
+                   '(:id 12 :method ping :params "ping"))))
+
+  (should (equal "(:id 12 :result (1 2 3))"
+                  (turtles-io--print-msg-to-string
+                   '(:id 12 :result (1 2 3)))))
+
+  (should (equal "(:id 12 :result nil)"
+                  (turtles-io--print-msg-to-string
+                   '(:id 12 :result nil))))
+
+  (should (equal "(:id 12 :error (unknown \"unknown\"))"
+                  (turtles-io--print-msg-to-string
+                   '(:id 12 :error (unknown "unknown")))))
+
+  (should (equal "(:id 12 :result (readable-with-\\#and-\\#< \"#<\" 35 60))"
+                 (turtles-io--print-msg-to-string
+                  '(:id 12 :result (readable-with-\#\and-\#< "#<" ?# ?<))))))
+
+(ert-deftest turtles-io-test-print-msg-unreadable ()
+  (with-temp-buffer
+    (rename-buffer (generate-new-buffer-name "temp >>--#<\""))
+    (should (equal (format "(:id 12 :result (1 2 (turtles-buffer :name %s) 3))"
+                           (prin1-to-string (buffer-name)))
+                   (turtles-io--print-msg-to-string
+                    `(:id 12 :result (1 2 ,(current-buffer) 3)))))
+
+    (with-selected-window (display-buffer (current-buffer))
+      (should (equal (format "(:id 12 :result (1 2 (turtles-window :buffer %s) 3))"
+                           (prin1-to-string (buffer-name)))
+                   (turtles-io--print-msg-to-string
+                    `(:id 12 :result (1 2 ,(selected-window) 3))))))
+
+    (insert "some text")
+    (should (equal (format "(:id 12 :result (1 2 (turtles-overlay :from 1 :to 5 :buffer %s) 3))"
+                           (prin1-to-string (buffer-name)))
+                   (turtles-io--print-msg-to-string
+                    `(:id 12 :result (1 2 ,(make-overlay 1 5) 3)))))
+
+    (should (equal (format "(:id 12 :result (1 2 (turtles-marker :pos 3 :buffer %s) 3))"
+                           (prin1-to-string (buffer-name)))
+                   (turtles-io--print-msg-to-string
+                    `(:id 12 :result (1 2 ,(copy-marker 3) 3))))))
+
+  (should (equal (format "(:id 12 :result (1 2 (turtles-frame :name %s) 3))"
+                         (prin1-to-string (alist-get 'name (frame-parameters))))
+                 (turtles-io--print-msg-to-string
+                  `(:id 12 :result (1 2 ,(selected-frame) 3)))))
+
+  (should (equal "(:id 12 :result (1 2 (turtles-obj \"window-configuration\") 3))"
+                 (turtles-io--print-msg-to-string
+                  `(:id 12 :result (1 2 ,(current-window-configuration) 3))))))
