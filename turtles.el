@@ -136,8 +136,16 @@ into a loop, sending messages while sending messages.")
 
       (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
                        "-nw" "-Q")))
-        (setq cmdline (append cmdline (turtles--dirs-from-load-path)))
-        (setq cmdline (append cmdline `("-l" ,turtles--file-name)))
+        (setq cmdline
+              (append cmdline (turtles--dirs-from-load-path)))
+        (setq cmdline
+              (append cmdline
+                      `("-eval" ,(prin1-to-string
+                                  `(progn
+                                     (setq load-prefer-newer t)
+                                     (load ,turtles--file-name nil 'nomessage)
+                                     (turtles--launch ,(turtles-io-server-socket
+                                                        turtles--server)))))))
         (when (>= emacs-major-version 29)
           ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
           ;; colors even though the termcap entry for eterm-color
@@ -147,10 +155,6 @@ into a loop, sending messages while sending messages.")
         (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
       (term-char-mode)
       (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
-
-      (term-send-raw-string
-       (format "\033xturtles--launch\n%s\n"
-               (turtles-io-server-socket turtles--server)))
       (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
                            (lambda () turtles--conn)))))
 
