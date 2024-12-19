@@ -101,6 +101,13 @@ Return the empty string if there is no documentation."
       (car (string-split doc"\n"))
     ""))
 
+(defsubst turtles-instance-term-proc (inst)
+  "Returns the process running in the term window.
+
+This is the Emacs subprocess."
+  (when-let ((b (turtles-instance-term-buf inst)))
+    (get-buffer-process b)))
+
 (defun turtles-instance-live-p (inst)
   "Return non-nil if INST is a live instance."
   (and inst
@@ -172,13 +179,13 @@ Does nothing if the server is already live."
                             (when id
                               (turtles-io--send conn `(:id ,id :result ,ret))))))
              (grab . ,(turtles-io-method-handler (instance-id)
-                        (with-current-buffer
-                            (turtles-instance-term-buf (turtles-get-instance instance-id))
+                        (let ((inst (turtles-get-instance instance-id)))
                           ;; Wait until all output from the other
                           ;; Emacs instance have been processed, as
                           ;; it's likely in the middle of a redisplay.
-                          (while (accept-process-output (get-buffer-process (current-buffer)) 0.05))
-                          (buffer-substring term-home-marker (point-max)))))
+                          (turtles-instance-let-term-settle inst)
+                          (with-current-buffer (turtles-instance-term-buf inst)
+                            (buffer-substring term-home-marker (point-max))))))
              (message . ,(lambda (_conn _id _method msg)
                            (message msg))))))))
 
@@ -251,7 +258,8 @@ Does nothing if the instance is already running."
           (h (turtles-instance-height inst)))
       (unless (and (= term-width w) (= term-height h))
         (set-process-window-size (get-buffer-process (turtles-instance-term-buf inst)) h w)
-        (term-reset-size h w)))))
+        (term-reset-size h w)
+        (turtles-instance-let-term-settle inst)))))
 
 (defun turtles-stop-instance (inst)
   (interactive
@@ -371,6 +379,11 @@ frame, which only makes sense for graphical displays."
                    '((window-system . ,(alist-get 'window-system params))
                      (display . ,(alist-get 'display params))))))))))
 
+(defun turtles-instance-let-term-settle (inst)
+  "Wait until the Emacs process of INST is done updating the buffer."
+  (when-let ((p (turtles-instance-term-proc inst)))
+    (when (accept-process-output p 0.05)
+      (accept-process-output p 0))))
 
 (provide 'turtles-instance)
 
