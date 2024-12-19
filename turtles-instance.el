@@ -75,8 +75,6 @@ Accessed using `turtles-this-instance'.")
                                  (expand-file-name load-file-name default-directory))
                                (buffer-file-name)))
 
-(defconst turtles-buffer-name " *turtles-term*")
-
 (cl-defstruct (turtles-instance
                (:constructor turtles--make-instance)
                (:copier nil))
