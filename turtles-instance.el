@@ -85,7 +85,7 @@ Accessed using `turtles-this-instance'.")
   (doc nil :read-only t :documentation "Description.")
   (conn nil :documentation "A turtles-io-conn connected with the instance, if live.")
   (width 80 :read-only t :documentation "Terminal width, in characters.")
-  (height 20 :read-only t :documentation "Terminal height, in characters.")
+  (height 24 :read-only t :documentation "Terminal height, in characters.")
   (setup nil :read-only t :documentation "Expression to execute before every test.")
   (term-buf nil :documentation "Buffer running this instance, if live."))
 
@@ -119,7 +119,7 @@ This is the Emacs subprocess."
          (turtles-instance-term-buf inst)))
        t))
 
-(cl-defmacro turtles-definstance (id (&key (width 80) (height 20))
+(cl-defmacro turtles-definstance (id (&key (width 80) (height 24))
                                      doc &rest setup)
   "Define an instance with the given ID.
 
