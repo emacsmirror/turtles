@@ -514,16 +514,19 @@ in the whole buffer and any newlines at the end of the buffer."
   (while (eq ?\n (char-before (point-max)))
     (delete-region (1- (point-max)) (point-max))))
 
-(cl-defmacro turtles-ert-test (&key instance)
+(cl-defmacro turtles-ert-test (&key instance timeout)
   "Run the current test in another Emacs instance.
 
 INSTANCE is the instance to start, the instance \\='default is used
-if none is specified."
-  `(turtles-ert--test ,instance ,(macroexp-file-name)))
+if none is specified.
+
+TIMEOUT is the time after which the server should give up waiting
+for an answer from the instance."
+  `(turtles-ert--test ,instance ,(macroexp-file-name) ,timeout))
 
 (advice-add 'ert-run-test :around #'turtles-ert--around-ert-run-test)
 
-(defun turtles-ert--test (inst-id file-name)
+(defun turtles-ert--test (inst-id file-name timeout)
   "Run the current test in another Emacs instance.
 
 Expects the current test to be defined in FILE-NAME."
@@ -553,7 +556,7 @@ Expects the current test to be defined in FILE-NAME."
                 (let ((test (ert-get-test (quote ,test-sym))))
                   (ert-run-test test)
                   (ert-test-most-recent-result test)))
-             :timeout 10.0
+             :timeout (or timeout 10.0)
              :on-timeout
              (lambda ()
                (error
