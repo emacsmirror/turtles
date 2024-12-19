@@ -244,7 +244,14 @@ Does nothing if the instance is already running."
       (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
                            (lambda () (turtles-instance-conn inst)))
       (message "Turtles started %s: %s" (turtles-instance-id inst)
-               (turtles-instance-shortdoc inst)))))
+               (turtles-instance-shortdoc inst))))
+
+  (with-current-buffer (turtles-instance-term-buf inst)
+    (let ((w (turtles-instance-width inst))
+          (h (turtles-instance-height inst)))
+      (unless (and (= term-width w) (= term-height h))
+        (set-process-window-size (get-buffer-process (turtles-instance-term-buf inst)) h w)
+        (term-reset-size h w)))))
 
 (defun turtles-stop-instance (inst)
   (interactive

@@ -24,6 +24,9 @@
 (turtles-definstance turtles-test-restart ()
   "A one-off test instance to test restart.")
 
+(turtles-definstance turtles-test-larger-frame (:width 132 :height 43)
+  "A test instance with a larger frame.")
+
 (ert-deftest turtles-instance-test-restart ()
   (turtles-start-server)
   (should turtles--server)
@@ -68,5 +71,22 @@
              (message (format "[PID %s] hello from turtles-test-message" pid)))
         (unless (member message (string-split messages "\n" 'omit-nulls))
           (error "message not found in %s" messages))))))
+
+(ert-deftest turtles-instance-test-default-size ()
+  (let ((inst (turtles-get-instance 'default)))
+    (should inst)
+    (turtles-start-instance inst)
+    (with-current-buffer (turtles-instance-term-buf inst)
+      (should (equal 80 term-width))
+      (should (equal 20 term-height)))))
+
+(ert-deftest turtles-instance-test-larger-frame-size ()
+  (let ((inst (turtles-get-instance 'turtles-test-larger-frame)))
+    (should inst)
+    (turtles-start-instance inst)
+    (with-current-buffer (turtles-instance-term-buf inst)
+      (should (equal 132 term-width))
+      (should (equal 43 term-height)))))
+
 
 (require 'turtles-instance)
