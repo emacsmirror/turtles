@@ -207,7 +207,9 @@ Only wait up to TIMEOUT seconds for the result."
        (setq got-response t)))
     (turtles-io-wait-for (or timeout 5)
                          (or on-timeout `("Timed out waiting for answer for method %s" ,method))
-                         (lambda () got-response))
+                         (lambda () got-response)
+                         nil
+                         (turtles-io-conn-proc conn))
     (cond ((and (consp received-error)
                 (car received-error)
                 (symbolp (car received-error)))
@@ -464,7 +466,7 @@ any unreadable object."
   "Handle an unsupported method with ID received from CONN."
   (turtles-io-send-error conn id '(turtles-io-unknown-method)))
 
-(defun turtles-io-wait-for (timeout error-message predicate &optional max-wait-time)
+(defun turtles-io-wait-for (timeout error-message predicate &optional max-wait-time proc)
   "Wait for up to TIMEOUT seconds for PREDICATE to become non-nil.
 
 Fails with ERROR-MESSAGE if it times out. ERROR-MESSAGE can be a
@@ -486,7 +488,7 @@ On timeout, sends a signal of type `turtles-timeout'"
                 (not (funcall predicate)))
       (when (and max-wait-time (> remaining max-wait-time))
         (setq remaining max-wait-time))
-      (accept-process-output nil remaining)))
+      (accept-process-output proc remaining)))
   (unless (funcall predicate)
     (if (functionp error-message)
         (funcall error-message)
