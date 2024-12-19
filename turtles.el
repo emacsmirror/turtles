@@ -63,6 +63,15 @@ This is local variable set in a grab buffer filled by
 (defvar turtles-ert--result nil
   "Result of running a test in another Emacs instance.")
 
+(defvar turtles-ert--load-cache nil
+  "A hash map indicating which file was just loaded.
+
+This is set while running tests to load a file just once on an
+instance and discarded afterwards.
+
+This is a hash map whose key is a (cons instance-id file-name)
+and whose value is always t.")
+
 (defun turtles-display-buffer-full-frame (buf)
   "Display BUF in the frame root window.
 
@@ -525,6 +534,7 @@ for an answer from the instance."
   `(turtles-ert--test ,instance ,(macroexp-file-name) ,timeout))
 
 (advice-add 'ert-run-test :around #'turtles-ert--around-ert-run-test)
+(advice-add 'ert-run-tests :around #'turtles-ert--around-ert-run-tests)
 
 (defun turtles-ert--test (inst-id file-name timeout)
   "Run the current test in another Emacs instance.
@@ -552,7 +562,10 @@ Expects the current test to be defined in FILE-NAME."
              (turtles-instance-conn inst)
              'ert-test
              `(progn
-                (load ,file-name nil 'nomessage 'nosuffix)
+                ,(unless (and turtles-ert--load-cache
+                              (gethash (cons inst-id file-name)
+                                       turtles-ert--load-cache))
+                   `(load ,file-name nil 'nomessage 'nosuffix))
                 (let ((test (ert-get-test (quote ,test-sym))))
                   (ert-run-test test)
                   (ert-test-most-recent-result test)))
@@ -565,6 +578,8 @@ Expects the current test to be defined in FILE-NAME."
                     (turtles-io-call-method (turtles-instance-conn inst)
                                             'last-messages 5 :timeout 0.5)
                   (error "<failed to grab>"))))))
+      (when turtles-ert--load-cache
+        (puthash (cons inst-id file-name) t turtles-ert--load-cache))
 
       ;; ert-pass interrupt the server-side portion of the test. The
       ;; real result will be collected from turtles-ert--result by
@@ -572,15 +587,23 @@ Expects the current test to be defined in FILE-NAME."
       ;; client-side portion of the test only.
       (ert-pass))))
 
-(defun turtles-ert--around-ert-run-test (func test)
+(defun turtles-ert--around-ert-run-test (func test &rest args)
   "Collect test results sent by another Emacs instance.
 
 This function takes results set up by `turtles-ert-test' and puts
 them into the local `ert-test' instance."
   (let ((turtles-ert--result nil))
-    (funcall func test)
+    (apply func test args)
     (when turtles-ert--result
       (setf (ert-test-most-recent-result test) turtles-ert--result))))
+
+(defun turtles-ert--around-ert-run-tests (func &rest args)
+  "Collect test results sent by another Emacs instance.
+
+This function takes results set up by `turtles-ert-test' and puts
+them into the local `ert-test' instance."
+  (let ((turtles-ert--load-cache (make-hash-table :test 'equal)))
+    (apply func args)))
 
 (cl-defun turtles-to-string (&key (name "grab")
                                    frame win buf minibuffer
