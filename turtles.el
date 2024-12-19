@@ -552,7 +552,16 @@ Expects the current test to be defined in FILE-NAME."
                 (load ,file-name nil 'nomessage 'nosuffix)
                 (let ((test (ert-get-test (quote ,test-sym))))
                   (ert-run-test test)
-                  (ert-test-most-recent-result test)))))
+                  (ert-test-most-recent-result test)))
+             :timeout 10.0
+             :on-timeout
+             (lambda ()
+               (error
+                "Remote test execution timed out. Last messages: %s "
+                (condition-case nil
+                    (turtles-io-call-method (turtles-instance-conn inst)
+                                            'last-messages 5 :timeout 0.5)
+                  (error "<failed to grab>"))))))
 
       ;; ert-pass interrupt the server-side portion of the test. The
       ;; real result will be collected from turtles-ert--result by
