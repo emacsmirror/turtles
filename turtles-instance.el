@@ -93,6 +93,14 @@ Accessed using `turtles-this-instance'.")
   "Get an instance from its ID."
   (alist-get id turtles-instance-alist))
 
+(defun turtles-instance-shortdoc (inst)
+  "Return the first line of the documentation of INST.
+
+Return the empty string if there is no documentation."
+  (if-let ((doc (turtles-instance-doc inst)))
+      (car (string-split doc"\n"))
+    ""))
+
 (defun turtles-instance-live-p (inst)
   "Return non-nil if INST is a live instance."
   (and inst
@@ -123,7 +131,7 @@ SETUP is code to run on the instance before every test."
           :setup '(progn ,@setup))))
 
 (turtles-definstance default (:width 80 :height 20)
-  "Default Emacs instance to run tests on.
+  "Emacs instance to run tests on.
 
 This is the instance used by `ert-test' when no instance is
 given."
@@ -234,7 +242,9 @@ Does nothing if the instance is already running."
       (term-char-mode)
       (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
       (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
-                           (lambda () (turtles-instance-conn inst))))))
+                           (lambda () (turtles-instance-conn inst)))
+      (message "Turtles started %s: %s" (turtles-instance-id inst)
+               (turtles-instance-shortdoc inst)))))
 
 (defun turtles-stop-instance (inst)
   (interactive
