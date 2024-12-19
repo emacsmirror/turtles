@@ -181,7 +181,7 @@ Does nothing if the server is already live."
                           ;; Wait until all output from the other
                           ;; Emacs instance have been processed, as
                           ;; it's likely in the middle of a redisplay.
-                          (turtles-instance-let-term-settle inst)
+                          (turtles--let-term-settle inst)
                           (with-current-buffer (turtles-instance-term-buf inst)
                             (buffer-substring term-home-marker (point-max))))))
              (message . ,(lambda (_conn _id _method msg)
@@ -257,7 +257,7 @@ Does nothing if the instance is already running."
       (unless (and (= term-width w) (= term-height h))
         (set-process-window-size (get-buffer-process (turtles-instance-term-buf inst)) h w)
         (term-reset-size h w)
-        (turtles-instance-let-term-settle inst)))))
+        (turtles--let-term-settle inst)))))
 
 (defun turtles-stop-instance (inst)
   (interactive
@@ -382,7 +382,7 @@ frame, which only makes sense for graphical displays."
                    '((window-system . ,(alist-get 'window-system params))
                      (display . ,(alist-get 'display params))))))))))
 
-(defun turtles-instance-let-term-settle (inst)
+(defun turtles--let-term-settle (inst)
   "Wait until the Emacs process of INST is done updating the buffer."
   (when-let ((p (turtles-instance-term-proc inst)))
     (when (accept-process-output p 0.05)
