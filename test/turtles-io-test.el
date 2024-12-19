@@ -316,6 +316,11 @@
                    (turtles-io--print-msg-to-string
                     `(:id 12 :result (1 2 ,(copy-marker 3) 3))))))
 
+  (should (equal (format "(:id 12 :result (1 2 (turtles-marker) 3))"
+                           (prin1-to-string (buffer-name)))
+                   (turtles-io--print-msg-to-string
+                    `(:id 12 :result (1 2 ,(make-marker) 3)))))
+
   (should (equal (format "(:id 12 :result (1 2 (turtles-frame :name %s) 3))"
                          (prin1-to-string (alist-get 'name (frame-parameters))))
                  (turtles-io--print-msg-to-string

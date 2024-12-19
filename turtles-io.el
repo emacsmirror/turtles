@@ -231,9 +231,7 @@ MSG can be any lisp object that can be printed."
     (process-send-string (turtles-io-conn-proc conn) (buffer-string))))
 
 (defun turtles-io--print-msg (msg)
-  (let (end-pos
-
-        ;; Hardcode most print settings, so we get consistent
+  (let (;; Hardcode most print settings, so we get consistent
         ;; behavior.
         (print-length nil)
         (print-level nil)
@@ -250,50 +248,60 @@ MSG can be any lisp object that can be printed."
         (float-output-format nil)
         (start-pos (point)))
     (prin1 msg (current-buffer))
-    (setq end-pos (point))
 
     ;; Skip unreadable objects instead of breaking (read). Setting
     ;; print-unreadable-function could do something similar, but it is
     ;; only available starting with Emacs 29.1.
     (save-excursion
-      (goto-char start-pos)
-      (while (turtles-io--search-unreadable end-pos)
-        ;; point is after "#<"
-        (let* ((obj-start (point))
-               (obj
-                (cond
-                 ;; #<buffer <buffer-name>>
-                 ((looking-at "buffer ")
+      (let ((end-pos (copy-marker (point))))
+        (goto-char start-pos)
+        (while (turtles-io--search-unreadable end-pos)
+          ;; point is after "#<"
+          (let* ((obj-start (point))
+                 (obj
+                  (cond
+                   ;; #<buffer <buffer-name>>
+                   ((looking-at "buffer ")
                   (turtles--match-unreadable
                    (buffer-list)
                    (lambda (b)
                      (format "\\(%s\\)" (regexp-quote (buffer-name b)))))
                   `(turtles-buffer :name ,(match-string 1)))
 
-                 ;; #<process <process-name>>
-                 ((looking-at "process ")
-                  (turtles--match-unreadable
-                   (process-list)
-                   (lambda (p)
-                     (format "\\(%s\\)" (regexp-quote (process-name p)))))
-                  `(turtles-process :name ,(match-string 1)))
+                   ;; #<process <process-name>>
+                   ((looking-at "process ")
+                    (turtles--match-unreadable
+                     (process-list)
+                     (lambda (p)
+                       (format "\\(%s\\)" (regexp-quote (process-name p)))))
+                    `(turtles-process :name ,(match-string 1)))
 
                  ;; #<frame <frame-name> 0x[0-9a-f]+>
-                 ((looking-at "frame ")
-                  (turtles--match-unreadable
-                   (frame-list)
-                   (lambda (f)
-                     (format "\\(%s\\) 0x[0-9a-f]+"
-                             (regexp-quote (alist-get 'name (frame-parameters f))))))
-                  `(turtles-frame :name ,(match-string 1)))
+                   ((looking-at "frame ")
+                    (turtles--match-unreadable
+                     (frame-list)
+                     (lambda (f)
+                       (format "\\(%s\\) 0x[0-9a-f]+"
+                               (regexp-quote (alist-get 'name (frame-parameters f))))))
+                    `(turtles-frame :name ,(match-string 1)))
 
-                 ;; #<window [0-9]+ on <buffer-name>>
-                 ((looking-at "window ")
-                  (turtles--match-unreadable
-                   (buffer-list)
-                   (lambda (b)
-                     (format "[0-9]+ on \\(%s\\)" (regexp-quote (buffer-name b)))))
+                   ;; #<window [0-9]+>
+                   ((looking-at "window [0-9]+>")
+                    (goto-char (match-end 0))
+                    `(turtles-window))
+
+                   ;; #<window [0-9]+ on <buffer-name>>
+                   ((looking-at "window ")
+                    (turtles--match-unreadable
+                     (buffer-list)
+                     (lambda (b)
+                       (format "[0-9]+ on \\(%s\\)" (regexp-quote (buffer-name b)))))
                   `(turtles-window :buffer ,(match-string 1)))
+
+                 ;; #<marker in no buffer>
+                 ((looking-at "marker in no buffer>")
+                  (goto-char (match-end 0))
+                  `(turtles-marker))
 
                  ;; #<marker at [0-9]+ in <buffer-name>>
                  ((looking-at "marker ")
@@ -321,7 +329,8 @@ MSG can be any lisp object that can be printed."
                       ,(buffer-substring-no-properties obj-start (1- (point))))))))
           ;; point is after the closing ">"
           (delete-region (- obj-start 2) (point))
-          (prin1 obj (current-buffer)))))))
+          (prin1 obj (current-buffer))))
+        (move-marker end-pos nil)))))
 
 (defun turtles--match-unreadable (list regexp-func)
   "Find a matching unreadable regexp.
