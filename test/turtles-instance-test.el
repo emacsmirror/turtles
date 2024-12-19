@@ -21,17 +21,37 @@
 (require 'ert-x)
 (require 'turtles-instance)
 
-(ert-deftest turtles-instance-test-start-default-instance ()
+(turtles-definstance turtles-test-restart ()
+  "A one-off test instance to test restart.")
+
+(ert-deftest turtles-instance-test-restart ()
   (turtles-start-server)
   (should turtles--server)
   (should (turtles-io-server-live-p turtles--server))
 
-  (let ((inst (turtles-get-instance 'default)))
+  (let ((inst (turtles-get-instance 'turtles-test-restart))
+        buf proc)
     (should inst)
+    (turtles-stop-instance inst)
     (turtles-start-instance inst)
     (should (turtles-instance-live-p inst))
+
+    (setq buf (turtles-instance-term-buf inst))
+    (should (buffer-live-p buf))
+    (should (process-live-p (get-buffer-process buf)))
+
+    (setq proc (turtles-io-conn-proc (turtles-instance-conn inst)))
+    (should (process-live-p proc))
+
     (should (equal "ok" (turtles-io-call-method
-                         (turtles-instance-conn inst) 'eval "ok")))))
+                         (turtles-instance-conn inst) 'eval "ok")))
+
+
+    (turtles-stop-instance inst)
+
+    (should-not (turtles-instance-live-p inst))
+    (should-not (buffer-live-p buf))
+    (should-not (process-live-p proc))))
 
 (ert-deftest turtles-instance-test-message ()
   (let ((inst (turtles-get-instance 'default)))
