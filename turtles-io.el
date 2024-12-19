@@ -63,6 +63,8 @@ one of which is ever specified.")
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
 
+(define-error 'turtles-timeout "Operation timed out")
+
 (defun turtles-io-conn-live-p (conn)
   "Return non-nil if CONN is a connnection with a live process."
   (and conn
@@ -192,7 +194,7 @@ This function behaves like `turtles-io-call-method-async', except it
 doesn't expect a response, so doesn't even bother setting the id."
   (turtles-io--send conn `(:method ,method :params ,params)))
 
-(defun turtles-io-call-method  (conn method &optional params timeout)
+(cl-defun turtles-io-call-method  (conn method &optional params &key timeout on-timeout)
   "Call METHOD on CONN with PARAMS and wait for the result.
 
 Only wait up to TIMEOUT seconds for the result."
@@ -204,7 +206,7 @@ Only wait up to TIMEOUT seconds for the result."
        (setq received-result result)
        (setq got-response t)))
     (turtles-io-wait-for (or timeout 5)
-                         `("Timed out waiting for answer for method %s" ,method)
+                         (or on-timeout `("Timed out waiting for answer for method %s" ,method))
                          (lambda () got-response))
     (cond ((and (consp received-error)
                 (car received-error)
@@ -467,10 +469,14 @@ any unreadable object."
 
 Fails with ERROR-MESSAGE if it times out. ERROR-MESSAGE can be a
 string or a list containing arguments to pass to `format'.
+ERROR-MESSAGE can also be a function, which will be called with
+no arguments on timeout.
 
 This function assumes that PREDICATE becomes non-nil as a result
 of processing some process output. If that's not always the case,
-set MAX-WAIT-TIME to some small, but reasonable value."
+set MAX-WAIT-TIME to some small, but reasonable value.
+
+On timeout, sends a signal of type `turtles-timeout'"
   (let ((start (current-time)) remaining)
     (while (and (> (setq remaining
                          (- timeout
@@ -482,9 +488,12 @@ set MAX-WAIT-TIME to some small, but reasonable value."
         (setq remaining max-wait-time))
       (accept-process-output nil remaining)))
   (unless (funcall predicate)
-    (error (if (consp error-message)
-               (apply #'format (car error-message) (cdr error-message))
-             error-message))))
+    (if (functionp error-message)
+        (funcall error-message)
+      (signal 'turtles-timeout
+              (if (consp error-message)
+                  (apply #'format (car error-message) (cdr error-message))
+                error-message)))))
 
 (provide 'turtles-io)
 
