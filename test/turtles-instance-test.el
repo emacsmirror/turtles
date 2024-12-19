@@ -62,13 +62,11 @@
     (turtles-start-instance inst)
 
     (ert-with-message-capture messages
-      (let* ((pid (turtles-io-call-method
-                   (turtles-instance-conn inst)
-                   'eval
-                   `(progn
-                      (message "hello from turtles-test-message")
-                      (emacs-pid))))
-             (message (format "[PID %s] hello from turtles-test-message" pid)))
+      (turtles-io-call-method
+       (turtles-instance-conn inst)
+       'eval
+       '(message "hello from turtles-test-message"))
+      (let ((message "[default] hello from turtles-test-message"))
         (unless (member message (string-split messages "\n" 'omit-nulls))
           (error "message not found in %s" messages))))))
 

@@ -348,9 +348,8 @@ special cases like reading from the minibuffer."
              (not (> turtles--sending-messages-up 0)))
     (turtles--with-incremented-var turtles--sending-messages-up
       (turtles-io-notify (turtles-upstream) 'message
-                         (concat (format "[PID %s] " (emacs-pid))
+                         (concat (format "[%s] " (turtles-this-instance))
                                  (apply #'format msg args))))))
-
 
 (defun turtles-new-client-frame (inst)
   "Ask the instance INST to create a new frame.
