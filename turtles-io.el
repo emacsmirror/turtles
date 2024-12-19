@@ -203,7 +203,8 @@ Only wait up to TIMEOUT seconds for the result."
        (setq received-error err)
        (setq received-result result)
        (setq got-response t)))
-    (turtles-io-wait-for (or timeout 5) "No response from server"
+    (turtles-io-wait-for (or timeout 5)
+                         `("Timed out waiting for answer for method %s" ,method)
                          (lambda () got-response))
     (cond ((and (consp received-error)
                 (car received-error)
@@ -464,7 +465,8 @@ any unreadable object."
 (defun turtles-io-wait-for (timeout error-message predicate &optional max-wait-time)
   "Wait for up to TIMEOUT seconds for PREDICATE to become non-nil.
 
-Fails with ERROR-MESSAGE if it times out.
+Fails with ERROR-MESSAGE if it times out. ERROR-MESSAGE can be a
+string or a list containing arguments to pass to `format'.
 
 This function assumes that PREDICATE becomes non-nil as a result
 of processing some process output. If that's not always the case,
@@ -480,7 +482,9 @@ set MAX-WAIT-TIME to some small, but reasonable value."
         (setq remaining max-wait-time))
       (accept-process-output nil remaining)))
   (unless (funcall predicate)
-    (error (concat error-message))))
+    (error (if (consp error-message)
+               (apply #'format (car error-message) (cdr error-message))
+             error-message))))
 
 (provide 'turtles-io)
 
