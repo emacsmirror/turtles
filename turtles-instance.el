@@ -336,6 +336,12 @@ special cases like reading from the minibuffer."
                        (turtles--with-incremented-var turtles--should-send-messages-up
                          (turtles-io--send conn `(:id ,id :result ,(eval expr))))
                      ((error t) (turtles-io--send conn `(:id ,id :error ,err)))))))
+           (last-messages . ,(turtles-io-method-handler (count)
+                               (with-current-buffer (messages-buffer)
+                                 (save-excursion
+                                   (goto-char (point-max))
+                                   (forward-line (- (or count 5)))
+                                   (buffer-substring-no-properties (point) (point-max))))))
            (exit
             . ,(lambda (_conn _id _method _params)
                  (kill-emacs nil))))))

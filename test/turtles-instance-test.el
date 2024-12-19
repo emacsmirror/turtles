@@ -61,14 +61,31 @@
     (should inst)
     (turtles-start-instance inst)
 
-    (ert-with-message-capture messages
+    (let ((inhibit-message t))
+      (ert-with-message-capture messages
+        (turtles-io-call-method
+         (turtles-instance-conn inst)
+         'eval
+         '(message "hello from turtles-test-message"))
+        (let ((message "[default] hello from turtles-test-message"))
+          (unless (member message (string-split messages "\n" 'omit-nulls))
+            (error "message not found in %s" messages)))))))
+
+(ert-deftest turtles-instance-test-last-message ()
+  (let ((inst (turtles-get-instance 'default)))
+    (should inst)
+    (turtles-start-instance inst)
+
+    (let ((inhibit-message t))
       (turtles-io-call-method
        (turtles-instance-conn inst)
        'eval
-       '(message "hello from turtles-test-message"))
-      (let ((message "[default] hello from turtles-test-message"))
-        (unless (member message (string-split messages "\n" 'omit-nulls))
-          (error "message not found in %s" messages))))))
+       '(message "a message from turtles")))
+
+    (let ((messages (turtles-io-call-method
+                     (turtles-instance-conn inst) 'last-messages 5)))
+      (unless (member "a message from turtles" (split-string messages "\n"))
+        (error "message not found in %s" messages)))))
 
 (ert-deftest turtles-instance-test-default-size ()
   (let ((inst (turtles-get-instance 'default)))
