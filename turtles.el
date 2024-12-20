@@ -557,35 +557,62 @@ Expects the current test to be defined in FILE-NAME."
         (error "No turtles instance defined with ID %s" inst-id))
 
       (turtles-start-instance inst)
-      (setq turtles-ert--result
-            (turtles-io-call-method
-             (turtles-instance-conn inst)
-             'ert-test
-             `(progn
-                ,(unless (and turtles-ert--load-cache
-                              (gethash (cons inst-id file-name)
-                                       turtles-ert--load-cache))
-                   `(load ,file-name nil 'nomessage 'nosuffix))
-                (let ((test (ert-get-test (quote ,test-sym))))
-                  (ert-run-test test)
-                  (ert-test-most-recent-result test)))
-             :timeout (or timeout 10.0)
-             :on-timeout
-             (lambda ()
-               (error
-                "Remote test execution timed out. Last messages: %s "
-                (condition-case nil
-                    (turtles-io-call-method (turtles-instance-conn inst)
-                                            'last-messages 5 :timeout 0.5)
-                  (error "<failed to grab>"))))))
-      (when turtles-ert--load-cache
-        (puthash (cons inst-id file-name) t turtles-ert--load-cache))
+      (let ((res
+             (turtles-io-call-method
+              (turtles-instance-conn inst)
+              'ert-test
+              `(progn
+                 ,(unless (and turtles-ert--load-cache
+                               (gethash (cons inst-id file-name)
+                                        turtles-ert--load-cache))
+                    `(load ,file-name nil 'nomessage 'nosuffix))
+                 (let ((test (ert-get-test (quote ,test-sym))))
+                   (ert-run-test test)
+                   (ert-test-most-recent-result test)))
+              :timeout (or timeout 10.0)
+              :on-timeout
+              (lambda ()
+                (error
+                 "Remote test execution timed out. Last messages: %s "
+                 (condition-case nil
+                     (turtles-io-call-method (turtles-instance-conn inst)
+                                             'last-messages 5 :timeout 0.5)
+                   (error "<failed to grab>")))))))
+        (when turtles-ert--load-cache
+          (puthash (cons inst-id file-name) t turtles-ert--load-cache))
+        (turtle--process-remote-result res)
+        (setq turtles-ert--result res))
 
       ;; ert-pass interrupt the server-side portion of the test. The
       ;; real result will be collected from turtles-ert--result by
       ;; turtles-ert--around-ert-run-test. What follows is the
       ;; client-side portion of the test only.
       (ert-pass))))
+
+(defun turtle--process-remote-result (result)
+  "Post-process a RESULT from a remote instance."
+  (when (and result (ert-test-result-with-condition-p result))
+    (mapc (lambda (cell)
+            (turtles--recreate-buttons (cdr cell)))
+          (ert-test-result-with-condition-infos result))))
+
+(defun turtles--recreate-buttons (text)
+  "Re-create button properties in TEXT.
+
+ERT uses buttons, which use property categories with special
+symbols which don't survive a print1 then read. This function
+re-creates these buttons by changing the value of the category
+property."
+  (let ((pos 0) (nextpos 0) (limit (length text)))
+    (while (< pos limit)
+      (setq nextpos (next-single-property-change pos 'category text limit))
+      (when-let* ((cat (get-text-property pos 'category text))
+                  (button (get-text-property pos 'button text))
+                  (button-type
+                   (when (string-suffix-p "-button" (symbol-name cat))
+                     (intern (string-remove-suffix "-button" (symbol-name cat))))))
+        (add-text-properties pos nextpos `(category ,(button-category-symbol button-type)) text))
+      (setq pos nextpos))))
 
 (defun turtles-ert--around-ert-run-test (func test &rest args)
   "Collect test results sent by another Emacs instance.

@@ -16,6 +16,7 @@
 ;; along with this program.  If not, see
 ;; `http://www.gnu.org/licenses/'.
 
+(require 'button)
 (require 'compat)
 (require 'ert)
 (require 'ert-x)
@@ -921,6 +922,28 @@
   (turtles-ert-test)
 
   (should (equal 1 2)))
+
+(ert-deftest turtles-test-fail-with-buffer ()
+  :expected-result :failed
+  (turtles-ert-test)
+  (ert-with-test-buffer (:name "mybuf")
+    (should (equal 1 2))))
+
+(ert-deftest turtles-test-recreate-buttons ()
+  (define-button-type 'turtles-test-button 'action (lambda (button) (message "click")))
+
+  (let* ((press-count 0)
+         (button-text (with-temp-buffer
+                        (insert "foobar")
+                        (make-text-button 1 5 :type 'turtles-test-button)
+                        (buffer-string)))
+         (button-text2 (car (read-from-string (prin1-to-string button-text)))))
+    (turtles--recreate-buttons button-text2)
+
+    ;; If turtles--recreate-buttons doesn't work, these two properties
+    ;; return symbols with the same name that are not actually eq.
+    (should (eq (get-text-property 0 'category button-text)
+                (get-text-property 0 'category button-text2)))))
 
 (ert-deftest turtles-test-to-string-noarg ()
   (turtles-ert-test)
