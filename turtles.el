@@ -39,6 +39,36 @@
 (require 'turtles-io)
 (require 'turtles-instance)
 
+(defcustom turtles-pop-to-buffer-actions
+  '(turtles-pop-to-buffer-copy
+    turtles-pop-to-buffer-embedded
+    turtles-pop-to-buffer-new-frame)
+  "Set of possible handlers of remote buffers.
+
+This are actions called by `turtles-pop-to-buffer'.
+
+The signature of these functions must be (action inst buffer-name
+&rest pop-to-buffer-args).
+
+When ACTION is \\='check, the function must
+check whether it can pop to BUFFER and, if yes, return non-nil.
+When ACTION is \\='display, the function must do what it can do
+display BUFFER.
+
+INST is a live `turtles-instance' containig the buffer.
+
+BUFFER-NAME is the name of a buffer on INST."
+  :type '(list function)
+  :group 'turtles)
+
+(defvar turtles-pop-to-buffer-action-history nil
+  "History of action choice from `turtles-pop-to-buffer-actions'.")
+
+(defvar-local turtles--original-instance nil
+  "The original instance the buffer was copied from.
+
+Set by `turtles-pop-to-buffer-copy'.")
+
 (defconst turtles-basic-colors
   ["#ff0000" "#00ff00" "#0000ff" "#ffff00" "#00ffff" "#ff00ff"]
   "Color vector used to detect faces, excluding white and black.
@@ -78,6 +108,10 @@ and whose value is always t.")
 This is similar to Emacs 29's `display-buffer-full-frame', but
 rougher and available in Emacs 26."
   (set-window-buffer (frame-root-window) buf))
+
+(advice-add 'ert-run-test :around #'turtles-ert--around-ert-run-test)
+(advice-add 'ert-run-tests :around #'turtles-ert--around-ert-run-tests)
+(advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)
 
 (defun turtles-grab-frame-into (buffer &optional grab-faces)
   "Grab a snapshot current frame into BUFFER.
@@ -533,9 +567,6 @@ TIMEOUT is the time after which the server should give up waiting
 for an answer from the instance."
   `(turtles-ert--test ,instance ,(macroexp-file-name) ,timeout))
 
-(advice-add 'ert-run-test :around #'turtles-ert--around-ert-run-test)
-(advice-add 'ert-run-tests :around #'turtles-ert--around-ert-run-tests)
-
 (defun turtles-ert--test (inst-id file-name timeout)
   "Run the current test in another Emacs instance.
 
@@ -613,6 +644,18 @@ property."
                      (intern (string-remove-suffix "-button" (symbol-name cat))))))
         (add-text-properties pos nextpos `(category ,(button-category-symbol button-type)) text))
       (setq pos nextpos))))
+
+(defun turtles--around-pop-to-buffer (func buffer &rest args)
+  "If BUFFER is a remote buffer, call `turtles-pop-to-buffer' on it.
+
+ARGS is passed as-is to FUNC, normally `pop-to-buffer', which is
+configured by `pop-to-buffer-actions'.
+
+This function is meant to be used as around advice for
+`pop-to-buffer'."
+  (if (and (consp buffer) (eq 'turtles-buffer (car buffer)))
+      (apply #'turtles-pop-to-buffer buffer args)
+    (apply func buffer args)))
 
 (defun turtles-ert--around-ert-run-test (func test &rest args)
   "Collect test results sent by another Emacs instance.
@@ -816,6 +859,135 @@ Do not call this function outside of this file."
 
 (defun turtles-ert--filter-faces-for-mark (faces)
   (delq nil (mapcar (lambda (c) (if (consp c) c)) faces)))
+
+(defun turtles-pop-to-buffer (buffer &rest pop-to-buffer-args)
+  "Open a BUFFER created in a remote instance.
+
+Customize `turtles-pop-to-buffer-actions' to configure how this
+function behaves.
+
+If `pop-to-buffer' is used, directly or indirectly, by the
+action, it'll be passed POP-TO-BUFFER-ARGS after the buffer
+itself."
+  (unless (and (consp buffer)
+               (eq 'turtles-buffer (car buffer)))
+    (error "Not a turtles buffer: %s" buffer))
+  (let* ((inst-id (plist-get (cdr buffer) :instance ))
+         (buffer-name (plist-get (cdr buffer) :name))
+         (inst (alist-get inst-id turtles-instance-alist))
+         actions)
+    (unless inst-id
+      (error "No instance defined for buffer: %s" buffer))
+    (unless buffer-name
+      (error "No buffer defined in %s" buffer))
+    (unless inst
+      (error "Unknown instance referenced in %s" buffer))
+    (unless (turtles-instance-live-p inst)
+      (error "Cannot display buffer. Instance %s is dead" inst-id))
+    (setq actions (delq nil (mapcar (lambda (func)
+                                      (when (funcall func 'check inst buffer)
+                                        func))
+                                    turtles-pop-to-buffer-actions)))
+    (cond
+     ((length= actions 0)
+      (error "No available action. Check out M-x configure-option turtles-pop-to-buffer-actions"))
+     ((length= actions 1)
+      (apply (car actions) 'display inst buffer-name pop-to-buffer-args))
+     (t
+      (let ((action
+             (completing-read
+              "Pop to remote buffer: " actions nil 'require-match nil 'pop-to-buffer-action-history)))
+        (when action
+          (apply (intern action) 'display inst buffer-name pop-to-buffer-args)))))))
+
+(defun turtles-pop-to-buffer-embedded (action inst buffer-name &rest pop-to-buffer-args)
+  "Display buffer in the terminal buffer.
+
+When called with ACTION set to \\='display, connect to the
+instance INST to order it to display buffer BUFFER-NAME, then pop
+to the local terminal buffer showing that instance with
+`pop-to-buffer' and POP-TO-BUFFER-ARGS.
+
+This function is meant to be added to
+`turtles-pop-to-buffer-actions'"
+  (cond
+   ((eq 'check action) t)
+   ((eq 'display action)
+    ;; Display the buffer in the instance.
+    (turtles-io-call-method
+     (turtles-instance-conn inst) 'eval
+     `(set-window-buffer (frame-root-window) (get-buffer ,buffer-name)))
+    (let* ((term-buf (turtles-instance-term-buf inst))
+          (term-bufname (buffer-name term-buf)))
+      ;; Un-hide the buffer. This allows it to show colors.
+      (when (string-prefix-p " " term-bufname)
+        (with-current-buffer term-buf
+          (rename-buffer (string-remove-prefix " " term-bufname))))
+      ;; Display the terminal buffer
+      (apply #'pop-to-buffer term-buf pop-to-buffer-args)))
+   (t (error "Unknown action %s" action))))
+
+(defun turtles-pop-to-buffer-copy (action inst buffer-name &rest pop-to-buffer-args)
+  "Display a copy of the remote buffer.
+
+When called with ACTION set to \\='display, connect to the
+instance INST to copy the text, point and mark of BUFFER-NAME
+into a local buffer, then display that local buffer with
+`pop-to-buffer' and POP-TO-BUFFER-ARGS.
+
+This allows seeing what is in the text buffer, but not interact
+with it.
+
+This function is meant to be added to
+`turtles-pop-to-buffer-actions'"
+  (cond
+   ((eq 'check action) t)
+   ((eq 'display action)
+    (let* ((local-bufname (format "[%s] %s" (turtles-instance-id inst) buffer-name))
+           (buf (get-buffer local-bufname)))
+    (if (and buf (buffer-local-value 'turtles--original-instance buf))
+        (apply #'pop-to-buffer buf pop-to-buffer-args)
+      (setq buf (generate-new-buffer local-bufname))
+      (let ((ret (turtles-io-call-method
+                  (turtles-instance-conn inst) 'eval
+                  `(with-current-buffer ,buffer-name
+                     (list (buffer-string) (point) (mark) (region-active-p))))))
+        (with-current-buffer buf
+          (setq turtles--original-instance inst)
+          (insert (nth 0 ret))
+          (goto-char (nth 1 ret))
+          (prog1 (apply #'pop-to-buffer buf pop-to-buffer-args)
+            (when (nth 2 ret)
+              (push-mark (nth 2 ret) 'nomsg nil)
+              (when (nth 3 ret)
+                (activate-mark)))))))))
+   (t (error "Unknown action %s" action))))
+
+(defun turtles-pop-to-buffer-new-frame (action inst buffer-name &rest _ignored)
+  "Tell the instance to open the buffer in a new frame.
+
+When called with ACTION set to \\='display, display BUFFER-NAME
+in the Turtles instance INST, by asking the instance to create a
+new frame and show that buffer there.
+
+This can only work when running in a window system. When called
+with action set to \\='check, answer nil when running in a
+terminal.
+
+This function is meant to be added to `turtles-pop-to-buffer-actions'"
+  (let ((params (frame-parameters)))
+    (cond
+     ((eq 'check action) (alist-get 'window-system params))
+     ((eq 'display action)
+      (turtles-io-call-method
+       (turtles-instance-conn inst) 'eval
+       `(let ((buf (get-buffer ,buffer-name)))
+          (select-frame (make-frame
+                         '((window-system . ,(alist-get 'window-system params))
+                           (display . ,(alist-get 'display params)))))
+          (set-window-buffer (frame-root-window) buf)
+          (make-frame-visible))))
+     (t (error "Unknown action %s" action)))))
 
 (provide 'turtles)
 

@@ -923,10 +923,16 @@
 
   (should (equal 1 2)))
 
+;; This test is used in manual tests to check out what happens to
+;; buffers listed in failed tests.
 (ert-deftest turtles-test-fail-with-buffer ()
   :expected-result :failed
   (turtles-ert-test)
   (ert-with-test-buffer (:name "mybuf")
+    (insert "Test buffer")
+    (goto-char (point-min))
+    (search-forward "buffer")
+    (goto-char (match-beginning 0))
     (should (equal 1 2))))
 
 (ert-deftest turtles-test-recreate-buttons ()
@@ -1151,3 +1157,70 @@
       ;; Check the buffer content that was displayed
       (should (equal "hello, world!"
                      (buffer-string))))))
+
+(ert-deftest turtles-test-pop-to-buffer-copy ()
+  (let ((inst (turtles-get-instance 'default)))
+    (should inst)
+    (turtles-start-instance inst)
+
+    (let ((remote-buf (turtles-io-call-method
+                       (turtles-instance-conn inst)
+                       'eval
+                       '(with-current-buffer (generate-new-buffer "turtles-pop-to-buffer-copy")
+                          (insert "This is my buffer.")
+                          (goto-char (point-min))
+                          (search-forward "buffer")
+                          (goto-char (match-beginning 0))
+                          (push-mark (match-end 0) 'nomsg nil)
+                          (activate-mark)
+                          (current-buffer)))))
+      (should (consp remote-buf))
+      (should (equal 'turtles-buffer (car remote-buf)))
+      (should (equal 'default (plist-get (cdr remote-buf) :instance)))
+
+      (let* ((turtles-pop-to-buffer-actions (list #'turtles-pop-to-buffer-copy))
+             (buf (turtles-pop-to-buffer remote-buf)))
+        (unwind-protect
+            (progn
+              (should (eq (selected-window) (get-buffer-window buf)))
+              (with-current-buffer (window-buffer (selected-window))
+                (should (eq inst turtles--original-instance))
+                (should (string-prefix-p "[default] turtles-pop-to-buffer-copy" (buffer-name)))
+                (turtles-mark-point "<>")
+                (turtles-mark-region "[]")
+                (should (equal "This is my <>[buffer]." (buffer-string)))))
+          (kill-buffer buf))))))
+
+(ert-deftest turtles-test-pop-to-buffer-embedded ()
+  (let ((inst (turtles-get-instance 'default)))
+    (should inst)
+    (turtles-start-instance inst)
+
+    (let ((remote-buf (turtles-io-call-method
+                       (turtles-instance-conn inst)
+                       'eval
+                       '(with-current-buffer (generate-new-buffer "turtles-pop-to-buffer-embedded")
+                          (insert "This is my buffer.")
+                          (current-buffer)))))
+      (should (consp remote-buf))
+      (should (equal 'turtles-buffer (car remote-buf)))
+      (should (equal 'default (plist-get (cdr remote-buf) :instance)))
+
+      (let* ((turtles-pop-to-buffer-actions (list #'turtles-pop-to-buffer-embedded))
+             (buf (turtles-pop-to-buffer remote-buf)))
+        (should (eq buf (turtles-instance-term-buf inst)))
+        (should (eq (selected-window) (get-buffer-window buf)))
+        (let ((win (turtles-io-call-method
+                    (turtles-instance-conn inst)
+                    'eval
+                    `(selected-window))))
+          (should (consp win))
+          (should (equal 'turtles-window (car win)))
+          (should (equal (plist-get (cdr remote-buf) :name)
+                         (plist-get (cdr win) :buffer))))))))
+
+(ert-deftest turtles-test-pop-to-buffer-new-frame ()
+  ;; There isn't much that can be tested in batch mode; the action is
+  ;; just not available.
+  (should (eq (alist-get 'window-system (frame-parameters))
+              (turtles-pop-to-buffer-new-frame 'check nil nil))))
