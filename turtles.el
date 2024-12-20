@@ -189,6 +189,46 @@ the buffer content and the effect of GRAB-FACES."
   (turtles-grab-window-into
    (turtles-setup-buffer buf) output-buf grab-faces margins))
 
+(defun turtles-grab-mode-line-into (win-or-buf output-buf &optional grab-faces)
+  "Grab the mode line of WIN-OR-BUF into OUTPUT-BUFE.
+
+When this function returns, OUTPUT-BUF contains the textual
+representation of the mode line of WIN-OR-BUF.
+
+This function uses `turtles-grab-window-into' after setting up
+the buffer. See the documentation of that function for details on
+the buffer content and the effect of GRAB-FACES."
+  (let ((win (if (bufferp win-or-buf)
+                 (turtles-setup-buffer win-or-buf)
+               win-or-buf)))
+    (turtles-grab-frame-into output-buf grab-faces)
+    (with-current-buffer output-buf
+      (setq turtles-source-window win)
+      (setq turtles-source-buffer (window-buffer win))
+      (pcase-let ((`(,left _ ,right ,bottom) (window-edges win nil))
+                  (`(_ _ _ ,body-bottom) (window-edges win 'body)))
+        (turtles--clip left body-bottom right bottom)))))
+
+(defun turtles-grab-header-line-into (win-or-buf output-buf &optional grab-faces)
+  "Grab the header line of WIN-OR-BUF into OUTPUT-BUFE.
+
+When this function returns, OUTPUT-BUF contains the textual
+representation of the header line of WIN-OR-BUF.
+
+This function uses `turtles-grab-window-into' after setting up
+the buffer. See the documentation of that function for details on
+the buffer content and the effect of GRAB-FACES."
+  (let ((win (if (bufferp win-or-buf)
+                 (turtles-setup-buffer win-or-buf)
+               win-or-buf)))
+    (turtles-grab-frame-into output-buf grab-faces)
+    (with-current-buffer output-buf
+      (setq turtles-source-window win)
+      (setq turtles-source-buffer (window-buffer win))
+      (pcase-let ((`(,left ,top ,right _) (window-edges win nil))
+                  (`(_ ,body-top _ _) (window-edges win 'body)))
+        (turtles--clip left top right body-top)))))
+
 (defun turtles-grab-window-into (win output-buf &optional grab-faces margins)
   "Grab WIN into output-buf.
 
@@ -213,7 +253,10 @@ so any other face not in GRAB-FACE are absent."
   (with-current-buffer output-buf
     (setq turtles-source-window win)
     (setq turtles-source-buffer (window-buffer win))
-    (turtles--clip-in-frame-grab win margins)
+    (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
+                (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
+      (setq-local turtles--left-margin-width (- left-body left))
+      (turtles--clip left top right bottom))
 
     (let ((point-pos (turtles-pos-in-window-grab (window-point win)))
           (mark-pos (turtles-pos-in-window-grab
@@ -271,38 +314,38 @@ appear in the grab, return nil."
 
 If MARGIN is non-nil, include the margins and set
 `turtles--left-margin-width'."
+  (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
+              (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
+    (setq-local turtles--left-margin-width (- left-body left))
+    (turtles--clip left top right bottom)))
+
+(defun turtles--clip (left top right bottom)
+  "Clip the frame grab in the current buffer to the given edges.
+
+LEFT TOP RIGHT and BOTTOM are coordinate relative to the current
+buffer's origins."
   (save-excursion
-    (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
-                (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
-      (setq-local turtles--left-margin-width (- left-body left))
+    (goto-char (point-min))
+    (while (progn
+             (move-to-column right)
+             (delete-region (point) (pos-eol))
+             (= (forward-line 1) 0)))
+
+    (when (> left 0)
       (goto-char (point-min))
       (while (progn
-               (move-to-column right)
-               (delete-region (point) (pos-eol))
-               (= (forward-line 1) 0)))
+               (move-to-column left)
+               (delete-region (pos-bol) (point))
+               (= (forward-line 1) 0))))
 
-      (when (> left 0)
-        (goto-char (point-min))
-        (while (progn
-                 (move-to-column left)
-                 (when (and noninteractive
-                            (not (char-before ?|)))
-                   (error
-                    (concat "Capturing a window to the right of another "
-                            "doesn't work because of rendering errors in "
-                            "batch mode. Either always split horizontally "
-                            "or run tests in non-batch mode.")))
-                 (delete-region (pos-bol) (point))
-                 (= (forward-line 1) 0))))
+    (goto-char (point-min))
+    (forward-line bottom)
+    (delete-region (point) (point-max))
 
+    (when (> top 0)
       (goto-char (point-min))
-      (forward-line bottom)
-      (delete-region (point) (point-max))
-
-      (when (> top 0)
-        (goto-char (point-min))
-        (forward-line top)
-        (delete-region (point-min) (point))))))
+      (forward-line top)
+      (delete-region (point-min) (point)))))
 
 (defun turtles--setup-grab-faces (grab-faces buffers)
   "Prepare buffer faces for grabbing GRAB-FACES on BUFFERS.
@@ -689,8 +732,8 @@ them into the local `ert-test' instance."
     (apply func args)))
 
 (cl-defun turtles-to-string (&key (name "grab")
-                                   frame win buf minibuffer margins
-                                   faces region point (trim t))
+                                   frame win buf minibuffer mode-line header-line
+                                   margins faces region point (trim t))
   "Grab a section of the terminal and return the result as a string.
 
 With no arguments, this function renders the current buffer in
@@ -708,8 +751,15 @@ The following keyword arguments modify what is grabbed:
     the single window of `turtles-frame', rendered, then
     grabbed.
 
-  - The key argument WIN specifies a window to grab. The window
-    must be part of `turtles-frame'.
+  - The key argument WIN specifies a window to grab.
+
+  - The key argument MODE-LINE specifies a window or buffer to
+    grab the mode line of, or t to grab the mode line of the
+    current buffer.
+
+  - The key argument HEADER-LINE specifies a window or buffer to
+    grab the header line of, or t to grab the header line of the
+    current buffer.
 
   - Set the key argument MINIBUFFER to t to capture the content
     of the minibuffer window of `turtles-frame'.
@@ -749,7 +799,7 @@ The following keyword arguments post-process what was grabbed:
   (let ((calling-buf (current-buffer)))
     (ert-with-test-buffer (:name name)
       (turtles--internal-grab
-       frame win buf calling-buf minibuffer faces margins)
+       frame win buf calling-buf minibuffer mode-line header-line faces margins)
       (when region
         (turtles-mark-region (if (consp region) (car region) region)
                               (if (consp region) (nth 1 region))))
@@ -761,8 +811,8 @@ The following keyword arguments post-process what was grabbed:
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
-                                              frame win buf minibuffer margins
-                                              faces)
+                                              frame win buf minibuffer mode-line header-line
+                                              margins faces)
                                         &rest body)
   "Grab a section of the terminal and store it into a test buffer.
 
@@ -789,8 +839,15 @@ BODY:
     the single window of `turtles-frame', rendered, then
     grabbed.
 
-  - The key argument WIN specifies a window to grab. The window
-    must be part of `turtles-frame'.
+  - The key argument WIN specifies a window to grab.
+
+  - The key argument MODE-LINE specifies a window or buffer to
+    grab the mode line of, or t to grab the mode line of the
+    current buffer.
+
+  - The key argument HEADER-LINE specifies a window or buffer to
+    grab the header line of, or t to grab the header line of the
+    current buffer.
 
   - Set the key argument MINIBUFFER to t to capture the content
     of the minibuffer window of `turtles-frame'.
@@ -816,7 +873,8 @@ BODY:
            (,faces-var ,faces))
        (ert-with-test-buffer (:name ,name)
          (turtles--internal-grab
-          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces-var ,margins)
+          ,frame ,win ,buf ,calling-buf ,minibuffer
+          ,mode-line ,header-line ,faces-var ,margins)
          (turtles-mark-text-with-faces (turtles-ert--filter-faces-for-mark ,faces-var))
 
          ,@body))))
@@ -859,7 +917,8 @@ Return whatever READ eventually evaluates to."
        (sleep-for 0.01)
        ,mb-result-var)))
 
-(defun turtles--internal-grab (frame win buf calling-buf minibuffer grab-faces margins)
+(defun turtles--internal-grab (frame win buf calling-buf minibuffer
+                                     mode-line header-line grab-faces margins)
   "Internal macro implementation for grabbing into the current buffer.
 
 Do not call this function outside of this file."
@@ -869,6 +928,10 @@ Do not call this function outside of this file."
      (buf (turtles-grab-buffer-into buf cur grab-faces margins))
      (win (turtles-grab-window-into win cur grab-faces margins))
      (minibuffer (turtles-grab-window-into (active-minibuffer-window) cur grab-faces margins))
+     (mode-line (turtles-grab-mode-line-into
+                 (if (eq t mode-line) calling-buf mode-line) cur grab-faces))
+     (header-line (turtles-grab-header-line-into
+                   (if (eq t header-line) calling-buf header-line) cur grab-faces))
      (frame (turtles-grab-frame-into cur grab-faces))
      (t (turtles-grab-buffer-into calling-buf cur grab-faces margins)))))
 

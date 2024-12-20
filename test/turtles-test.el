@@ -768,6 +768,38 @@
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
+(ert-deftest turtles-test-grab-header-line ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (turtles-test-init-buffer)
+      (setq-local header-line-format '("My very own header"))
+      (insert "Hello, world\n")
+
+      (should (equal
+               "My very own header\n"
+               (with-temp-buffer
+                 (turtles-grab-header-line-into testbuf (current-buffer))
+                 (delete-trailing-whitespace)
+                 (buffer-string)))))))
+
+(ert-deftest turtles-test-grab-mode-line ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (turtles-test-init-buffer)
+      (setq-local mode-line-format '("My very own mode line"))
+      (insert "Hello, world\n")
+
+      (should (equal
+               "My very own mode line\n"
+               (with-temp-buffer
+                 (turtles-grab-mode-line-into testbuf (current-buffer))
+                 (delete-trailing-whitespace)
+                 (buffer-string)))))))
+
 (ert-deftest turtles-test-mark-point ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
@@ -1166,6 +1198,25 @@
         (delete-trailing-whitespace)
         (should (equal "|-Hello, world.                                                               -|\n"
                        (buffer-string))))))
+
+(ert-deftest turtles-test-with-grab-mode-line ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (setq-local mode-line-format "My mode line")
+    (turtles-with-grab-buffer (:mode-line t)
+      (delete-trailing-whitespace)
+      (should (equal "My mode line\n" (buffer-string))))))
+
+
+(ert-deftest turtles-test-with-grab-header-line ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (setq-local header-line-format "My header line")
+    (turtles-with-grab-buffer (:header-line t)
+      (delete-trailing-whitespace)
+      (should (equal "My header line\n" (buffer-string))))))
 
 (ert-deftest turtles-read-from-minibuffer ()
   (turtles-ert-test)
