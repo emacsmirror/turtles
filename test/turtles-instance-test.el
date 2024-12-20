@@ -103,5 +103,16 @@
       (should (equal 132 term-width))
       (should (equal 43 term-height)))))
 
+(ert-deftest turtles-instance-unreadable-buffer ()
+  (let ((inst (turtles-get-instance 'default)))
+    (should inst)
+    (turtles-start-instance inst)
+
+    (should
+     (equal '(turtles-buffer :name "*scratch*" :instance default)
+            (turtles-io-call-method
+             (turtles-instance-conn inst)
+             'eval
+             '(get-scratch-buffer-create))))))
 
 (require 'turtles-instance)

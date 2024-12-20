@@ -60,6 +60,13 @@ Response handlers take three arguments: result and errors, only
 one of which is ever specified.")
   (last-id 0 :documentation "ID of the last method called on this connection"))
 
+(defvar turtles-io-unreadable-obj-functions nil
+  "Hook that is passed replacement objects created for unreadables.
+
+These objects are all cons starting with a symbol followed by a
+property list. This is an opportunity to allow adding properties
+to identify the current process to the remote process.")
+
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
 
@@ -329,11 +336,14 @@ MSG can be any lisp object that can be printed."
                     :to ,(string-to-number (match-string 2))
                     :buffer ,(match-string 3)))
 
-                 (t (search-forward ">")
-                    `(turtles-obj
-                      ,(buffer-substring-no-properties obj-start (1- (point))))))))
+                 ((looking-at "\\([a-z-]+\\)\\( .*?\\)?>")
+                  (goto-char (match-end 0))
+                  `(turtles-obj :type ,(intern (match-string 1))))
+                 (t (error "Cannot parse unreadable %s"
+                           (buffer-substring-no-properties (- obj-start 2) (+ obj-start 30)))))))
           ;; point is after the closing ">"
           (delete-region (- obj-start 2) (point))
+          (run-hook-with-args 'turtles-io-unreadable-obj-functions obj)
           (prin1 obj (current-buffer))))
         (move-marker end-pos nil)))))
 

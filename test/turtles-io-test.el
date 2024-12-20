@@ -292,40 +292,50 @@
                   '(:id 12 :result (readable-with-\#\and-\#< "#<" ?# ?<))))))
 
 (ert-deftest turtles-io-test-print-msg-unreadable ()
-  (with-temp-buffer
-    (rename-buffer (generate-new-buffer-name "temp >>--#<\""))
-    (should (equal (format "(:id 12 :result (1 2 (turtles-buffer :name %s) 3))"
-                           (prin1-to-string (buffer-name)))
-                   (turtles-io--print-msg-to-string
-                    `(:id 12 :result (1 2 ,(current-buffer) 3)))))
+  (let ((turtles-io-unreadable-obj-functions nil))
+    (with-temp-buffer
+      (rename-buffer (generate-new-buffer-name "temp >>--#<\""))
+      (should (equal (format "(:id 12 :result (1 2 (turtles-buffer :name %s) 3))"
+                             (prin1-to-string (buffer-name)))
+                     (turtles-io--print-msg-to-string
+                      `(:id 12 :result (1 2 ,(current-buffer) 3)))))
 
-    (with-selected-window (display-buffer (current-buffer))
-      (should (equal (format "(:id 12 :result (1 2 (turtles-window :buffer %s) 3))"
-                           (prin1-to-string (buffer-name)))
-                   (turtles-io--print-msg-to-string
-                    `(:id 12 :result (1 2 ,(selected-window) 3))))))
+      (with-selected-window (display-buffer (current-buffer))
+        (should (equal (format "(:id 12 :result (1 2 (turtles-window :buffer %s) 3))"
+                               (prin1-to-string (buffer-name)))
+                       (turtles-io--print-msg-to-string
+                        `(:id 12 :result (1 2 ,(selected-window) 3))))))
 
-    (insert "some text")
-    (should (equal (format "(:id 12 :result (1 2 (turtles-overlay :from 1 :to 5 :buffer %s) 3))"
-                           (prin1-to-string (buffer-name)))
-                   (turtles-io--print-msg-to-string
-                    `(:id 12 :result (1 2 ,(make-overlay 1 5) 3)))))
+      (insert "some text")
+      (should (equal (format "(:id 12 :result (1 2 (turtles-overlay :from 1 :to 5 :buffer %s) 3))"
+                             (prin1-to-string (buffer-name)))
+                     (turtles-io--print-msg-to-string
+                      `(:id 12 :result (1 2 ,(make-overlay 1 5) 3)))))
 
-    (should (equal (format "(:id 12 :result (1 2 (turtles-marker :pos 3 :buffer %s) 3))"
-                           (prin1-to-string (buffer-name)))
-                   (turtles-io--print-msg-to-string
-                    `(:id 12 :result (1 2 ,(copy-marker 3) 3))))))
+      (should (equal (format "(:id 12 :result (1 2 (turtles-marker :pos 3 :buffer %s) 3))"
+                             (prin1-to-string (buffer-name)))
+                     (turtles-io--print-msg-to-string
+                      `(:id 12 :result (1 2 ,(copy-marker 3) 3))))))
 
-  (should (equal (format "(:id 12 :result (1 2 (turtles-marker) 3))"
+    (should (equal (format "(:id 12 :result (1 2 (turtles-marker) 3))"
                            (prin1-to-string (buffer-name)))
                    (turtles-io--print-msg-to-string
                     `(:id 12 :result (1 2 ,(make-marker) 3)))))
 
-  (should (equal (format "(:id 12 :result (1 2 (turtles-frame :name %s) 3))"
-                         (prin1-to-string (alist-get 'name (frame-parameters))))
-                 (turtles-io--print-msg-to-string
-                  `(:id 12 :result (1 2 ,(selected-frame) 3)))))
+    (should (equal (format "(:id 12 :result (1 2 (turtles-frame :name %s) 3))"
+                           (prin1-to-string (alist-get 'name (frame-parameters))))
+                   (turtles-io--print-msg-to-string
+                    `(:id 12 :result (1 2 ,(selected-frame) 3)))))
 
-  (should (equal "(:id 12 :result (1 2 (turtles-obj \"window-configuration\") 3))"
-                 (turtles-io--print-msg-to-string
-                  `(:id 12 :result (1 2 ,(current-window-configuration) 3))))))
+    (should (equal "(:id 12 :result (1 2 (turtles-obj :type window-configuration) 3))"
+                   (turtles-io--print-msg-to-string
+                    `(:id 12 :result (1 2 ,(current-window-configuration) 3)))))))
+
+(ert-deftest turtles-io-test-print-msg-unreadable-hook ()
+  (let ((turtles-io-unreadable-obj-functions
+         (list (lambda (obj)
+                 (setcdr obj (plist-put (cdr obj) :foo 'bar))))))
+    (with-temp-buffer
+      (should (equal (format "(turtles-buffer :name %s :foo bar)"
+                             (prin1-to-string (buffer-name)))
+                     (turtles-io--print-msg-to-string (current-buffer)))))))
