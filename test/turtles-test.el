@@ -401,7 +401,6 @@
 
            (buffer-string))))))))
 
-
 (ert-deftest turtles-test-grab-inactive-mark ()
   (turtles-ert-test)
 
@@ -536,7 +535,6 @@
            (insert "]")
 
            (buffer-string))))))))
-
 
 (ert-deftest turtles-test-grab-invisible-mark ()
   (turtles-ert-test)
@@ -742,6 +740,33 @@
            (turtles-mark-text-with-face 'error "e[" "]")
 
            (buffer-string))))))))
+
+(ert-deftest turtles-test-grab-margins ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (turtles-test-init-buffer)
+      (setq-local left-margin-width 2)
+      (setq-local right-margin-width 2)
+      (insert (propertize "left" 'display '((margin left-margin) "|-")))
+      (insert "Hello, \n")
+      (insert (propertize "right" 'display '((margin right-margin) "-|")))
+      (insert "world.\n")
+
+      ;; Set the point just after Hello. This is tested to make sure
+      ;; that the margin doesn't throw off turtles-pos-in-window-grab.
+      (goto-char (point-min))
+      (search-forward "Hello")
+
+      (should (equal
+               (concat "|-Hello<>,\n"
+                       "  world.                                                                      -|\n")
+               (with-temp-buffer
+                 (turtles-grab-buffer-into testbuf (current-buffer) nil 'margins)
+                 (turtles-mark-point "<>")
+                 (delete-trailing-whitespace)
+                 (buffer-string)))))))
 
 (ert-deftest turtles-test-mark-point ()
   (ert-with-test-buffer ()
@@ -1126,6 +1151,21 @@
       (goto-char (point-min))
       (search-forward "success")
       (should (equal 'success (get-text-property (1- (point)) 'face))))))
+
+(ert-deftest turtles-test-with-grab-buffer-margins ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+      (setq-local left-margin-width 2)
+      (setq-local right-margin-width 2)
+      (insert (propertize "left" 'display '((margin left-margin) "|-")))
+      (insert (propertize "right" 'display '((margin right-margin) "-|")))
+      (insert "Hello, world.")
+
+      (turtles-with-grab-buffer (:margins t)
+        (delete-trailing-whitespace)
+        (should (equal "|-Hello, world.                                                               -|\n"
+                       (buffer-string))))))
 
 (ert-deftest turtles-read-from-minibuffer ()
   (turtles-ert-test)

@@ -90,6 +90,9 @@ This is local variable set in a grab buffer filled by
 This is local variable set in a grab buffer filled by
 `turtles-grab-window-into' or `turtles-grab-buffer-into'.")
 
+(defvar-local turtles--left-margin-width 0
+  "Width of the left margin left by `turtles--clip-in-frame-grab'.")
+
 (defvar turtles-ert--result nil
   "Result of running a test in another Emacs instance.")
 
@@ -171,19 +174,22 @@ If BUF is nil, the current buffer is used instead."
         (turtles-display-buffer-full-frame buf)
         (frame-root-window))))
 
-(defun turtles-grab-buffer-into (buf output-buf &optional grab-faces)
+(defun turtles-grab-buffer-into (buf output-buf &optional grab-faces margins)
   "Display BUF in the grabbed frame and grab it into OUTPUT-BUF.
 
 When this function returns, OUTPUT-BUF contains the textual
 representation of BUF as displayed in the root window of the
 grabbed frame.
 
+If MARGIN is non-nil, include the left and right margins.
+
 This function uses `turtles-grab-window-into' after setting up
 the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
-  (turtles-grab-window-into (turtles-setup-buffer buf) output-buf grab-faces))
+  (turtles-grab-window-into
+   (turtles-setup-buffer buf) output-buf grab-faces margins))
 
-(defun turtles-grab-window-into (win output-buf &optional grab-faces)
+(defun turtles-grab-window-into (win output-buf &optional grab-faces margins)
   "Grab WIN into output-buf.
 
 WIN must be a window on the turtles frame.
@@ -192,6 +198,8 @@ When this function returns, OUTPUT-BUF contains the textual
 representation of the content of that window. The point, mark and
 region are also set to corresponding positions in OUTPUT-BUF, if
 possible.
+
+If MARGIN is non-nil, include the left and right margins.
 
 If GRAB-FACES is empty, the colors are copied as
 \\='font-lock-face text properties, with as much fidelity as the
@@ -205,7 +213,7 @@ so any other face not in GRAB-FACE are absent."
   (with-current-buffer output-buf
     (setq turtles-source-window win)
     (setq turtles-source-buffer (window-buffer win))
-    (turtles--clip-in-frame-grab win)
+    (turtles--clip-in-frame-grab win margins)
 
     (let ((point-pos (turtles-pos-in-window-grab (window-point win)))
           (mark-pos (turtles-pos-in-window-grab
@@ -255,13 +263,18 @@ appear in the grab, return nil."
             (save-excursion
               (goto-char (point-min))
               (forward-line (- y top))
-              (move-to-column (- x left))
+              (move-to-column (+ (- x left) turtles--left-margin-width))
               (point))))))))
 
-(defun turtles--clip-in-frame-grab (win)
-  "Clip the frame grab in the current buffer to the body of WIN."
+(defun turtles--clip-in-frame-grab (win margins)
+  "Clip the frame grab in the current buffer to the body of WIN.
+
+If MARGIN is non-nil, include the margins and set
+`turtles--left-margin-width'."
   (save-excursion
-    (pcase-let ((`(,left ,top ,right ,bottom) (window-body-edges win)))
+    (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
+                (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
+      (setq-local turtles--left-margin-width (- left-body left))
       (goto-char (point-min))
       (while (progn
                (move-to-column right)
@@ -676,7 +689,7 @@ them into the local `ert-test' instance."
     (apply func args)))
 
 (cl-defun turtles-to-string (&key (name "grab")
-                                   frame win buf minibuffer
+                                   frame win buf minibuffer margins
                                    faces region point (trim t))
   "Grab a section of the terminal and return the result as a string.
 
@@ -702,6 +715,9 @@ The following keyword arguments modify what is grabbed:
     of the minibuffer window of `turtles-frame'.
 
   - Set the key argument FRAME to t to capture the whole frame.
+
+  - If key argument MARGINS is non-nil, include the left and
+    right margin when grabbing the content of a window or buffer.
 
 The following keyword arguments post-process what was grabbed:
 
@@ -733,7 +749,7 @@ The following keyword arguments post-process what was grabbed:
   (let ((calling-buf (current-buffer)))
     (ert-with-test-buffer (:name name)
       (turtles--internal-grab
-       frame win buf calling-buf minibuffer faces)
+       frame win buf calling-buf minibuffer faces margins)
       (when region
         (turtles-mark-region (if (consp region) (car region) region)
                               (if (consp region) (nth 1 region))))
@@ -745,7 +761,7 @@ The following keyword arguments post-process what was grabbed:
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
-                                              frame win buf minibuffer
+                                              frame win buf minibuffer margins
                                               faces)
                                         &rest body)
   "Grab a section of the terminal and store it into a test buffer.
@@ -779,6 +795,9 @@ BODY:
   - Set the key argument MINIBUFFER to t to capture the content
     of the minibuffer window of `turtles-frame'.
 
+  - If key argument MARGINS is non-nil, include the left and
+    right margin when grabbing the content of a window or buffer.
+
   - Set the key argument FRAME to t to capture the whole frame.
 
   - The key argument FACES asks for a specific set of faces to
@@ -797,7 +816,7 @@ BODY:
            (,faces-var ,faces))
        (ert-with-test-buffer (:name ,name)
          (turtles--internal-grab
-          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces-var)
+          ,frame ,win ,buf ,calling-buf ,minibuffer ,faces-var ,margins)
          (turtles-mark-text-with-faces (turtles-ert--filter-faces-for-mark ,faces-var))
 
          ,@body))))
@@ -840,18 +859,18 @@ Return whatever READ eventually evaluates to."
        (sleep-for 0.01)
        ,mb-result-var)))
 
-(defun turtles--internal-grab (frame win buf calling-buf minibuffer grab-faces)
+(defun turtles--internal-grab (frame win buf calling-buf minibuffer grab-faces margins)
   "Internal macro implementation for grabbing into the current buffer.
 
 Do not call this function outside of this file."
   (let ((cur (current-buffer))
         (grab-faces (turtles-ert--filter-faces-for-grab grab-faces)))
     (cond
-     (buf (turtles-grab-buffer-into buf cur grab-faces))
-     (win (turtles-grab-window-into win cur grab-faces))
-     (minibuffer (turtles-grab-window-into (active-minibuffer-window) cur grab-faces))
+     (buf (turtles-grab-buffer-into buf cur grab-faces margins))
+     (win (turtles-grab-window-into win cur grab-faces margins))
+     (minibuffer (turtles-grab-window-into (active-minibuffer-window) cur grab-faces margins))
      (frame (turtles-grab-frame-into cur grab-faces))
-     (t (turtles-grab-buffer-into calling-buf cur grab-faces)))))
+     (t (turtles-grab-buffer-into calling-buf cur grab-faces margins)))))
 
 (defun turtles-ert--filter-faces-for-grab (faces)
   "Filter FACES t pass to `turtles-grab-buffer-into'"
