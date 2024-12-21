@@ -156,7 +156,7 @@
           (window-resize center-win (- 10 (window-height center-win))))
 
         (ert-with-test-buffer (:name "grab")
-          (turtles-grab-window center-win (current-buffer))
+          (turtles-grab-window center-win)
           (should
            (equal
             (concat
@@ -200,7 +200,7 @@
         (set-window-buffer center-win buf1)
 
         (ert-with-test-buffer (:name "grab")
-          (turtles-grab-window center-win (current-buffer))
+          (turtles-grab-window center-win)
           (should
            (equal
             (concat
@@ -250,7 +250,7 @@
         (set-window-buffer center-win buf1)
 
         (ert-with-test-buffer (:name "grab")
-          (turtles-grab-window center-win (current-buffer))
+          (turtles-grab-window center-win)
           (should
            (equal
             (concat

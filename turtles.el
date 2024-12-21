@@ -191,8 +191,7 @@ If MARGIN is non-nil, include the left and right margins.
 This function uses `turtles-grab-window' after setting up
 the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
-  (turtles-grab-window
-   (turtles--setup-buffer buf) (current-buffer) grab-faces margins))
+  (turtles-grab-window (turtles--setup-buffer buf) grab-faces margins))
 
 (defun turtles-grab-mode-line (win-or-buf output-buf &optional grab-faces)
   "Grab the mode line of WIN-OR-BUF into OUTPUT-BUFE.
@@ -234,15 +233,15 @@ the buffer content and the effect of GRAB-FACES."
                   (`(_ ,body-top _ _) (window-edges win 'body)))
         (turtles--clip left top right body-top)))))
 
-(defun turtles-grab-window (win output-buf &optional grab-faces margins)
-  "Grab WIN into output-buf.
+(defun turtles-grab-window (win &optional grab-faces margins)
+  "Grab WIN into the current buffer.
 
 WIN must be a window on the turtles frame.
 
-When this function returns, OUTPUT-BUF contains the textual
-representation of the content of that window. The point, mark and
-region are also set to corresponding positions in OUTPUT-BUF, if
-possible.
+When this function returns, the current buffer contains the
+textual representation of the content of that window. The point,
+mark and region are also set to corresponding positions in the
+current buffer, if possible.
 
 If MARGIN is non-nil, include the left and right margins.
 
@@ -254,28 +253,27 @@ If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
-  (turtles-grab-frame output-buf grab-faces)
-  (with-current-buffer output-buf
-    (setq turtles-source-window win)
-    (setq turtles-source-buffer (window-buffer win))
-    (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
-                (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
-      (setq-local turtles--left-margin-width (- left-body left))
-      (turtles--clip left top right bottom))
+  (turtles-grab-frame (current-buffer) grab-faces)
+  (setq turtles-source-window win)
+  (setq turtles-source-buffer (window-buffer win))
+  (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
+              (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
+    (setq-local turtles--left-margin-width (- left-body left))
+    (turtles--clip left top right bottom))
 
-    (let ((point-pos (turtles-pos-in-window-grab (window-point win)))
-          (mark-pos (turtles-pos-in-window-grab
-                     (with-selected-window win (mark)) 'range)))
-      (when point-pos
-        (goto-char point-pos))
-      (when mark-pos
-        (push-mark mark-pos 'nomsg nil))
+  (let ((point-pos (turtles-pos-in-window-grab (window-point win)))
+        (mark-pos (turtles-pos-in-window-grab
+                   (with-selected-window win (mark)) 'range)))
+    (when point-pos
+      (goto-char point-pos))
+    (when mark-pos
+      (push-mark mark-pos 'nomsg nil))
 
-      (when (and point-pos
-                 mark-pos
-                 (with-selected-window win
-                   (region-active-p)))
-        (activate-mark)))))
+    (when (and point-pos
+               mark-pos
+               (with-selected-window win
+                 (region-active-p)))
+      (activate-mark))))
 
 (defun turtles-pos-in-window-grab (pos-in-source-buf &optional range)
   "Convert a position in the source buffer to the current buffer.
@@ -935,8 +933,8 @@ Do not call this function outside of this file."
         (grab-faces (turtles--filter-faces-for-grab grab-faces)))
     (cond
      (buf (turtles-grab-buffer buf grab-faces margins))
-     (win (turtles-grab-window win cur grab-faces margins))
-     (minibuffer (turtles-grab-window (active-minibuffer-window) cur grab-faces margins))
+     (win (turtles-grab-window win grab-faces margins))
+     (minibuffer (turtles-grab-window (active-minibuffer-window) grab-faces margins))
      (mode-line (turtles-grab-mode-line
                  (if (eq t mode-line) calling-buf mode-line) cur grab-faces))
      (header-line (turtles-grab-header-line
