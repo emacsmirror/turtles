@@ -584,14 +584,6 @@ as opening marker and CLOSING-MARKER as closing."
           (goto-char beg)
           (insert opening))))))
 
-(defun turtles-grab-window-to-string (win)
-  "Grab WIN into a string.
-
-See `turtles-grab-window-into' for more details."
-  (with-temp-buffer
-    (turtles-grab-window-into win (current-buffer))
-    (buffer-string)))
-
 (defun turtles-trim-buffer ()
   "Remove trailing spaces and final newlines.
 

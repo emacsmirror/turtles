@@ -153,20 +153,22 @@
         (split-window-below 10)
         (set-window-buffer center-win buf1)
 
-        (should
-         (equal
-          (concat
-           "line 0-------------------------------------------------------------------------$\n"
-           "line 1-------------------------------------------------------------------------$\n"
-           "line 2-------------------------------------------------------------------------$\n"
-           "line 3-------------------------------------------------------------------------$\n"
-           "line 4-------------------------------------------------------------------------$\n"
-           "line 5-------------------------------------------------------------------------$\n"
-           "line 6-------------------------------------------------------------------------$\n"
-           "line 7-------------------------------------------------------------------------$\n"
-           "line 8-------------------------------------------------------------------------$\n")
-          (turtles-grab-window-to-string center-win)))))))
-
+        (ert-with-test-buffer (:name "grab")
+          (turtles-grab-window-into center-win (current-buffer))
+          (should
+           (equal
+            (concat
+             "line 0-------------------------------------------------------------------------$\n"
+             "line 1-------------------------------------------------------------------------$\n"
+             "line 2-------------------------------------------------------------------------$\n"
+             "line 3-------------------------------------------------------------------------$\n"
+             "line 4-------------------------------------------------------------------------$\n"
+             "line 5-------------------------------------------------------------------------$\n"
+             "line 6-------------------------------------------------------------------------$\n"
+             "line 7-------------------------------------------------------------------------$\n"
+             "line 8-------------------------------------------------------------------------$\n"
+             "line 9-------------------------------------------------------------------------$\n")
+            (buffer-string))))))))
 
 (ert-deftest turtles-grab-window-vert-center ()
   (turtles-ert-test)
@@ -196,49 +198,32 @@
         (split-window-right 20)
         (set-window-buffer center-win buf1)
 
-        (should
-         (equal
-          (concat
-           "line 0------------$\n"
-           "line 1------------$\n"
-           "line 2------------$\n"
-           "line 3------------$\n"
-           "line 4------------$\n"
-           "line 5------------$\n"
-           "line 6------------$\n"
-           "line 7------------$\n"
-           "line 8------------$\n"
-           "line 9------------$\n"
-           "line 10-----------$\n"
-           "line 11-----------$\n"
-           "line 12-----------$\n"
-           "line 13-----------$\n"
-           "line 14-----------$\n"
-           "line 15-----------$\n"
-           "line 16-----------$\n"
-           "line 17-----------$\n")
-          (turtles-grab-window-to-string center-win)))))))
-
+        (ert-with-test-buffer (:name "grab")
+          (turtles-grab-window-into center-win (current-buffer))
+          (should
+           (equal
+            (concat
+             "line 0------------$\n"
+             "line 1------------$\n"
+             "line 2------------$\n"
+             "line 3------------$\n"
+             "line 4------------$\n"
+             "line 5------------$\n"
+             "line 6------------$\n"
+             "line 7------------$\n"
+             "line 8------------$\n"
+             "line 9------------$\n"
+             "line 10-----------$\n"
+             "line 11-----------$\n"
+             "line 12-----------$\n"
+             "line 13-----------$\n"
+             "line 14-----------$\n"
+             "line 15-----------$\n"
+             "line 16-----------$\n"
+             "line 17-----------$\n")
+            (buffer-string))))))))
 
 (ert-deftest turtles-grab-window-vert-center-empty-buffer ()
-  ;; Terminal display is broken when run in batch mode: the lines of a
-  ;; window to the right of a buffer showing a line with no final \n
-  ;; on it are truncated, so the positions don't align.
-  ;;
-  ;; So the terminal would look like this:
-  ;;
-  ;; mostly empty       |line 0------------$|mostly empty
-  ;;                    |line 1------------$|
-  ;; . |line 2------------$|.
-  ;;  |line 3------------$|
-  ;;  |line 4------------$|
-  ;;  |line 5------------$|
-  ;;  |line 6------------$|
-  ;;  |line 7------------$|
-  ;; [...]
-  ;;
-  ;; This is puzzling and very annoying as tests are primarily run in
-  ;; batch modes.
   (turtles-ert-test)
 
   (let (buf1 buf2 center-win)
@@ -263,28 +248,30 @@
         (split-window-right 20)
         (set-window-buffer center-win buf1)
 
-        (should
-         (equal
-          (concat
-           "line 0------------$\n"
-           "line 1------------$\n"
-           "line 2------------$\n"
-           "line 3------------$\n"
-           "line 4------------$\n"
-           "line 5------------$\n"
-           "line 6------------$\n"
-           "line 7------------$\n"
-           "line 8------------$\n"
-           "line 9------------$\n"
-           "line 10-----------$\n"
-           "line 11-----------$\n"
-           "line 12-----------$\n"
-           "line 13-----------$\n"
-           "line 14-----------$\n"
-           "line 15-----------$\n"
-           "line 16-----------$\n"
-           "line 17-----------$\n")
-          (turtles-grab-window-to-string center-win)))))))
+        (ert-with-test-buffer (:name "grab")
+          (turtles-grab-window-into center-win (current-buffer))
+          (should
+           (equal
+            (concat
+             "line 0------------$\n"
+             "line 1------------$\n"
+             "line 2------------$\n"
+             "line 3------------$\n"
+             "line 4------------$\n"
+             "line 5------------$\n"
+             "line 6------------$\n"
+             "line 7------------$\n"
+             "line 8------------$\n"
+             "line 9------------$\n"
+             "line 10-----------$\n"
+             "line 11-----------$\n"
+             "line 12-----------$\n"
+             "line 13-----------$\n"
+             "line 14-----------$\n"
+             "line 15-----------$\n"
+             "line 16-----------$\n"
+             "line 17-----------$\n")
+            (buffer-string))))))))
 
 (ert-deftest turtles-grab-point ()
   (turtles-ert-test)
