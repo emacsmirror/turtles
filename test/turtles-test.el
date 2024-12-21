@@ -595,24 +595,49 @@
       (search-forward "line 6")
       (setq pos (1- (match-end 0)))
       (goto-char (point-min))
-      (should
-       (equal
-        (concat "line 0..\n"
-                "line 1..\n"
-                "line 2..\n"
-                "line 3..\n"
-                "line 4..\n"
-                "line 5..\n"
-                "line <>6..\n"
-                "line 7..\n"
-                "line 8..\n"
-                "line 9..")
-        (string-trim
-         (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
-           (goto-char (turtles-pos-in-window-grab pos))
-           (insert "<>")
-           (buffer-string))))))))
+      (ert-with-test-buffer (:name "grab")
+        (turtles-grab-buffer-into test-buffer (current-buffer))
+        (goto-char (turtles-pos-in-window-grab pos))
+        (turtles-mark-point "<>")
+        (delete-trailing-whitespace)
+        (should  (equal
+                  (concat
+                   "line 0..\n"
+                   "line 1..\n"
+                   "line 2..\n"
+                   "line 3..\n"
+                   "line 4..\n"
+                   "line 5..\n"
+                   "line <>6..\n"
+                   "line 7..\n"
+                   "line 8..\n"
+                   "line 9..\n")
+                  (buffer-string)))))))
+
+(ert-deftest turtles-test-grab-buffer-position-long-lines ()
+  (turtles-ert-test)
+
+  (let (test-buffer pos)
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+      (setq-local truncate-lines nil)
+
+      (dotimes (i 10)
+        (insert "This is a ")
+        (dotimes (i 20)
+          (insert "long "))
+        (insert (format "line %d.\n" i)))
+      (goto-char (point-min))
+      (search-forward "line 6")
+      (setq pos (match-beginning 0))
+      (goto-char (point-min))
+      (ert-with-test-buffer (:name "grab")
+        (turtles-grab-buffer-into test-buffer (current-buffer))
+        (goto-char (turtles-pos-in-window-grab pos))
+        (should (equal "line 6."
+                       (buffer-substring
+                        (point) (line-end-position))))))))
 
 (ert-deftest turtles-test-grab-faces ()
   (turtles-ert-test)
