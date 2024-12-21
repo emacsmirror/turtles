@@ -27,6 +27,9 @@
 (require 'cl-lib)
 (require 'subr-x) ;; when-let
 
+(when (eval-when-compile (< emacs-major-version 29))
+  (defvar print-unreadable-function nil))
+
 (cl-defstruct (turtles-io-server
                (:constructor turtles-io--make-server)
                (:copier nil))
