@@ -212,11 +212,11 @@ the buffer content and the effect of GRAB-FACES."
                 (`(_ _ _ ,body-bottom) (window-edges win 'body)))
       (turtles--clip left body-bottom right bottom))))
 
-(defun turtles-grab-header-line (win-or-buf output-buf &optional grab-faces)
-  "Grab the header line of WIN-OR-BUF into OUTPUT-BUFE.
+(defun turtles-grab-header-line (win-or-buf &optional grab-faces)
+  "Grab the header line of WIN-OR-BUF into the current bufferE.
 
-When this function returns, OUTPUT-BUF contains the textual
-representation of the header line of WIN-OR-BUF.
+When this function returns, the current buffer contains the
+textual representation of the header line of WIN-OR-BUF.
 
 This function uses `turtles-grab-window' after setting up
 the buffer. See the documentation of that function for details on
@@ -224,13 +224,12 @@ the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
-    (turtles-grab-frame output-buf grab-faces)
-    (with-current-buffer output-buf
-      (setq turtles-source-window win)
-      (setq turtles-source-buffer (window-buffer win))
-      (pcase-let ((`(,left ,top ,right _) (window-edges win nil))
-                  (`(_ ,body-top _ _) (window-edges win 'body)))
-        (turtles--clip left top right body-top)))))
+    (turtles-grab-frame (current-buffer) grab-faces)
+    (setq turtles-source-window win)
+    (setq turtles-source-buffer (window-buffer win))
+    (pcase-let ((`(,left ,top ,right _) (window-edges win nil))
+                (`(_ ,body-top _ _) (window-edges win 'body)))
+      (turtles--clip left top right body-top))))
 
 (defun turtles-grab-window (win &optional grab-faces margins)
   "Grab WIN into the current buffer.
@@ -937,7 +936,7 @@ Do not call this function outside of this file."
      (mode-line (turtles-grab-mode-line
                  (if (eq t mode-line) calling-buf mode-line) grab-faces))
      (header-line (turtles-grab-header-line
-                   (if (eq t header-line) calling-buf header-line) cur grab-faces))
+                   (if (eq t header-line) calling-buf header-line) grab-faces))
      (frame (turtles-grab-frame cur grab-faces))
      (t (turtles-grab-buffer calling-buf grab-faces margins)))))
 

@@ -784,7 +784,7 @@
       (should (equal
                "My very own header\n"
                (with-temp-buffer
-                 (turtles-grab-header-line testbuf (current-buffer))
+                 (turtles-grab-header-line testbuf)
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
