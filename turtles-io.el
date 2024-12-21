@@ -260,92 +260,121 @@ MSG can be any lisp object that can be printed."
         (float-output-format nil)
         (start-pos (point)))
     (prin1 msg (current-buffer))
+    (turtles-io--rewrite-unreadables start-pos (point))))
 
-    ;; Skip unreadable objects instead of breaking (read). Setting
-    ;; print-unreadable-function could do something similar, but it is
-    ;; only available starting with Emacs 29.1.
-    (save-excursion
-      (let ((end-pos (copy-marker (point))))
-        (goto-char start-pos)
-        (while (turtles-io--search-unreadable end-pos)
-          ;; point is after "#<"
-          (let* ((obj-start (point))
-                 (obj
-                  (cond
-                   ;; #<buffer <buffer-name>>
-                   ((looking-at "buffer ")
-                  (turtles--match-unreadable
-                   (buffer-list)
-                   (lambda (b)
-                     (format "\\(%s\\)" (regexp-quote (buffer-name b)))))
-                  `(turtles-buffer :name ,(match-string 1)))
+(defun turtles-io--rewrite-unreadables (start-pos end-pos)
+  "Transform unreadable objects into something readable.
 
-                   ;; #<process <process-name>>
-                   ((looking-at "process ")
-                    (turtles--match-unreadable
-                     (process-list)
-                     (lambda (p)
-                       (format "\\(%s\\)" (regexp-quote (process-name p)))))
-                    `(turtles-process :name ,(match-string 1)))
+This function processes the buffer region between START-POS and
+END-POS that should be the output of `prin1', transforming
+unreadables into a cons (turtles-typename) containing optionally
+a plist.
 
-                 ;; #<frame <frame-name> 0x[0-9a-f]+>
-                   ((looking-at "frame ")
-                    (turtles--match-unreadable
-                     (frame-list)
-                     (lambda (f)
-                       (format "\\(%s\\) 0x[0-9a-f]+"
-                               (regexp-quote (alist-get 'name (frame-parameters f))))))
-                    `(turtles-frame :name ,(match-string 1)))
+This should work for the most common types found it tests, such
+as buffers, markers and overlay. However, this is hackish,
+incomplete and might still fail if it encounters
+unfortunately-named dead frames or unsupported objects.
 
-                   ;; #<window [0-9]+>
-                   ((looking-at "window [0-9]+>")
-                    (goto-char (match-end 0))
-                    `(turtles-window))
+This is only useful before Emacs 29.1, as setting
+`print-unreadable-function' is much safer and simpler."
+  (let ((end-pos (copy-marker end-pos)))
+    (unwind-protect
+        (save-excursion
+          (goto-char start-pos)
+          (while (turtles-io--search-unreadable end-pos)
+            ;; point is after "#<"
+            (let* ((obj-start (point)) obj)
+              (setq
+               obj
+               (cond
+                ;; #<killed-buffer>
+                ((looking-at "killed buffer>")
+                 (goto-char (match-end 0))
+                 '(turtles-buffer :live nil))
 
-                   ;; #<window [0-9]+ on <buffer-name>>
-                   ((looking-at "window ")
-                    (turtles--match-unreadable
-                     (buffer-list)
-                     (lambda (b)
-                       (format "[0-9]+ on \\(%s\\)" (regexp-quote (buffer-name b)))))
-                  `(turtles-window :buffer ,(match-string 1)))
+                ;; #<buffer <buffer-name>>
+                ((looking-at "buffer ")
+                 (turtles--match-unreadable
+                  (buffer-list)
+                  (lambda (b)
+                    (format "\\(%s\\)" (regexp-quote (buffer-name b)))))
+                 `(turtles-buffer :name ,(match-string 1)))
 
-                 ;; #<marker in no buffer>
-                 ((looking-at "marker in no buffer>")
-                  (goto-char (match-end 0))
-                  `(turtles-marker))
+                ;; #<process <process-name>>
+                ((looking-at "process ")
+                 (turtles--match-unreadable
+                  (process-list)
+                  (lambda (p)
+                    (format "\\(%s\\)" (regexp-quote (process-name p)))))
+                 `(turtles-process :name ,(match-string 1)))
 
-                 ;; #<marker at [0-9]+ in <buffer-name>>
-                 ((looking-at "marker ")
-                  (turtles--match-unreadable
-                   (buffer-list)
-                   (lambda (b) (format "at \\([0-9]+\\) in \\(%s\\)"
-                                       (regexp-quote (buffer-name b)))))
-                  `(turtles-marker
-                    :pos ,(string-to-number (match-string 1))
-                    :buffer ,(match-string 2)))
+                ;; #<frame <frame-name> 0x[0-9a-f]+>
+                ((looking-at "frame ")
+                 (turtles--match-unreadable
+                  (frame-list)
+                  (lambda (f)
+                    (format "\\(%s\\) 0x[0-9a-f]+"
+                            (regexp-quote (alist-get 'name (frame-parameters f))))))
+                 `(turtles-frame :name ,(match-string 1)))
 
-                 ;; #<overlay from [0-9]+ to [0-9]+ on <buffer-name>>
-                 ((looking-at "overlay ")
-                  (turtles--match-unreadable
-                   (buffer-list)
-                   (lambda (b) (format "from \\([0-9]+\\) to \\([0-9]+\\) in \\(%s\\)"
-                                       (regexp-quote (buffer-name b)))))
-                  `(turtles-overlay
-                    :from ,(string-to-number (match-string 1))
-                    :to ,(string-to-number (match-string 2))
-                    :buffer ,(match-string 3)))
+                ;; #<dead frame <frame-name> 0x[0-9a-f]+>
+                ((looking-at "dead frame ")
+                 ;; Dead frames still include the name. We can but
+                 ;; hope that it doesn't contain any >.
+                 (search-forward ">")
+                 `(turtles-frame :live nil))
 
-                 ((looking-at "\\([a-z-]+\\)\\( .*?\\)?>")
-                  (goto-char (match-end 0))
-                  `(turtles-obj :type ,(intern (match-string 1))))
-                 (t (error "Cannot parse unreadable %s"
-                           (buffer-substring-no-properties (- obj-start 2) (+ obj-start 30)))))))
-          ;; point is after the closing ">"
-          (delete-region (- obj-start 2) (point))
-          (run-hook-with-args 'turtles-io-unreadable-obj-functions obj)
-          (prin1 obj (current-buffer))))
-        (move-marker end-pos nil)))))
+                ;; #<window [0-9]+>
+                ((looking-at "window [0-9]+>")
+                 (goto-char (match-end 0))
+                 `(turtles-window))
+
+                ;; #<window [0-9]+ on <buffer-name>>
+                ((looking-at "window ")
+                 (turtles--match-unreadable
+                  (buffer-list)
+                  (lambda (b)
+                    (format "[0-9]+ on \\(%s\\)" (regexp-quote (buffer-name b)))))
+                 `(turtles-window :buffer ,(match-string 1)))
+
+                ;; #<marker in no buffer>
+                ((looking-at "marker \\((moves after insertion) \\)?in no buffer>")
+                 (goto-char (match-end 0))
+                 `(turtles-marker))
+
+                ;; #<marker at [0-9]+ in <buffer-name>>
+                ((looking-at "marker \\((moves after insertion) \\)?")
+                 (turtles--match-unreadable
+                  (buffer-list)
+                  (lambda (b) (format "at \\([0-9]+\\) in \\(%s\\)"
+                                      (regexp-quote (buffer-name b)))))
+                 `(turtles-marker
+                   :pos ,(string-to-number (match-string 1))
+                   :buffer ,(match-string 2)))
+
+                ;; #<overlay from [0-9]+ to [0-9]+ on <buffer-name>>
+                ((looking-at "overlay ")
+                 (turtles--match-unreadable
+                  (buffer-list)
+                  (lambda (b) (format "from \\([0-9]+\\) to \\([0-9]+\\) in \\(%s\\)"
+                                      (regexp-quote (buffer-name b)))))
+                 `(turtles-overlay
+                   :from ,(string-to-number (match-string 1))
+                   :to ,(string-to-number (match-string 2))
+                   :buffer ,(match-string 3)))
+
+                ((looking-at "\\(killed \\|dead \\)?\\([A-Za-z-_]+\\)\\( .*?\\)?>")
+                 (goto-char (match-end 0))
+                 `(turtles-obj :type ,(intern (match-string 2))))
+                (t (error "Cannot parse unreadable %s"
+                          (buffer-substring-no-properties
+                           (- obj-start 2) (min end-pos (+ obj-start 30)))))))
+              ;; point is after the closing ">"
+              (delete-region (- obj-start 2) (point))
+              (run-hook-with-args 'turtles-io-unreadable-obj-functions obj)
+              (prin1 obj (current-buffer)))))
+
+      (move-marker end-pos nil))))
 
 (defun turtles--match-unreadable (list regexp-func)
   "Find a matching unreadable regexp.
