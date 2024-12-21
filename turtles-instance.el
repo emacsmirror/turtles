@@ -400,17 +400,21 @@ special cases like reading from the minibuffer."
          `((eval
             . ,(turtles-io-method-handler (expr) (eval expr)))
            (ert-test
-            . ,(lambda (conn id _method expr)
-                 (catch 'turtles-return
-                   (condition-case err
-                       (when setup-func
-                         (funcall setup-func))
-                     ((error t)
-                      (turtles-io--send conn `(:id ,id :error ,err))
-                      (throw 'turtles-return nil)))
-                   (condition-case-unless-debug err
-                       (turtles-io--send conn `(:id ,id :result ,(eval expr)))
-                     ((error t) (turtles-io--send conn `(:id ,id :error ,err)))))))
+            . ,(let ((initial-frame (selected-frame)))
+                 (lambda (conn id _method expr)
+                   (catch 'turtles-return
+                     (condition-case err
+                         (with-selected-frame initial-frame
+                           (when setup-func
+                             (funcall setup-func)))
+                       ((error t)
+                        (turtles-io--send conn `(:id ,id :error ,err))
+                        (throw 'turtles-return nil)))
+                     (condition-case-unless-debug err
+                         (turtles-io--send
+                          conn `(:id ,id :result ,(with-selected-frame initial-frame
+                                                    (eval expr))))
+                       ((error t) (turtles-io--send conn `(:id ,id :error ,err))))))))
            (exit
             . ,(lambda (_conn _id _method _params)
                  (kill-emacs nil))))))
