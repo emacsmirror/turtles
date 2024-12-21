@@ -98,10 +98,10 @@ This is local variable set in a grab buffer filled by
 (defvar-local turtles--left-margin-width 0
   "Width of the left margin left by `turtles--clip-in-frame-grab'.")
 
-(defvar turtles-ert--result nil
+(defvar turtles--ert-result nil
   "Result of running a test in another Emacs instance.")
 
-(defvar turtles-ert--load-cache nil
+(defvar turtles--ert-load-cache nil
   "A hash map indicating which file was just loaded.
 
 This is set while running tests to load a file just once on an
@@ -117,8 +117,8 @@ This is similar to Emacs 29's `display-buffer-full-frame', but
 rougher and available in Emacs 26."
   (set-window-buffer (frame-root-window) buf))
 
-(advice-add 'ert-run-test :around #'turtles-ert--around-ert-run-test)
-(advice-add 'ert-run-tests :around #'turtles-ert--around-ert-run-tests)
+(advice-add 'ert-run-test :around #'turtles--around-ert-run-test)
+(advice-add 'ert-run-tests :around #'turtles--around-ert-run-tests)
 (advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)
 
 (defun turtles-grab-frame-into (buffer &optional grab-faces)
@@ -626,9 +626,9 @@ if none is specified.
 
 TIMEOUT is the time after which the server should give up waiting
 for an answer from the instance."
-  `(turtles-ert--test ,instance ,(macroexp-file-name) ,timeout))
+  `(turtles--ert-test ,instance ,(macroexp-file-name) ,timeout))
 
-(defun turtles-ert--test (inst-id file-name timeout)
+(defun turtles--ert-test (inst-id file-name timeout)
   "Run the current test in another Emacs instance.
 
 Expects the current test to be defined in FILE-NAME."
@@ -663,16 +663,16 @@ Expects the current test to be defined in FILE-NAME."
                     (turtles-io-call-method
                      conn 'ert-test
                      `(progn
-                        ,(unless (and turtles-ert--load-cache
+                        ,(unless (and turtles--ert-load-cache
                                       (gethash (cons inst-id file-name)
-                                               turtles-ert--load-cache))
+                                               turtles--ert-load-cache))
                            `(load ,file-name nil 'nomessage 'nosuffix))
                         (let ((test (ert-get-test (quote ,test-sym))))
                           (ert-run-test test)
                           (ert-test-most-recent-result test)))
                      :timeout timeout))
-              (when turtles-ert--load-cache
-                (puthash (cons inst-id file-name) t turtles-ert--load-cache)))
+              (when turtles--ert-load-cache
+                (puthash (cons inst-id file-name) t turtles--ert-load-cache)))
 
           ;; Forward test, including test body.
           ;;
@@ -701,11 +701,11 @@ Expects the current test to be defined in FILE-NAME."
                  :timeout timeout)))
 
         (turtle--process-remote-result res)
-        (setq turtles-ert--result res))
+        (setq turtles--ert-result res))
 
       ;; ert-pass interrupt the server-side portion of the test. The
-      ;; real result will be collected from turtles-ert--result by
-      ;; turtles-ert--around-ert-run-test. What follows is the
+      ;; real result will be collected from turtles--ert-result by
+      ;; turtles--around-ert-run-test. What follows is the
       ;; client-side portion of the test only.
       (ert-pass))))
 
@@ -746,22 +746,22 @@ This function is meant to be used as around advice for
       (apply #'turtles-pop-to-buffer buffer args)
     (apply func buffer args)))
 
-(defun turtles-ert--around-ert-run-test (func test &rest args)
+(defun turtles--around-ert-run-test (func test &rest args)
   "Collect test results sent by another Emacs instance.
 
 This function takes results set up by `turtles-ert-test' and puts
 them into the local `ert-test' instance."
-  (let ((turtles-ert--result nil))
+  (let ((turtles--ert-result nil))
     (apply func test args)
-    (when turtles-ert--result
-      (setf (ert-test-most-recent-result test) turtles-ert--result))))
+    (when turtles--ert-result
+      (setf (ert-test-most-recent-result test) turtles--ert-result))))
 
-(defun turtles-ert--around-ert-run-tests (func &rest args)
+(defun turtles--around-ert-run-tests (func &rest args)
   "Collect test results sent by another Emacs instance.
 
 This function takes results set up by `turtles-ert-test' and puts
 them into the local `ert-test' instance."
-  (let ((turtles-ert--load-cache (make-hash-table :test 'equal)))
+  (let ((turtles--ert-load-cache (make-hash-table :test 'equal)))
     (apply func args)))
 
 (cl-defun turtles-to-string (&key (name "grab")
@@ -838,7 +838,7 @@ The following keyword arguments post-process what was grabbed:
                               (if (consp region) (nth 1 region))))
       (when point
         (insert point))
-      (turtles-mark-text-with-faces (turtles-ert--filter-faces-for-mark faces))
+      (turtles-mark-text-with-faces (turtles---filter-faces-for-mark faces))
       (when trim
         (turtles-trim-buffer))
       (buffer-substring-no-properties (point-min) (point-max)))))
@@ -908,7 +908,7 @@ BODY:
          (turtles--internal-grab
           ,frame ,win ,buf ,calling-buf ,minibuffer
           ,mode-line ,header-line ,faces-var ,margins)
-         (turtles-mark-text-with-faces (turtles-ert--filter-faces-for-mark ,faces-var))
+         (turtles-mark-text-with-faces (turtles---filter-faces-for-mark ,faces-var))
 
          ,@body))))
 
@@ -956,7 +956,7 @@ Return whatever READ eventually evaluates to."
 
 Do not call this function outside of this file."
   (let ((cur (current-buffer))
-        (grab-faces (turtles-ert--filter-faces-for-grab grab-faces)))
+        (grab-faces (turtles--filter-faces-for-grab grab-faces)))
     (cond
      (buf (turtles-grab-buffer-into buf cur grab-faces margins))
      (win (turtles-grab-window-into win cur grab-faces margins))
@@ -968,11 +968,11 @@ Do not call this function outside of this file."
      (frame (turtles-grab-frame-into cur grab-faces))
      (t (turtles-grab-buffer-into calling-buf cur grab-faces margins)))))
 
-(defun turtles-ert--filter-faces-for-grab (faces)
+(defun turtles--filter-faces-for-grab (faces)
   "Filter FACES t pass to `turtles-grab-buffer-into'"
   (mapcar (lambda (c) (if (consp c) (car c) c)) faces))
 
-(defun turtles-ert--filter-faces-for-mark (faces)
+(defun turtles---filter-faces-for-mark (faces)
   (delq nil (mapcar (lambda (c) (if (consp c) c)) faces)))
 
 (defun turtles-pop-to-buffer (buffer &rest pop-to-buffer-args)
