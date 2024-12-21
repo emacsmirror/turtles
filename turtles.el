@@ -751,9 +751,8 @@ argument NAME to modify the name of the test buffer.
 The following keyword arguments modify what is grabbed:
 
   - The key argument BUF specifies a buffer to capture. It
-    defaults to the current buffer. The buffer is installed into
-    the single window of `turtles-frame', rendered, then
-    grabbed.
+    defaults to the current buffer. The buffer is installed as
+    single window in the frame, rendered, then grabbed.
 
   - The key argument WIN specifies a window to grab.
 
@@ -766,7 +765,7 @@ The following keyword arguments modify what is grabbed:
     current buffer.
 
   - Set the key argument MINIBUFFER to t to capture the content
-    of the minibuffer window of `turtles-frame'.
+    of the minibuffer window.
 
   - Set the key argument FRAME to t to capture the whole frame.
 
@@ -839,9 +838,8 @@ More keyword arguments can be specified in parentheses, before
 BODY:
 
   - The key argument BUF specifies a buffer to capture. It
-    defaults to the current buffer. The buffer is installed into
-    the single window of `turtles-frame', rendered, then
-    grabbed.
+    defaults to the current buffer. The buffer is installed as
+    single window in the frame, rendered, then grabbed.
 
   - The key argument WIN specifies a window to grab.
 
@@ -854,7 +852,7 @@ BODY:
     current buffer.
 
   - Set the key argument MINIBUFFER to t to capture the content
-    of the minibuffer window of `turtles-frame'.
+    of the minibuffer window.
 
   - If key argument MARGINS is non-nil, include the left and
     right margin when grabbing the content of a window or buffer.
