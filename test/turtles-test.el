@@ -34,10 +34,14 @@
   (with-current-buffer (get-scratch-buffer-create)
     (turtles-display-buffer-full-frame (current-buffer))
     (insert "De Chelonian Mobile")
-    (with-temp-buffer
+    (ert-with-test-buffer ()
       (turtles-grab-frame)
       (goto-char (point-min))
       (should (search-forward "De Chelonian Mobile")))))
+
+(ert-deftest turtles-grab-frame-from-server ()
+  (should-error (with-temp-buffer
+                  (turtles-grab-frame))))
 
 (ert-deftest turtles-grab-buffer-head ()
   (turtles-ert-test)
