@@ -121,8 +121,8 @@ rougher and available in Emacs 26."
 (advice-add 'ert-run-tests :around #'turtles--around-ert-run-tests)
 (advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)
 
-(defun turtles-grab-frame (buffer &optional grab-faces)
-  "Grab a snapshot current frame into BUFFER.
+(defun turtles-grab-frame (&optional grab-faces)
+  "Grab a snapshot current frame into the current buffer.
 
 This includes all windows and decorations. Unless that's what you
 want to test, it's usually better to call `turtles-grab-buffer'
@@ -150,14 +150,13 @@ so any other face not in GRAB-FACE are absent."
           (redraw-frame)
           (unless (redisplay t)
             (error "Emacs won't redisplay in this context, likely because of pending input."))
-          (with-current-buffer buffer
-            (delete-region (point-min) (point-max))
-            (let ((grab (turtles-io-call-method
-                         (turtles-upstream) 'grab (turtles-this-instance))))
-              (insert grab))
-            (font-lock-mode)
-            (when grab-faces
-              (turtles--faces-from-color grab-face-alist))))
+          (delete-region (point-min) (point-max))
+          (let ((grab (turtles-io-call-method
+                       (turtles-upstream) 'grab (turtles-this-instance))))
+            (insert grab))
+          (font-lock-mode)
+          (when grab-faces
+            (turtles--faces-from-color grab-face-alist)))
       (turtles--teardown-grab-faces cookies))))
 
 (defun turtles--all-displayed-buffers ()
@@ -205,7 +204,7 @@ the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
-    (turtles-grab-frame (current-buffer) grab-faces)
+    (turtles-grab-frame grab-faces)
     (setq turtles-source-window win)
     (setq turtles-source-buffer (window-buffer win))
     (pcase-let ((`(,left _ ,right ,bottom) (window-edges win nil))
@@ -224,7 +223,7 @@ the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
-    (turtles-grab-frame (current-buffer) grab-faces)
+    (turtles-grab-frame grab-faces)
     (setq turtles-source-window win)
     (setq turtles-source-buffer (window-buffer win))
     (pcase-let ((`(,left ,top ,right _) (window-edges win nil))
@@ -251,7 +250,7 @@ If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
-  (turtles-grab-frame (current-buffer) grab-faces)
+  (turtles-grab-frame grab-faces)
   (setq turtles-source-window win)
   (setq turtles-source-buffer (window-buffer win))
   (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
@@ -927,8 +926,7 @@ Return whatever READ eventually evaluates to."
   "Internal macro implementation for grabbing into the current buffer.
 
 Do not call this function outside of this file."
-  (let ((cur (current-buffer))
-        (grab-faces (turtles--filter-faces-for-grab grab-faces)))
+  (let ((grab-faces (turtles--filter-faces-for-grab grab-faces)))
     (cond
      (buf (turtles-grab-buffer buf grab-faces margins))
      (win (turtles-grab-window win grab-faces margins))
@@ -937,7 +935,7 @@ Do not call this function outside of this file."
                  (if (eq t mode-line) calling-buf mode-line) grab-faces))
      (header-line (turtles-grab-header-line
                    (if (eq t header-line) calling-buf header-line) grab-faces))
-     (frame (turtles-grab-frame cur grab-faces))
+     (frame (turtles-grab-frame grab-faces))
      (t (turtles-grab-buffer calling-buf grab-faces margins)))))
 
 (defun turtles--filter-faces-for-grab (faces)

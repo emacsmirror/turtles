@@ -35,7 +35,7 @@
     (turtles-display-buffer-full-frame (current-buffer))
     (insert "De Chelonian Mobile")
     (with-temp-buffer
-      (turtles-grab-frame (current-buffer))
+      (turtles-grab-frame)
       (goto-char (point-min))
       (should (search-forward "De Chelonian Mobile")))))
 
