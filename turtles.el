@@ -170,7 +170,7 @@ so any other face not in GRAB-FACE are absent."
 
     bufs))
 
-(defun turtles-setup-buffer (&optional buf)
+(defun turtles--setup-buffer (&optional buf)
   "Setup the turtles frame to display BUF and return the window.
 
 If BUF is nil, the current buffer is used instead."
@@ -192,7 +192,7 @@ This function uses `turtles-grab-window-into' after setting up
 the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
   (turtles-grab-window-into
-   (turtles-setup-buffer buf) output-buf grab-faces margins))
+   (turtles--setup-buffer buf) output-buf grab-faces margins))
 
 (defun turtles-grab-mode-line-into (win-or-buf output-buf &optional grab-faces)
   "Grab the mode line of WIN-OR-BUF into OUTPUT-BUFE.
@@ -204,7 +204,7 @@ This function uses `turtles-grab-window-into' after setting up
 the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
-                 (turtles-setup-buffer win-or-buf)
+                 (turtles--setup-buffer win-or-buf)
                win-or-buf)))
     (turtles-grab-frame-into output-buf grab-faces)
     (with-current-buffer output-buf
@@ -224,7 +224,7 @@ This function uses `turtles-grab-window-into' after setting up
 the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
-                 (turtles-setup-buffer win-or-buf)
+                 (turtles--setup-buffer win-or-buf)
                win-or-buf)))
     (turtles-grab-frame-into output-buf grab-faces)
     (with-current-buffer output-buf
