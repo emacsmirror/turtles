@@ -346,7 +346,7 @@ be called."
 ;; They're not used in Emacs >= 29.
 (defun turtles-io--rewrite-unreadables (_start-pos _end-pos))
 (defun turtles-io--search-unreadable (_limit))
-(defun turtles--match-unreadable (_list _regex-func))
+(defun turtles-io--match-unreadable (_list _regex-func))
 
 (when (eval-when-compile (< emacs-major-version 29))
   (defun turtles-io--rewrite-unreadables (start-pos end-pos)
@@ -381,7 +381,7 @@ This is only useful before Emacs 29.1, as setting
 
                   ;; #<buffer <buffer-name>>
                   ((looking-at "buffer ")
-                   (turtles--match-unreadable
+                   (turtles-io--match-unreadable
                     (buffer-list)
                     (lambda (b)
                       (format "\\(%s\\)" (regexp-quote (buffer-name b)))))
@@ -389,7 +389,7 @@ This is only useful before Emacs 29.1, as setting
 
                   ;; #<process <process-name>>
                   ((looking-at "process ")
-                   (turtles--match-unreadable
+                   (turtles-io--match-unreadable
                     (process-list)
                     (lambda (p)
                       (format "\\(%s\\)" (regexp-quote (process-name p)))))
@@ -397,7 +397,7 @@ This is only useful before Emacs 29.1, as setting
 
                   ;; #<frame <frame-name> 0x[0-9a-f]+>
                   ((looking-at "frame ")
-                   (turtles--match-unreadable
+                   (turtles-io--match-unreadable
                     (frame-list)
                     (lambda (f)
                       (format "\\(%s\\) 0x[0-9a-f]+"
@@ -418,7 +418,7 @@ This is only useful before Emacs 29.1, as setting
 
                   ;; #<window [0-9]+ on <buffer-name>>
                   ((looking-at "window ")
-                   (turtles--match-unreadable
+                   (turtles-io--match-unreadable
                     (buffer-list)
                     (lambda (b)
                       (format "[0-9]+ on \\(%s\\)" (regexp-quote (buffer-name b)))))
@@ -431,7 +431,7 @@ This is only useful before Emacs 29.1, as setting
 
                   ;; #<marker at [0-9]+ in <buffer-name>>
                   ((looking-at "marker \\((moves after insertion) \\)?")
-                   (turtles--match-unreadable
+                   (turtles-io--match-unreadable
                     (buffer-list)
                     (lambda (b) (format "at \\([0-9]+\\) in \\(%s\\)"
                                         (regexp-quote (buffer-name b)))))
@@ -441,7 +441,7 @@ This is only useful before Emacs 29.1, as setting
 
                   ;; #<overlay from [0-9]+ to [0-9]+ on <buffer-name>>
                   ((looking-at "overlay ")
-                   (turtles--match-unreadable
+                   (turtles-io--match-unreadable
                     (buffer-list)
                     (lambda (b) (format "from \\([0-9]+\\) to \\([0-9]+\\) in \\(%s\\)"
                                         (regexp-quote (buffer-name b)))))
@@ -463,7 +463,7 @@ This is only useful before Emacs 29.1, as setting
 
         (move-marker end-pos nil))))
 
-  (defun turtles--match-unreadable (list regexp-func)
+  (defun turtles-io--match-unreadable (list regexp-func)
     "Find a matching unreadable regexp.
 
 This function builds a list of regexps by applying REGEXP-FUNC on
