@@ -193,11 +193,11 @@ the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
   (turtles-grab-window (turtles--setup-buffer buf) grab-faces margins))
 
-(defun turtles-grab-mode-line (win-or-buf output-buf &optional grab-faces)
-  "Grab the mode line of WIN-OR-BUF into OUTPUT-BUFE.
+(defun turtles-grab-mode-line (win-or-buf &optional grab-faces)
+  "Grab the mode line of WIN-OR-BUF into the current bufferE.
 
-When this function returns, OUTPUT-BUF contains the textual
-representation of the mode line of WIN-OR-BUF.
+When this function returns, the current buffer contains the
+textual representation of the mode line of WIN-OR-BUF.
 
 This function uses `turtles-grab-window' after setting up
 the buffer. See the documentation of that function for details on
@@ -205,13 +205,12 @@ the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
-    (turtles-grab-frame output-buf grab-faces)
-    (with-current-buffer output-buf
-      (setq turtles-source-window win)
-      (setq turtles-source-buffer (window-buffer win))
-      (pcase-let ((`(,left _ ,right ,bottom) (window-edges win nil))
-                  (`(_ _ _ ,body-bottom) (window-edges win 'body)))
-        (turtles--clip left body-bottom right bottom)))))
+    (turtles-grab-frame (current-buffer) grab-faces)
+    (setq turtles-source-window win)
+    (setq turtles-source-buffer (window-buffer win))
+    (pcase-let ((`(,left _ ,right ,bottom) (window-edges win nil))
+                (`(_ _ _ ,body-bottom) (window-edges win 'body)))
+      (turtles--clip left body-bottom right bottom))))
 
 (defun turtles-grab-header-line (win-or-buf output-buf &optional grab-faces)
   "Grab the header line of WIN-OR-BUF into OUTPUT-BUFE.
@@ -936,7 +935,7 @@ Do not call this function outside of this file."
      (win (turtles-grab-window win grab-faces margins))
      (minibuffer (turtles-grab-window (active-minibuffer-window) grab-faces margins))
      (mode-line (turtles-grab-mode-line
-                 (if (eq t mode-line) calling-buf mode-line) cur grab-faces))
+                 (if (eq t mode-line) calling-buf mode-line) grab-faces))
      (header-line (turtles-grab-header-line
                    (if (eq t header-line) calling-buf header-line) cur grab-faces))
      (frame (turtles-grab-frame cur grab-faces))

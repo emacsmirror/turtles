@@ -800,7 +800,7 @@
       (should (equal
                "My very own mode line\n"
                (with-temp-buffer
-                 (turtles-grab-mode-line testbuf (current-buffer))
+                 (turtles-grab-mode-line testbuf)
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
