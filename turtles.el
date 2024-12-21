@@ -700,7 +700,7 @@ Expects the current test to be defined in FILE-NAME."
                     (ert-test-most-recent-result test))
                  :timeout timeout)))
 
-        (turtle--process-remote-result res)
+        (turtles--process-result-from-instance res)
         (setq turtles--ert-result res))
 
       ;; ert-pass interrupt the server-side portion of the test. The
@@ -709,7 +709,7 @@ Expects the current test to be defined in FILE-NAME."
       ;; client-side portion of the test only.
       (ert-pass))))
 
-(defun turtle--process-remote-result (result)
+(defun turtles--process-result-from-instance (result)
   "Post-process a RESULT from a remote instance."
   (when (and result (ert-test-result-with-condition-p result))
     (mapc (lambda (cell)
