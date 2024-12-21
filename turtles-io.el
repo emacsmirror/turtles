@@ -262,73 +262,84 @@ MSG can be any lisp object that can be printed."
         (print-continuous-numbering nil)
         (print-number-table nil)
         (float-output-format nil)
-
-        ;; Transform unreadable into readable placeholders. Under
-        ;; older Emacs versions, turtles-io--rewrite-unreadables is
-        ;; used instead to post-process the output of prin1.
         (print-unreadable-function
          (when (eval-when-compile (>= emacs-major-version 29))
-           (let ((closing
-                  (let ((obj `(turtles-obj)))
-                    ;; It would be much more convenient to create
-                    ;; objects, pass them to the hook, then call
-                    ;; prin1-to-string, unfortunately calling prin1
-                    ;; from this print-unreadable-function messes up
-                    ;; the output, at least in Emacs 29.
-                    (run-hook-with-args 'turtles-io-unreadable-obj-functions obj)
-                    (if (cdr obj)
-                        (concat " " (substring (prin1-to-string (cdr obj)) 1 -1) ")")
-                      ")"))))
-             (lambda (obj _escaped)
-               (concat
-                "(turtles-"
-                (pcase (type-of obj)
-                  ('buffer
-                   (if (buffer-live-p obj)
-                       (format "buffer :name %s"
-                               (turtles-io--quote-str (buffer-name obj)))
-                     "buffer :live nil"))
-                  ('process
-                   (format "process :name %s"
-                           (turtles-io--quote-str (process-name obj))))
-                  ('frame
-                   (if (frame-live-p obj)
-                       (format "frame :name %s"
-                               (turtles-io--quote-str
-                                (alist-get 'name (frame-parameters obj))))
-                     "frame :live nil"))
-                  ('window
-                   (if-let ((buf (window-buffer obj)))
-                       (format "window :buffer %s"
-                               (turtles-io--quote-str (buffer-name buf)))
-                   "window"))
-                  ('marker
-                   (if-let ((pos (marker-position obj))
-                            (buf (marker-buffer obj)))
-                       (format "marker :pos %d :buffer %s"
-                               (marker-position obj)
-                               (turtles-io--quote-str (buffer-name buf)))
-                     "marker"))
-                  ('overlay
-                   (format "overlay :from %d :to %d :buffer %s"
-                           (overlay-start obj)
-                           (overlay-end obj)
-                           (turtles-io--quote-str
-                            (buffer-name (overlay-buffer obj)))))
-                  (type (format "obj :type %s" type)))
-                closing))))))
+           (turtles-io--make-print-unreadable-func))))
     (prin1 msg (current-buffer))
 
     (when (eval-when-compile (< emacs-major-version 29))
       (turtles-io--rewrite-unreadables start-pos (point)))))
 
-(defun turtles-io--quote-str (str)
-  "Quote STR for Emacs.
+;; Always declare these post-29 functions to keep the compiler happy.
+;; They're not used in Emacs < 29.
+(defun turtles-io--make-print-unreadable-func ())
+(defun turtles-io--quote-str (_str))
+
+(when (eval-when-compile (>= emacs-major-version 29))
+  (defun turtles-io--make-print-unreadable-func ()
+    "Return a function that transforms unreadable OBJ.
+
+The returned function transform OBJ into a readable placeholder.
+
+This is meant to be used as `print-unreadable-function'."
+    (let ((closing
+           (let ((obj `(turtles-obj)))
+             ;; It would be much more convenient to create
+             ;; objects, pass them to the hook, then call
+             ;; prin1-to-string, unfortunately calling prin1
+             ;; from this print-unreadable-function messes up
+             ;; the output, at least in Emacs 29.
+             (run-hook-with-args 'turtles-io-unreadable-obj-functions obj)
+             (if (cdr obj)
+                 (concat " " (substring (prin1-to-string (cdr obj)) 1 -1) ")")
+               ")"))))
+      (lambda (obj _escaped)
+        (concat
+         "(turtles-"
+         (pcase (type-of obj)
+           ('buffer
+            (if (buffer-live-p obj)
+                (format "buffer :name %s"
+                        (turtles-io--quote-str (buffer-name obj)))
+              "buffer :live nil"))
+           ('process
+            (format "process :name %s"
+                    (turtles-io--quote-str (process-name obj))))
+           ('frame
+            (if (frame-live-p obj)
+                (format "frame :name %s"
+                        (turtles-io--quote-str
+                         (alist-get 'name (frame-parameters obj))))
+              "frame :live nil"))
+           ('window
+            (if-let ((buf (window-buffer obj)))
+                (format "window :buffer %s"
+                        (turtles-io--quote-str (buffer-name buf)))
+              "window"))
+           ('marker
+            (if-let ((pos (marker-position obj))
+                     (buf (marker-buffer obj)))
+                (format "marker :pos %d :buffer %s"
+                        (marker-position obj)
+                        (turtles-io--quote-str (buffer-name buf)))
+              "marker"))
+           ('overlay
+            (format "overlay :from %d :to %d :buffer %s"
+                    (overlay-start obj)
+                    (overlay-end obj)
+                    (turtles-io--quote-str
+                     (buffer-name (overlay-buffer obj)))))
+           (type (format "obj :type %s" type)))
+         closing)))))
+
+(when (eval-when-compile (>= emacs-major-version 29))
+  (defun turtles-io--quote-str (str)
+    "Quote STR for Emacs.
 
 This is a poor replacement for `prin1-to-string', to be used in
 `print-unreadable-function', during which `prin1' cannot safely
 be called."
-  (concat "\"" (replace-regexp-in-string "[\\\"]" "\\\\\\&" str) "\""))
+    (concat "\"" (replace-regexp-in-string "[\\\"]" "\\\\\\&" str) "\"")))
 
 ;; Always declare these pre-29 functions to keep the compiler happy.
 ;; They're not used in Emacs >= 29.
