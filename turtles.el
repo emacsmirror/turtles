@@ -661,15 +661,7 @@ Expects the current test to be defined in FILE-NAME."
                  (let ((test (ert-get-test (quote ,test-sym))))
                    (ert-run-test test)
                    (ert-test-most-recent-result test)))
-              :timeout (or timeout 10.0)
-              :on-timeout
-              (lambda ()
-                (error
-                 "Remote test execution timed out. Last messages: %s "
-                 (condition-case nil
-                     (turtles-io-call-method (turtles-instance-conn inst)
-                                             'last-messages 5 :timeout 0.5)
-                   (error "<failed to grab>")))))))
+              :timeout (or timeout 10.0))))
         (when turtles-ert--load-cache
           (puthash (cons inst-id file-name) t turtles-ert--load-cache))
         (turtle--process-remote-result res)

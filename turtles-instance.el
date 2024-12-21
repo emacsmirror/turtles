@@ -25,6 +25,7 @@
 
 (require 'cl-lib)
 (require 'compat)
+(require 'pcase)
 (require 'server)
 (require 'subr-x) ;; when-let
 (require 'term)
@@ -46,8 +47,40 @@
     (term-color-white :foreground "#ffffff" :background "#fffff"))
   "Hardcoded color faces for term-mode, for consistency.")
 
-(defvar turtles--should-send-messages-up 0
-  "When this is > 0, send messages to the server.")
+(defvar turtles-instance-alist nil
+  "Alist of symbol to `turtles-instance' definitions.")
+
+(defun turtles-set-instance-option (sym val)
+  "Set SYM to VAL on all instances.
+
+This is meant to be passed to the :set option of customize
+options."
+  (set-default-toplevel-value sym val)
+  (pcase-dolist (`(_ . ,inst) turtles-instance-alist)
+    (when (turtles-instance-live-p inst)
+      (ignore-errors
+        (turtles-io-call-method
+         (turtles-instance-conn inst)
+         'eval
+         `(set-default-toplevel-value ',sym ',val))))))
+
+(defcustom turtles-send-messages-upstream t
+  "Whether to forward messages from instances.
+
+Turtles can ask instance it starts to send whatever messages is
+registered to upstream. The messages appear in the message log
+prefixed with the instance name in brackets.
+
+If this is set to t instances send all messages.
+
+If this is set to nil instances never send any messages.
+
+Prefer setting it through customize, otherwise modifications only
+take effect after instances are restarted."
+  :group 'turtles
+  :type '(radio (const :tag "Always" t)
+                (const :tag "Never" nil))
+  :set #'turtles-set-instance-option)
 
 (defvar turtles--sending-messages-up 0
   "Set to > 0 while processing code to send messages to the server.
@@ -56,9 +89,6 @@ This is used in `tultles--send-messages-up' to avoid entering
 into a loop, sending messages while sending messages.")
 
 (defvar turtles--server nil)
-
-(defvar turtles-instance-alist nil
-  "Alist of symbol to `turtles-instance' definitions.")
 
 (defvar turtles--upstream nil
   "Connection to the Emacs instance that started this one.
@@ -233,6 +263,7 @@ Does nothing if the instance is already running."
                                   `(progn
                                      (setq load-prefer-newer t)
                                      (load ,turtles--file-name nil 'nomessage)
+                                     (setq turtles-send-messages-upstream ',turtles-send-messages-upstream)
                                      (turtles--launch
                                       ,(turtles-io-server-socket turtles--server)
                                       ',(turtles-instance-id inst)
@@ -312,7 +343,7 @@ special cases like reading from the minibuffer."
 (defun turtles--launch (socket instance-id setup-func)
   (interactive "F")
   (setq turtles--this-instance instance-id)
-  (advice-add 'message :after #'turtles--send-message-up)
+  (advice-add 'message :after #'turtles--send-message-upstream)
   (add-hook 'turtles-io-unreadable-obj-functions
             (lambda (obj)
               (setcdr obj (plist-put (cdr obj) :instance instance-id))))
@@ -320,38 +351,28 @@ special cases like reading from the minibuffer."
         (turtles-io-connect
          socket
          `((eval
-            . ,(turtles-io-method-handler (expr)
-                 (turtles--with-incremented-var turtles--should-send-messages-up
-                   (eval expr))))
+            . ,(turtles-io-method-handler (expr) (eval expr)))
            (ert-test
             . ,(lambda (conn id _method expr)
                  (catch 'turtles-return
                    (condition-case err
-                       (turtles--with-incremented-var turtles--should-send-messages-up
-                         (when setup-func
-                           (funcall setup-func)))
+                       (when setup-func
+                         (funcall setup-func))
                      ((error t)
                       (turtles-io--send conn `(:id ,id :error ,err))
                       (throw 'turtles-return nil)))
                    (condition-case-unless-debug err
-                       (turtles--with-incremented-var turtles--should-send-messages-up
-                         (turtles-io--send conn `(:id ,id :result ,(eval expr))))
+                       (turtles-io--send conn `(:id ,id :result ,(eval expr)))
                      ((error t) (turtles-io--send conn `(:id ,id :error ,err)))))))
-           (last-messages . ,(turtles-io-method-handler (count)
-                               (with-current-buffer (messages-buffer)
-                                 (save-excursion
-                                   (goto-char (point-max))
-                                   (forward-line (- (or count 5)))
-                                   (buffer-substring-no-properties (point) (point-max))))))
            (exit
             . ,(lambda (_conn _id _method _params)
                  (kill-emacs nil))))))
   (turtles-io-notify turtles--upstream 'register instance-id))
 
-(defun turtles--send-message-up (msg &rest args)
+(defun turtles--send-message-upstream (msg &rest args)
   "Send a message to the server."
-  (when (and (turtles-upstream)
-             (> turtles--should-send-messages-up 0)
+  (when (and turtles-send-messages-upstream
+             (turtles-upstream)
              (not (> turtles--sending-messages-up 0)))
     (turtles--with-incremented-var turtles--sending-messages-up
       (turtles-io-notify (turtles-upstream) 'message

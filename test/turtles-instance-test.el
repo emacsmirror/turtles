@@ -66,26 +66,11 @@
         (turtles-io-call-method
          (turtles-instance-conn inst)
          'eval
-         '(message "hello from turtles-test-message"))
+         '(let ((turtles-send-messages-upstream t))
+            (message "hello from turtles-test-message")))
         (let ((message "[default] hello from turtles-test-message"))
           (unless (member message (string-split messages "\n" 'omit-nulls))
             (error "message not found in %s" messages)))))))
-
-(ert-deftest turtles-instance-test-last-message ()
-  (let ((inst (turtles-get-instance 'default)))
-    (should inst)
-    (turtles-start-instance inst)
-
-    (let ((inhibit-message t))
-      (turtles-io-call-method
-       (turtles-instance-conn inst)
-       'eval
-       '(message "a message from turtles")))
-
-    (let ((messages (turtles-io-call-method
-                     (turtles-instance-conn inst) 'last-messages 5)))
-      (unless (member "a message from turtles" (split-string messages "\n"))
-        (error "message not found in %s" messages)))))
 
 (ert-deftest turtles-instance-test-default-size ()
   (let ((inst (turtles-get-instance 'default)))
@@ -114,5 +99,34 @@
              (turtles-instance-conn inst)
              'eval
              '(get-scratch-buffer-create))))))
+
+(ert-deftest turtles-instance-customize-send-messages-upstream ()
+  (let ((inst (turtles-get-instance 'default))
+        (original-value turtles-send-messages-upstream)
+        (inhibit-message t)
+        conn)
+    (should inst)
+    (turtles-start-instance inst)
+    (setq conn (turtles-instance-conn inst))
+
+    (unwind-protect
+        (ert-with-message-capture messages
+          (custom-set-variables '(turtles-send-messages-upstream t now))
+          (should turtles-send-messages-upstream)
+          (should (turtles-io-call-method conn 'eval 'turtles-send-messages-upstream))
+          (turtles-io-call-method conn 'eval '(message "message1, sent upstream"))
+
+          (custom-set-variables '(turtles-send-messages-upstream nil now))
+          (should-not turtles-send-messages-upstream)
+          (should-not (turtles-io-call-method conn 'eval 'turtles-send-messages-upstream))
+          (turtles-io-call-method conn 'eval '(message "message2, not sent upstream"))
+
+          (should (member "[default] message1, sent upstream"
+                          (string-split messages "\n")))
+          (should-not (member "[default] message2, not sent upstream"
+                              (string-split messages "\n")))
+
+          (custom-set-variables `(turtles-send-messages-upstream ,original-value now)))
+      (setq turtles-send-messages-upstream original-value))))
 
 (require 'turtles-instance)
