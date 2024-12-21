@@ -179,10 +179,10 @@ If BUF is nil, the current buffer is used instead."
         (turtles-display-buffer-full-frame buf)
         (frame-root-window))))
 
-(defun turtles-grab-buffer (buf output-buf &optional grab-faces margins)
-  "Display BUF in the grabbed frame and grab it into OUTPUT-BUF.
+(defun turtles-grab-buffer (buf &optional grab-faces margins)
+  "Display BUF in the grabbed frame and grab it into the current buffer.
 
-When this function returns, OUTPUT-BUF contains the textual
+When this function returns, the current buffer contains the textual
 representation of BUF as displayed in the root window of the
 grabbed frame.
 
@@ -192,7 +192,7 @@ This function uses `turtles-grab-window' after setting up
 the buffer. See the documentation of that function for details on
 the buffer content and the effect of GRAB-FACES."
   (turtles-grab-window
-   (turtles--setup-buffer buf) output-buf grab-faces margins))
+   (turtles--setup-buffer buf) (current-buffer) grab-faces margins))
 
 (defun turtles-grab-mode-line (win-or-buf output-buf &optional grab-faces)
   "Grab the mode line of WIN-OR-BUF into OUTPUT-BUFE.
@@ -934,7 +934,7 @@ Do not call this function outside of this file."
   (let ((cur (current-buffer))
         (grab-faces (turtles--filter-faces-for-grab grab-faces)))
     (cond
-     (buf (turtles-grab-buffer buf cur grab-faces margins))
+     (buf (turtles-grab-buffer buf grab-faces margins))
      (win (turtles-grab-window win cur grab-faces margins))
      (minibuffer (turtles-grab-window (active-minibuffer-window) cur grab-faces margins))
      (mode-line (turtles-grab-mode-line
@@ -942,7 +942,7 @@ Do not call this function outside of this file."
      (header-line (turtles-grab-header-line
                    (if (eq t header-line) calling-buf header-line) cur grab-faces))
      (frame (turtles-grab-frame cur grab-faces))
-     (t (turtles-grab-buffer calling-buf cur grab-faces margins)))))
+     (t (turtles-grab-buffer calling-buf grab-faces margins)))))
 
 (defun turtles--filter-faces-for-grab (faces)
   "Filter FACES t pass to `turtles-grab-buffer'"
