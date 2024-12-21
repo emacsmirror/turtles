@@ -53,8 +53,9 @@
             (setq server (turtles-io-server socket))
             (should (file-exists-p socket))
             (delete-process (turtles-io-server-proc server))
-            (turtles-io-wait-for 1 "Server did not delete socket"
-                                 (lambda () (not (file-exists-p socket)))))
+            (turtles-io-wait-until
+             (lambda () (not (file-exists-p socket)))
+             (lambda () "Server did not delete socket")))
 
         (ignore-errors (when server (delete-process server)))))))
 
@@ -69,8 +70,10 @@
             (setq client (turtles-io-connect
                           socket `((ping . ,(lambda (conn id method params)
                                               (turtles-io-send-result conn id "pong"))))))
-            (turtles-io-wait-for 5 "Client not connected"
-                                 (lambda () (turtles-io-server-connections server)) 0.1)
+            (turtles-io-wait-until
+             (lambda () (turtles-io-server-connections server))
+             (lambda () "Client not connected")
+             :max-wait-time 0.1)
 
             (should (equal "pong" (turtles-io-call-method
                                    (car (turtles-io-server-connections server)) 'ping))))
@@ -259,8 +262,9 @@
 
             (turtles-io-notify client 'ping)
             (turtles-io-notify client 'ping)
-            (turtles-io-wait-for 5 "Not enough pings"
-                                 (lambda () (equal 2 ping-count))))
+            (turtles-io-wait-until
+             (lambda () (equal 2 ping-count))
+             (lambda () "Not enough pings")))
 
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))

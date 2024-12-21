@@ -311,8 +311,10 @@ Does nothing if the instance is already running."
           (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
         (term-char-mode)
         (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
-        (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
-                             (lambda () (turtles-instance-conn inst)))
+        (turtles-io-wait-until
+         (lambda () (turtles-instance-conn inst))
+         (lambda () "Turtles Emacs failed to connect")
+         :max-wait-time 0.25)
         (message "Turtles started %s: %s" (turtles-instance-id inst)
                  (or (turtles-instance-shortdoc inst) ""))))
 

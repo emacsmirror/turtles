@@ -205,7 +205,7 @@ This function behaves like `turtles-io-call-method-async', except it
 doesn't expect a response, so doesn't even bother setting the id."
   (turtles-io--send conn `(:method ,method :params ,params)))
 
-(cl-defun turtles-io-call-method  (conn method &optional params &key timeout on-timeout)
+(cl-defun turtles-io-call-method  (conn method &optional params &key timeout)
   "Call METHOD on CONN with PARAMS and wait for the result.
 
 Only wait up to TIMEOUT seconds for the result."
@@ -216,11 +216,11 @@ Only wait up to TIMEOUT seconds for the result."
        (setq received-error err)
        (setq received-result result)
        (setq got-response t)))
-    (turtles-io-wait-for (or timeout 5)
-                         (or on-timeout `("Timed out waiting for answer for method %s" ,method))
-                         (lambda () got-response)
-                         nil
-                         (turtles-io-conn-proc conn))
+    (turtles-io-wait-until
+     (lambda () got-response)
+     (lambda () (format "Timed out waiting for answer for method %s" method))
+     :proc (turtles-io-conn-proc conn)
+     :timeout (or timeout 5.0))
     (cond ((and (consp received-error)
                 (car received-error)
                 (symbolp (car received-error)))
@@ -591,13 +591,11 @@ any unreadable object."
   "Handle an unsupported method with ID received from CONN."
   (turtles-io-send-error conn id '(turtles-io-unknown-method)))
 
-(defun turtles-io-wait-for (timeout error-message predicate &optional max-wait-time proc)
+(cl-defun turtles-io-wait-until (predicate on-timeout &key max-wait-time proc (timeout 5))
   "Wait for up to TIMEOUT seconds for PREDICATE to become non-nil.
 
-Fails with ERROR-MESSAGE if it times out. ERROR-MESSAGE can be a
-string or a list containing arguments to pass to `format'.
-ERROR-MESSAGE can also be a function, which will be called with
-no arguments on timeout.
+Fails with a signal \\='turtles-io-timeout and the error message
+returned by ON-TIMEOUT if it times out.
 
 This function assumes that PREDICATE becomes non-nil as a result
 of processing some process output. If that's not always the case,
@@ -605,22 +603,15 @@ set MAX-WAIT-TIME to some small, but reasonable value.
 
 On timeout, sends a signal of type `turtles-io-timeout'"
   (let ((start (current-time)) remaining)
-    (while (and (> (setq remaining
-                         (- timeout
-                            (time-to-seconds
-                             (time-subtract (current-time) start))))
-                   0)
-                (not (funcall predicate)))
+    (while (not (funcall predicate))
+      (setq remaining (- timeout
+                         (time-to-seconds
+                          (time-subtract (current-time) start))))
+      (unless (> remaining 0)
+        (signal 'turtles-io-timeout (funcall on-timeout)))
       (when (and max-wait-time (> remaining max-wait-time))
         (setq remaining max-wait-time))
-      (accept-process-output proc remaining)))
-  (unless (funcall predicate)
-    (if (functionp error-message)
-        (funcall error-message)
-      (signal 'turtles-io-timeout
-              (if (consp error-message)
-                  (apply #'format (car error-message) (cdr error-message))
-                error-message)))))
+      (accept-process-output proc remaining))))
 
 (provide 'turtles-io)
 
