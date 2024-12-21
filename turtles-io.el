@@ -63,6 +63,9 @@ Response handlers take three arguments: result and errors, only
 one of which is ever specified.")
   (last-id 0 :documentation "ID of the last method called on this connection"))
 
+(define-error 'turtles-io-unknown-method "Unknown method")
+(define-error 'turtles-io-timeout "Operation timed out")
+
 (defvar turtles-io-unreadable-obj-functions nil
   "Hook that is passed replacement objects created for unreadables.
 
@@ -72,8 +75,6 @@ to identify the current process to the remote process.")
 
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
-
-(define-error 'turtles-timeout "Operation timed out")
 
 (defun turtles-io-conn-live-p (conn)
   "Return non-nil if CONN is a connnection with a live process."
@@ -586,7 +587,6 @@ any unreadable object."
      ;; invalid
      (t (warn "Malformed message: %s" msg)))))
 
-(define-error 'turtles-io-unknown-method "Unknown method")
 (defun turtles-io--default-method-handler (conn id _method _params)
   "Handle an unsupported method with ID received from CONN."
   (turtles-io-send-error conn id '(turtles-io-unknown-method)))
@@ -603,7 +603,7 @@ This function assumes that PREDICATE becomes non-nil as a result
 of processing some process output. If that's not always the case,
 set MAX-WAIT-TIME to some small, but reasonable value.
 
-On timeout, sends a signal of type `turtles-timeout'"
+On timeout, sends a signal of type `turtles-io-timeout'"
   (let ((start (current-time)) remaining)
     (while (and (> (setq remaining
                          (- timeout
@@ -617,7 +617,7 @@ On timeout, sends a signal of type `turtles-timeout'"
   (unless (funcall predicate)
     (if (functionp error-message)
         (funcall error-message)
-      (signal 'turtles-timeout
+      (signal 'turtles-io-timeout
               (if (consp error-message)
                   (apply #'format (car error-message) (cdr error-message))
                 error-message)))))
