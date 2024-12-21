@@ -39,7 +39,7 @@
       (goto-char (point-min))
       (should (search-forward "De Chelonian Mobile")))))
 
-(ert-deftest turtles-test-grab-buffer-head ()
+(ert-deftest turtles-grab-buffer-head ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -69,7 +69,7 @@
              (turtles-grab-buffer-to-string (current-buffer))))))
 
 
-(ert-deftest turtles-test-grab-buffer-tail ()
+(ert-deftest turtles-grab-buffer-tail ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -98,7 +98,7 @@
                      "\n")
              (turtles-grab-buffer-to-string (current-buffer))))))
 
-(ert-deftest turtles-test-grab-buffer-full-lines ()
+(ert-deftest turtles-grab-buffer-full-lines ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -128,7 +128,7 @@
              (turtles-grab-buffer-to-string (current-buffer))))))
 
 
-(ert-deftest turtles-test-grab-window-horiz-center ()
+(ert-deftest turtles-grab-window-horiz-center ()
   (turtles-ert-test)
 
   (let (buf1 buf2 center-win)
@@ -168,7 +168,7 @@
           (turtles-grab-window-to-string center-win)))))))
 
 
-(ert-deftest turtles-test-grab-window-vert-center ()
+(ert-deftest turtles-grab-window-vert-center ()
   (turtles-ert-test)
 
   (let (buf1 buf2 center-win)
@@ -220,7 +220,7 @@
           (turtles-grab-window-to-string center-win)))))))
 
 
-(ert-deftest turtles-test-grab-window-vert-center-empty-buffer ()
+(ert-deftest turtles-grab-window-vert-center-empty-buffer ()
   ;; Terminal display is broken when run in batch mode: the lines of a
   ;; window to the right of a buffer showing a line with no final \n
   ;; on it are truncated, so the positions don't align.
@@ -286,7 +286,7 @@
            "line 17-----------$\n")
           (turtles-grab-window-to-string center-win)))))))
 
-(ert-deftest turtles-test-grab-point ()
+(ert-deftest turtles-grab-point ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -319,7 +319,7 @@
            (turtles-mark-point "<>")
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-point-bottom-windows ()
+(ert-deftest turtles-grab-point-bottom-windows ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -357,7 +357,7 @@
            (turtles-mark-point "<>")
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-active-mark ()
+(ert-deftest turtles-grab-active-mark ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -401,7 +401,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-inactive-mark ()
+(ert-deftest turtles-grab-inactive-mark ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -444,7 +444,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-mark-before-window-start ()
+(ert-deftest turtles-grab-mark-before-window-start ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -488,7 +488,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-mark-after-window-start ()
+(ert-deftest turtles-grab-mark-after-window-start ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -536,7 +536,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-invisible-mark ()
+(ert-deftest turtles-grab-invisible-mark ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -578,7 +578,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-buffer-position ()
+(ert-deftest turtles-grab-buffer-position ()
   (turtles-ert-test)
 
   (let (test-buffer pos)
@@ -614,7 +614,7 @@
                    "line 9..\n")
                   (buffer-string)))))))
 
-(ert-deftest turtles-test-grab-buffer-position-long-lines ()
+(ert-deftest turtles-grab-buffer-position-long-lines ()
   (turtles-ert-test)
 
   (let (test-buffer pos)
@@ -639,7 +639,7 @@
                        (buffer-substring
                         (point) (line-end-position))))))))
 
-(ert-deftest turtles-test-grab-faces ()
+(ert-deftest turtles-grab-faces ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -683,7 +683,7 @@
         (should (equal 'success (get-text-property (1- (point)) 'face)))
         (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))))))
 
-(ert-deftest turtles-test-grab-and-mark-faces ()
+(ert-deftest turtles-grab-and-mark-faces ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -711,7 +711,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-and-mark-faces-assymetric-markers ()
+(ert-deftest turtles-grab-and-mark-faces-assymetric-markers ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -739,7 +739,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-and-mark-faces-single-call ()
+(ert-deftest turtles-grab-and-mark-faces-single-call ()
   (turtles-ert-test)
 
   (let ((test-buffer))
@@ -766,7 +766,7 @@
 
            (buffer-string))))))))
 
-(ert-deftest turtles-test-grab-margins ()
+(ert-deftest turtles-grab-margins ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -793,7 +793,7 @@
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
-(ert-deftest turtles-test-grab-header-line ()
+(ert-deftest turtles-grab-header-line ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -809,7 +809,7 @@
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
-(ert-deftest turtles-test-grab-mode-line ()
+(ert-deftest turtles-grab-mode-line ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -825,7 +825,7 @@
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
-(ert-deftest turtles-test-mark-point ()
+(ert-deftest turtles-mark-point ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
 
@@ -837,7 +837,7 @@
    (should (equal "Time is a drug. Too much of it kills<> you."
                   (buffer-string)))))
 
-(ert-deftest turtles-test-mark-region ()
+(ert-deftest turtles-mark-region ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
 
@@ -852,7 +852,7 @@
    (should (equal "Time is a drug. [Too much of it kills] you."
                   (buffer-string)))))
 
-(ert-deftest turtles-test-mark-region-swapped ()
+(ert-deftest turtles-mark-region-swapped ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
 
@@ -869,7 +869,7 @@
    (should (equal "Time is a drug. [Too much of it kills] you."
                   (buffer-string)))))
 
-(ert-deftest turtles-test-mark-region-twochars ()
+(ert-deftest turtles-mark-region-twochars ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
 
@@ -886,7 +886,7 @@
    (should (equal "Time is a drug. /*Too much of it kills*/ you."
                   (buffer-string)))))
 
-(ert-deftest turtles-test-mark-region-opening-and-closing ()
+(ert-deftest turtles-mark-region-opening-and-closing ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
 
@@ -903,7 +903,7 @@
    (should (equal "Time is a drug. >>Too much of it kills< you."
                   (buffer-string)))))
 
-(ert-deftest turtles-test-colors ()
+(ert-deftest turtles-colors ()
   (turtles-ert-test)
 
   (let (orig-buf capture-buf)
@@ -935,7 +935,7 @@
         (should (equal (color-values "#0000ff")
                        (color-values (background-color-at-point))))))))
 
-(ert-deftest turtles-test-faces-from-color ()
+(ert-deftest turtles-faces-from-color ()
   (ert-with-test-buffer ()
     (insert (propertize "red" 'font-lock-face '(:foreground "#ff0000" :background "#000000")))
     (insert " ")
@@ -965,7 +965,7 @@
     (should-not (get-text-property (point-min) 'font-lock-face))
     (should-not (next-single-property-change (point-min) 'font-lock-face))))
 
-(ert-deftest turtles-test-faces-from-color-inexact ()
+(ert-deftest turtles-faces-from-color-inexact ()
   (ert-with-test-buffer ()
     (insert (propertize "red" 'font-lock-face '(:foreground "#e10000" :background "black")))
     (insert " ")
@@ -984,7 +984,7 @@
     (should (equal "[red](error) [green](success) [blue](link)"
                    (buffer-string)))))
 
-(ert-deftest turtles-test-trim-buffer ()
+(ert-deftest turtles-trim-buffer ()
   (ert-with-test-buffer ()
     (insert "  line 1         \n")
     (insert "line 2\t\t         \n")
@@ -994,25 +994,25 @@
 
     (should (equal "  line 1\nline 2" (buffer-string)))))
 
-(ert-deftest turtles-test-pass ()
+(ert-deftest turtles-pass ()
   (turtles-ert-test)
 
   (should (equal 1 1)))
 
-(ert-deftest turtles-test-fail ()
+(ert-deftest turtles-fail ()
   :expected-result :failed
   (turtles-ert-test)
 
   (should (equal 1 2)))
 
-(ert-deftest turtles-test-pass-send-body ()
+(ert-deftest turtles-pass-send-body ()
   ;; File-name is missing, so the whole ert-test object must be sent
   ;; to the instance.
   (turtles--ert-test 'default nil nil)
 
   (should (equal 1 1)))
 
-(ert-deftest turtles-test-fail-send-body ()
+(ert-deftest turtles-fail-send-body ()
   :expected-result :failed
   (turtles--ert-test 'default nil nil)
 
@@ -1020,7 +1020,7 @@
 
 ;; This test is used in manual tests to check out what happens to
 ;; buffers listed in failed tests.
-(ert-deftest turtles-test-fail-with-buffer ()
+(ert-deftest turtles-fail-with-buffer ()
   :expected-result :failed
   (turtles-ert-test)
   (ert-with-test-buffer (:name "mybuf")
@@ -1030,7 +1030,7 @@
     (goto-char (match-beginning 0))
     (should (equal 1 2))))
 
-(ert-deftest turtles-test-recreate-buttons ()
+(ert-deftest turtles-recreate-buttons ()
   (define-button-type 'turtles-test-button 'action (lambda (button) (message "click")))
 
   (let* ((press-count 0)
@@ -1046,13 +1046,13 @@
     (should (eq (get-text-property 0 'category button-text)
                 (get-text-property 0 'category button-text2)))))
 
-(ert-deftest turtles-test-to-string-noarg ()
+(ert-deftest turtles-to-string-noarg ()
   (turtles-ert-test)
   (ert-with-test-buffer ()
     (insert "hello, world")
     (should (equal "hello, world" (turtles-to-string)))))
 
-(ert-deftest turtles-test-to-string-buf ()
+(ert-deftest turtles-to-string-buf ()
   (turtles-ert-test)
 
   (let (test-buffer)
@@ -1062,7 +1062,7 @@
       (with-temp-buffer
         (should (equal "hello, world" (turtles-to-string :buf test-buffer)))))))
 
-(ert-deftest turtles-test-to-string-win ()
+(ert-deftest turtles-to-string-win ()
   (turtles-ert-test)
 
   (let (buf1 buf2)
@@ -1083,7 +1083,7 @@
       (should (equal "hello, world" (turtles-to-string :win win1)))
       (should (equal "foobar" (turtles-to-string :win win2))))))))
 
-(ert-deftest turtles-test-to-string-faces ()
+(ert-deftest turtles-to-string-faces ()
   (turtles-ert-test)
   (ert-with-test-buffer ()
     (insert (propertize "hello" 'face 'error))
@@ -1093,7 +1093,7 @@
                    (turtles-to-string :faces '((error "[]")
                                                 (success "{" "}")))))))
 
-(ert-deftest turtles-test-to-string-region ()
+(ert-deftest turtles-to-string-region ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1109,7 +1109,7 @@
       "baa, [baa, black sheep], have you any wool?"
       (turtles-to-string :region "[]")))))
 
-(ert-deftest turtles-test-to-string-point ()
+(ert-deftest turtles-to-string-point ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1122,7 +1122,7 @@
       "baa, baa, black>< sheep, have you any wool?"
       (turtles-to-string :point "><")))))
 
-(ert-deftest turtles-test-to-string-point-and-region ()
+(ert-deftest turtles-to-string-point-and-region ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1138,7 +1138,7 @@
       "baa, [baa, black sheep><], have you any wool?"
       (turtles-to-string :point "><" :region "[]")))))
 
-(ert-deftest turtles-test-with-grab-buffer-noarg ()
+(ert-deftest turtles-with-grab-buffer-noarg ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1147,7 +1147,7 @@
       (should (equal "hello, world"
                      (string-trim (buffer-string)))))))
 
-(ert-deftest turtles-test-with-grab-buffer-result ()
+(ert-deftest turtles-with-grab-buffer-result ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1156,7 +1156,7 @@
                    (turtles-with-grab-buffer ()
                      (string-trim (buffer-string)))))))
 
-(ert-deftest turtles-test-with-grab-buffer-buf ()
+(ert-deftest turtles-with-grab-buffer-buf ()
   (turtles-ert-test)
 
   (let (test-buffer)
@@ -1169,7 +1169,7 @@
                          (string-trim (buffer-string)))))))))
 
 
-(ert-deftest turtles-test-with-grab-buffer-win ()
+(ert-deftest turtles-with-grab-buffer-win ()
   (turtles-ert-test)
 
   (let (buf1 buf2)
@@ -1194,7 +1194,7 @@
             (should (equal "foobar"
                            (string-trim (buffer-string))))))))))
 
-(ert-deftest turtles-test-with-grab-buffer-faces ()
+(ert-deftest turtles-with-grab-buffer-faces ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1208,7 +1208,7 @@
       (search-forward "success")
       (should (equal 'success (get-text-property (1- (point)) 'face))))))
 
-(ert-deftest turtles-test-with-grab-buffer-faces-and-marks ()
+(ert-deftest turtles-with-grab-buffer-faces-and-marks ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1222,7 +1222,7 @@
       (search-forward "success")
       (should (equal 'success (get-text-property (1- (point)) 'face))))))
 
-(ert-deftest turtles-test-with-grab-buffer-margins ()
+(ert-deftest turtles-with-grab-buffer-margins ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1237,7 +1237,7 @@
         (should (equal "|-Hello, world.                                                               -|\n"
                        (buffer-string))))))
 
-(ert-deftest turtles-test-with-grab-mode-line ()
+(ert-deftest turtles-with-grab-mode-line ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1247,7 +1247,7 @@
       (should (equal "My mode line\n" (buffer-string))))))
 
 
-(ert-deftest turtles-test-with-grab-header-line ()
+(ert-deftest turtles-with-grab-header-line ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1270,7 +1270,7 @@
               (execute-kbd-macro (kbd "RET")))))))
 
 ;; Snippet shown in README.md
-(ert-deftest turtles-test-hello-world ()
+(ert-deftest turtles-hello-world ()
   (turtles-ert-test)             ;; Start a secondary Emacs instance
                                  ;; Everything below this point runs
                                  ;; in the secondary instance.
@@ -1287,7 +1287,7 @@
       (should (equal "hello, world!"
                      (buffer-string))))))
 
-(ert-deftest turtles-test-pop-to-buffer-copy ()
+(ert-deftest turtles-pop-to-buffer-copy ()
   (let ((inst (turtles-get-instance 'default)))
     (should inst)
     (turtles-start-instance inst)
@@ -1320,7 +1320,7 @@
                 (should (equal "This is my <>[buffer]." (buffer-string)))))
           (kill-buffer buf))))))
 
-(ert-deftest turtles-test-pop-to-buffer-embedded ()
+(ert-deftest turtles-pop-to-buffer-embedded ()
   (let ((inst (turtles-get-instance 'default)))
     (should inst)
     (turtles-start-instance inst)
@@ -1348,7 +1348,7 @@
           (should (equal (plist-get (cdr remote-buf) :name)
                          (plist-get (cdr win) :buffer))))))))
 
-(ert-deftest turtles-test-pop-to-buffer-new-frame ()
+(ert-deftest turtles-pop-to-buffer-new-frame ()
   ;; There isn't much that can be tested in batch mode; the action is
   ;; just not available.
   (should (eq (alist-get 'window-system (frame-parameters))

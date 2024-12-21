@@ -22,7 +22,7 @@
 
 (require 'turtles-io)
 
-(ert-deftest turtles-io-test-send-message-to-server ()
+(ert-deftest turtles-io-send-message-to-server ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -45,7 +45,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-delete-socket-file ()
+(ert-deftest turtles-io-delete-socket-file ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir)) server)
       (unwind-protect
@@ -58,7 +58,7 @@
 
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-send-message-to-client ()
+(ert-deftest turtles-io-send-message-to-client ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -79,7 +79,7 @@
         (ignore-errors (when server (delete-process server)))))))
 
 
-(ert-deftest turtles-io-test-call-unknown-method ()
+(ert-deftest turtles-io-call-unknown-method ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -96,7 +96,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-method-handler ()
+(ert-deftest turtles-io-method-handler ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -117,7 +117,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-method-handler-with-error ()
+(ert-deftest turtles-io-method-handler-with-error ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -140,7 +140,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-method-handler-with-error-bad-symbol ()
+(ert-deftest turtles-io-method-handler-with-error-bad-symbol ()
   ;; Emacs 26 doesn't allow catching non-error symbols
   ;; using t as a condition, so this test just isn't possible.
   ;;
@@ -172,7 +172,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-method-handler-with-error-not-a-symbol ()
+(ert-deftest turtles-io-method-handler-with-error-not-a-symbol ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -198,7 +198,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-method-return-nil ()
+(ert-deftest turtles-io-method-return-nil ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -219,7 +219,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-method-return-unreadable ()
+(ert-deftest turtles-io-method-return-unreadable ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -244,7 +244,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-test-notify ()
+(ert-deftest turtles-io-notify ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           (ping-count 0)
@@ -270,7 +270,7 @@
     (turtles-io--print-msg msg)
     (buffer-string)))
 
-(ert-deftest turtles-io-test-print-msg ()
+(ert-deftest turtles-io-print-msg ()
   (should (equal "(:id 12 :method ping :params \"ping\")"
                   (turtles-io--print-msg-to-string
                    '(:id 12 :method ping :params "ping"))))
@@ -291,7 +291,7 @@
                  (turtles-io--print-msg-to-string
                   '(:id 12 :result (readable-with-\#\and-\#< "#<" ?# ?<))))))
 
-(ert-deftest turtles-io-test-print-msg-unreadable ()
+(ert-deftest turtles-io-print-msg-unreadable ()
   (let ((turtles-io-unreadable-obj-functions nil))
     (with-temp-buffer
       (rename-buffer (generate-new-buffer-name "temp >>--#<\""))
@@ -339,7 +339,7 @@
                    (turtles-io--print-msg-to-string
                     `(:id 12 :result (1 2 ,(current-window-configuration) 3)))))))
 
-(ert-deftest turtles-io-test-print-msg-unreadable-hook ()
+(ert-deftest turtles-io-print-msg-unreadable-hook ()
   (let ((turtles-io-unreadable-obj-functions
          (list (lambda (obj)
                  (setcdr obj (plist-put (cdr obj) :foo 'bar))))))
@@ -365,7 +365,7 @@
       (goto-char (point-min))
       (read (current-buffer))))
 
-  (ert-deftest turtles-io-test-rewrite-unreadable ()
+  (ert-deftest turtles-io-rewrite-unreadable ()
     (should
      (equal
       '(turtles-obj :type INVALID_LISP_OBJECT)

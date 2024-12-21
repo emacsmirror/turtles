@@ -27,7 +27,7 @@
 (turtles-definstance turtles-test-larger-frame (:width 132 :height 43)
   "A test instance with a larger frame.")
 
-(ert-deftest turtles-instance-test-restart ()
+(ert-deftest turtles-instance-restart ()
   (turtles-start-server)
   (should turtles--server)
   (should (turtles-io-server-live-p turtles--server))
@@ -54,7 +54,7 @@
     (should-not (buffer-live-p buf))
     (should-not (process-live-p proc))))
 
-(ert-deftest turtles-instance-test-message ()
+(ert-deftest turtles-instance-message ()
   (let ((inst (turtles-start-instance 'default)))
     (let ((inhibit-message t))
       (ert-with-message-capture messages
@@ -65,13 +65,13 @@
           (unless (member message (string-split messages "\n" 'omit-nulls))
             (error "message not found in %s" messages)))))))
 
-(ert-deftest turtles-instance-test-default-size ()
+(ert-deftest turtles-instance-default-size ()
   (let ((inst (turtles-start-instance 'default)))
     (with-current-buffer (turtles-instance-term-buf inst)
       (should (equal 80 term-width))
       (should (equal 20 term-height)))))
 
-(ert-deftest turtles-instance-test-larger-frame-size ()
+(ert-deftest turtles-instance-larger-frame-size ()
   (let ((inst (turtles-start-instance 'turtles-test-larger-frame)))
     (with-current-buffer (turtles-instance-term-buf inst)
       (should (equal 132 term-width))
