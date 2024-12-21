@@ -152,6 +152,8 @@
         (select-window center-win)
         (split-window-below 10)
         (set-window-buffer center-win buf1)
+        (when (/= 10 (window-height center-win))
+          (window-resize center-win (- 10 (window-height center-win))))
 
         (ert-with-test-buffer (:name "grab")
           (turtles-grab-window center-win (current-buffer))
