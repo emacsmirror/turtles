@@ -118,8 +118,14 @@ Accessed using `turtles-this-instance'.")
   (term-buf nil :documentation "Buffer running this instance, if live."))
 
 (defun turtles-get-instance (id)
-  "Get an instance from its ID."
-  (alist-get id turtles-instance-alist))
+  "Get an instance from its ID.
+
+If ID is a `turtles-instance' already, just return in. This means
+that turtles-get-instance can be used to make functions accept
+either an instance or an instance id."
+  (if (turtles-instance-p id)
+      id
+    (alist-get id turtles-instance-alist)))
 
 (defun turtles-instance-shortdoc (inst)
   "Return the first line of the documentation of INST.
@@ -146,6 +152,30 @@ This is the Emacs subprocess."
         (get-buffer-process
          (turtles-instance-term-buf inst)))
        t))
+
+(cl-defun turtles-instance-eval (inst-or-id expr &key timeout)
+  "Evaluate EXPR on the instance INST-OR-ID.
+
+INST-OR-ID can be a `turtles-instance' or an instance id.
+EXPR must be a quoted elisp expression.
+
+The result of evaluating EXPR on the given instance is returned.
+
+If set, the key argument TIMEOUT specifies how long to wait for
+the instance to evaluate the expression, in seconds.
+
+This function does not start the instance, so if you're not sure
+the instance is up, you might want to use
+`turtles-start-instance' first.
+
+For example:
+
+  (turtles-instance-eval
+     (turtles-start-instance \\='default)
+     \\='(do-something))"
+  (turtles-io-call-method
+   (turtles-instance-conn (turtles-get-instance inst-or-id))
+   'eval expr :timeout timeout))
 
 (cl-defmacro turtles-definstance (id (&key (width 80) (height 24))
                                      doc &rest setup)
@@ -231,8 +261,12 @@ Does nothing if the server is already live."
       (ignore-errors (delete-file f)))
     (setq turtles--server nil))))
 
-(defun turtles-start-instance (inst)
-  "Start instance INST.
+(defun turtles-start-instance (inst-or-id)
+  "Start instance INST-OR-ID.
+
+INST-OR-ID can be a `turtles-instance' or instance id.
+
+Returns the `turtles-instance'.
 
 Does nothing if the instance is already running."
   (interactive (list
@@ -240,75 +274,88 @@ Does nothing if the instance is already running."
                  "Instance to start: "
                  (lambda (inst)
                    (not (turtles-instance-live-p inst))))))
-  (turtles-start-server)
-  (unless (turtles-instance-live-p inst)
-    (turtles-stop-instance inst) ; cleanup
-    (setf (turtles-instance-term-buf inst)
-          (if (buffer-live-p (turtles-instance-term-buf inst))
-              (turtles-instance-term-buf inst)
-            (generate-new-buffer (format " *term-%s*" (turtles-instance-id inst)))))
+  (let ((inst (turtles-get-instance inst-or-id)))
+    (turtles-start-server)
+    (unless (turtles-instance-live-p inst)
+      (turtles-stop-instance inst) ; cleanup
+      (setf (turtles-instance-term-buf inst)
+            (if (buffer-live-p (turtles-instance-term-buf inst))
+                (turtles-instance-term-buf inst)
+              (generate-new-buffer (format " *term-%s*" (turtles-instance-id inst)))))
+      (with-current-buffer (turtles-instance-term-buf inst)
+        (term-mode)
+        (setq-local face-remapping-alist turtles-term-face-remapping-alist)
+        (setq-local term-width (turtles-instance-width inst))
+        (setq-local term-height (turtles-instance-height inst))
+
+        (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
+                         "-nw" "-Q")))
+          (setq cmdline
+                (append cmdline (turtles--dirs-from-load-path)))
+          (setq cmdline
+                (append cmdline
+                        `("-eval" ,(prin1-to-string
+                                    `(progn
+                                       (setq load-prefer-newer t)
+                                       (load ,turtles--file-name nil 'nomessage)
+                                       (setq turtles-send-messages-upstream ',turtles-send-messages-upstream)
+                                       (turtles--launch
+                                        ,(turtles-io-server-socket turtles--server)
+                                        ',(turtles-instance-id inst)
+                                        (lambda () ,(turtles-instance-setup inst))))))))
+          (when (>= emacs-major-version 29)
+            ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
+            ;; colors even though the termcap entry for eterm-color
+            ;; only defines 256. That works, because term.el in
+            ;; Emacs 29.1 and later support 24 bit colors.
+            (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
+          (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
+        (term-char-mode)
+        (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
+        (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
+                             (lambda () (turtles-instance-conn inst)))
+        (message "Turtles started %s: %s" (turtles-instance-id inst)
+                 (turtles-instance-shortdoc inst))))
+
     (with-current-buffer (turtles-instance-term-buf inst)
-      (term-mode)
-      (setq-local face-remapping-alist turtles-term-face-remapping-alist)
-      (setq-local term-width (turtles-instance-width inst))
-      (setq-local term-height (turtles-instance-height inst))
+      (let ((w (turtles-instance-width inst))
+            (h (turtles-instance-height inst)))
+        (unless (and (= term-width w) (= term-height h))
+          (set-process-window-size (get-buffer-process (turtles-instance-term-buf inst)) h w)
+          (term-reset-size h w)
+          (turtles--let-term-settle inst))))
 
-      (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
-                       "-nw" "-Q")))
-        (setq cmdline
-              (append cmdline (turtles--dirs-from-load-path)))
-        (setq cmdline
-              (append cmdline
-                      `("-eval" ,(prin1-to-string
-                                  `(progn
-                                     (setq load-prefer-newer t)
-                                     (load ,turtles--file-name nil 'nomessage)
-                                     (setq turtles-send-messages-upstream ',turtles-send-messages-upstream)
-                                     (turtles--launch
-                                      ,(turtles-io-server-socket turtles--server)
-                                      ',(turtles-instance-id inst)
-                                      (lambda () ,(turtles-instance-setup inst))))))))
-        (when (>= emacs-major-version 29)
-          ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
-          ;; colors even though the termcap entry for eterm-color
-          ;; only defines 256. That works, because term.el in
-          ;; Emacs 29.1 and later support 24 bit colors.
-          (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
-        (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
-      (term-char-mode)
-      (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
-      (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
-                           (lambda () (turtles-instance-conn inst)))
-      (message "Turtles started %s: %s" (turtles-instance-id inst)
-               (turtles-instance-shortdoc inst))))
+    inst))
 
-  (with-current-buffer (turtles-instance-term-buf inst)
-    (let ((w (turtles-instance-width inst))
-          (h (turtles-instance-height inst)))
-      (unless (and (= term-width w) (= term-height h))
-        (set-process-window-size (get-buffer-process (turtles-instance-term-buf inst)) h w)
-        (term-reset-size h w)
-        (turtles--let-term-settle inst)))))
+(defun turtles-stop-instance (inst-or-id)
+  "Start instance INST-OR-ID.
 
-(defun turtles-stop-instance (inst)
+INST-OR-ID can be a `turtles-instance' or instance id.
+
+Returns the `turtles-instance'.
+
+Does nothing if the instance is already running."
   (interactive
    (list
     (turtles-read-instance
      "Instance to stop: " #'turtles-instance-live-p)))
-  (when-let ((c (turtles-instance-conn inst)))
-    (when (turtles-io-conn-live-p c)
-      (turtles-io-notify c 'exit))
-    (while (accept-process-output))
-    (when-let ((p (turtles-io-conn-proc c)))
+  (let ((inst (turtles-get-instance inst-or-id)))
+    (when-let ((c (turtles-instance-conn inst)))
+      (when (turtles-io-conn-live-p c)
+        (turtles-io-notify c 'exit))
+      (while (accept-process-output))
+      (when-let ((p (turtles-io-conn-proc c)))
+        (when (process-live-p p)
+          (delete-process p)))
+      (setf (turtles-instance-conn inst) nil))
+    (when-let ((b (turtles-instance-term-buf inst))
+               (p (get-buffer-process b)))
       (when (process-live-p p)
-        (delete-process p)))
-    (setf (turtles-instance-conn inst) nil))
-  (when-let ((b (turtles-instance-term-buf inst))
-             (p (get-buffer-process b)))
-    (when (process-live-p p)
-      (delete-process p))
-    (let ((kill-buffer-query-functions nil))
-      (kill-buffer b))))
+        (delete-process p))
+      (let ((kill-buffer-query-functions nil))
+        (kill-buffer b)))
+
+    inst))
 
 (defun turtles-read-instance (prompt predicate)
   (turtles-get-instance
@@ -398,8 +445,7 @@ frame, which only makes sense for graphical displays."
       (error "No window system"))
     (message "New client frame for %s: %s"
              (turtles-instance-id inst)
-             (turtles-io-call-method
-              (turtles-instance-conn inst) 'eval
+             (turtles-instance-eval inst
               `(progn
                  (prin1-to-string
                   (make-frame

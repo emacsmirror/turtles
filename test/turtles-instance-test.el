@@ -35,8 +35,8 @@
   (let ((inst (turtles-get-instance 'turtles-test-restart))
         buf proc)
     (should inst)
-    (turtles-stop-instance inst)
-    (turtles-start-instance inst)
+    (should (eq inst (turtles-stop-instance inst)))
+    (should (eq inst (turtles-start-instance inst)))
     (should (turtles-instance-live-p inst))
 
     (setq buf (turtles-instance-term-buf inst))
@@ -46,9 +46,7 @@
     (setq proc (turtles-io-conn-proc (turtles-instance-conn inst)))
     (should (process-live-p proc))
 
-    (should (equal "ok" (turtles-io-call-method
-                         (turtles-instance-conn inst) 'eval "ok")))
-
+    (should (equal "ok" (turtles-instance-eval inst "ok")))
 
     (turtles-stop-instance inst)
 
@@ -57,15 +55,10 @@
     (should-not (process-live-p proc))))
 
 (ert-deftest turtles-instance-test-message ()
-  (let ((inst (turtles-get-instance 'default)))
-    (should inst)
-    (turtles-start-instance inst)
-
+  (let ((inst (turtles-start-instance 'default)))
     (let ((inhibit-message t))
       (ert-with-message-capture messages
-        (turtles-io-call-method
-         (turtles-instance-conn inst)
-         'eval
+        (turtles-instance-eval inst
          '(let ((turtles-send-messages-upstream t))
             (message "hello from turtles-test-message")))
         (let ((message "[default] hello from turtles-test-message"))
@@ -73,53 +66,42 @@
             (error "message not found in %s" messages)))))))
 
 (ert-deftest turtles-instance-test-default-size ()
-  (let ((inst (turtles-get-instance 'default)))
-    (should inst)
-    (turtles-start-instance inst)
+  (let ((inst (turtles-start-instance 'default)))
     (with-current-buffer (turtles-instance-term-buf inst)
       (should (equal 80 term-width))
       (should (equal 20 term-height)))))
 
 (ert-deftest turtles-instance-test-larger-frame-size ()
-  (let ((inst (turtles-get-instance 'turtles-test-larger-frame)))
-    (should inst)
-    (turtles-start-instance inst)
+  (let ((inst (turtles-start-instance 'turtles-test-larger-frame)))
     (with-current-buffer (turtles-instance-term-buf inst)
       (should (equal 132 term-width))
       (should (equal 43 term-height)))))
 
 (ert-deftest turtles-instance-unreadable-buffer ()
-  (let ((inst (turtles-get-instance 'default)))
-    (should inst)
-    (turtles-start-instance inst)
-
+  (let ((inst (turtles-start-instance 'default)))
     (should
      (equal '(turtles-buffer :name "*scratch*" :instance default)
-            (turtles-io-call-method
-             (turtles-instance-conn inst)
-             'eval
+            (turtles-instance-eval inst
              '(get-scratch-buffer-create))))))
 
 (ert-deftest turtles-instance-customize-send-messages-upstream ()
-  (let ((inst (turtles-get-instance 'default))
+  (let ((inst (turtles-start-instance 'default))
         (original-value turtles-send-messages-upstream)
         (inhibit-message t)
         conn)
-    (should inst)
-    (turtles-start-instance inst)
     (setq conn (turtles-instance-conn inst))
 
     (unwind-protect
         (ert-with-message-capture messages
           (custom-set-variables '(turtles-send-messages-upstream t now))
           (should turtles-send-messages-upstream)
-          (should (turtles-io-call-method conn 'eval 'turtles-send-messages-upstream))
-          (turtles-io-call-method conn 'eval '(message "message1, sent upstream"))
+          (should (turtles-instance-eval inst 'turtles-send-messages-upstream))
+          (turtles-instance-eval inst '(message "message1, sent upstream"))
 
           (custom-set-variables '(turtles-send-messages-upstream nil now))
           (should-not turtles-send-messages-upstream)
           (should-not (turtles-io-call-method conn 'eval 'turtles-send-messages-upstream))
-          (turtles-io-call-method conn 'eval '(message "message2, not sent upstream"))
+          (turtles-instance-eval inst '(message "message2, not sent upstream"))
 
           (should (member "[default] message1, sent upstream"
                           (string-split messages "\n")))

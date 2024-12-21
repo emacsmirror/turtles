@@ -1002,8 +1002,7 @@ This function is meant to be added to
    ((eq 'check action) t)
    ((eq 'display action)
     ;; Display the buffer in the instance.
-    (turtles-io-call-method
-     (turtles-instance-conn inst) 'eval
+    (turtles-instance-eval inst
      `(set-window-buffer (frame-root-window) (get-buffer ,buffer-name)))
     (let* ((term-buf (turtles-instance-term-buf inst))
           (term-bufname (buffer-name term-buf)))
@@ -1036,8 +1035,7 @@ This function is meant to be added to
     (if (and buf (buffer-local-value 'turtles--original-instance buf))
         (apply #'pop-to-buffer buf pop-to-buffer-args)
       (setq buf (generate-new-buffer local-bufname))
-      (let ((ret (turtles-io-call-method
-                  (turtles-instance-conn inst) 'eval
+      (let ((ret (turtles-instance-eval inst
                   `(with-current-buffer ,buffer-name
                      (list (buffer-string) (point) (mark) (region-active-p))))))
         (with-current-buffer buf
@@ -1067,8 +1065,7 @@ This function is meant to be added to `turtles-pop-to-buffer-actions'"
     (cond
      ((eq 'check action) (alist-get 'window-system params))
      ((eq 'display action)
-      (turtles-io-call-method
-       (turtles-instance-conn inst) 'eval
+      (turtles-instance-eval inst
        `(let ((buf (get-buffer ,buffer-name)))
           (select-frame (make-frame
                          '((window-system . ,(alist-get 'window-system params))
