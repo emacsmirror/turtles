@@ -641,29 +641,58 @@ Expects the current test to be defined in FILE-NAME."
         (error "Call turtles-ert-test from inside a ERT test."))
       (cl-assert test-sym)
 
-      ;; TODO: if no file-name is available, transfer the test
-      (unless file-name
-        (error "No file available for %s" test-sym))
-
       (unless inst
         (error "No turtles instance defined with ID %s" inst-id))
-
       (turtles-start-instance inst)
-      (let ((res
-             (turtles-io-call-method
-              (turtles-instance-conn inst)
-              'ert-test
-              `(progn
-                 ,(unless (and turtles-ert--load-cache
-                               (gethash (cons inst-id file-name)
-                                        turtles-ert--load-cache))
-                    `(load ,file-name nil 'nomessage 'nosuffix))
-                 (let ((test (ert-get-test (quote ,test-sym))))
-                   (ert-run-test test)
-                   (ert-test-most-recent-result test)))
-              :timeout (or timeout 10.0))))
-        (when turtles-ert--load-cache
-          (puthash (cons inst-id file-name) t turtles-ert--load-cache))
+      (let ((timeout (or timeout 10.0))
+            (conn (turtles-instance-conn inst))
+            res)
+        (if file-name
+            ;; Reload test from file-name. This guarantees that
+            ;; everything around that test, such as requires, has also
+            ;; been defined on the instance.
+            (progn
+              (setq res
+                    (turtles-io-call-method
+                     conn 'ert-test
+                     `(progn
+                        ,(unless (and turtles-ert--load-cache
+                                      (gethash (cons inst-id file-name)
+                                               turtles-ert--load-cache))
+                           `(load ,file-name nil 'nomessage 'nosuffix))
+                        (let ((test (ert-get-test (quote ,test-sym))))
+                          (ert-run-test test)
+                          (ert-test-most-recent-result test)))
+                     :timeout timeout))
+              (when turtles-ert--load-cache
+                (puthash (cons inst-id file-name) t turtles-ert--load-cache)))
+
+          ;; Forward test, including test body.
+          ;;
+          ;; This might fail if:
+          ;; - the body captured unreadable objects
+          ;; - the body calls functions that weren't loaded
+          ;;
+          ;; This is generally only OK for re-runs. Luckily this is
+          ;; the situation were we're most likely to not have a
+          ;; filename.
+          (when (consp (ert-test-body test))
+            ;; byte-compiling might make an otherwise unreadable body
+            ;; readable by getting rid of unneeded captured variables.
+            (setf (ert-test-body test)
+                  (byte-compile (ert-test-body test))))
+          (setq res
+                (turtles-io-call-method
+                 conn 'ert-test
+                 `(let ((test ,test))
+                    (require 'ert)
+                    (require 'ert-x)
+                    (require 'turtles)
+
+                    (ert-run-test test)
+                    (ert-test-most-recent-result test))
+                 :timeout timeout)))
+
         (turtle--process-remote-result res)
         (setq turtles-ert--result res))
 

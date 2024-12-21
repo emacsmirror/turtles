@@ -980,6 +980,19 @@
 
   (should (equal 1 2)))
 
+(ert-deftest turtles-test-pass-send-body ()
+  ;; File-name is missing, so the whole ert-test object must be sent
+  ;; to the instance.
+  (turtles-ert--test 'default nil nil)
+
+  (should (equal 1 1)))
+
+(ert-deftest turtles-test-fail-send-body ()
+  :expected-result :failed
+  (turtles-ert--test 'default nil nil)
+
+  (should (equal 1 2)))
+
 ;; This test is used in manual tests to check out what happens to
 ;; buffers listed in failed tests.
 (ert-deftest turtles-test-fail-with-buffer ()
