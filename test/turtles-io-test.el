@@ -348,66 +348,67 @@
                              (prin1-to-string (buffer-name)))
                      (turtles-io--print-msg-to-string (current-buffer)))))))
 
-(defun turtles-io--parse-unreadable (str)
-  (with-temp-buffer
-    (insert str)
-    (cl-letf (((symbol-function 'buffer-list)
-               (lambda () '(mybuffer1 mybuffer2 mybuffer3)))
-              ((symbol-function 'buffer-name)
-               (lambda (buf)
-                 (cond
-                  ((eq buf 'mybuffer1) "my buffer<1>")
-                  ((eq buf 'mybuffer2) "my buffer<2>")
-                  ((eq buf 'mybuffer3) "my buffer<3>")
-                  (t (error "unknown buffer %s" buf))))))
-      (turtles-io--rewrite-unreadables (point-min) (point-max)))
-    (goto-char (point-min))
-    (read (current-buffer))))
+(when (eval-when-compile (< emacs-major-version 29))
+  (defun turtles-io--parse-unreadable (str)
+    (with-temp-buffer
+      (insert str)
+      (cl-letf (((symbol-function 'buffer-list)
+                 (lambda () '(mybuffer1 mybuffer2 mybuffer3)))
+                ((symbol-function 'buffer-name)
+                 (lambda (buf)
+                   (cond
+                    ((eq buf 'mybuffer1) "my buffer<1>")
+                    ((eq buf 'mybuffer2) "my buffer<2>")
+                    ((eq buf 'mybuffer3) "my buffer<3>")
+                    (t (error "unknown buffer %s" buf))))))
+        (turtles-io--rewrite-unreadables (point-min) (point-max)))
+      (goto-char (point-min))
+      (read (current-buffer))))
 
-(ert-deftest turtles-io-test-rewrite-unreadable ()
-  (should
-   (equal
-    '(turtles-obj :type INVALID_LISP_OBJECT)
-    (turtles-io--parse-unreadable
-     "#<INVALID_LISP_OBJECT 0xaf0001>")))
-  (should
-   (equal
-    '(turtles-obj :type SOME_LISP_OBJECT)
-    (turtles-io--parse-unreadable
-     "#<SOME_LISP_OBJECT 0xaf0001>")))
-  (should
-   (equal
-    '(turtles-marker)
-    (turtles-io--parse-unreadable
-     "#<marker in no buffer>")))
-  (should
-   (equal
-    '(turtles-marker)
-    (turtles-io--parse-unreadable
-     "#<marker (moves after insertion) in no buffer>")))
-  (should
-   (equal
-    '(turtles-marker :pos 100 :buffer "my buffer<3>")
-    (turtles-io--parse-unreadable
-     "#<marker at 100 in my buffer<3>>")))
-  (should
-   (equal
-    '(turtles-marker :pos 100 :buffer "my buffer<3>")
-    (turtles-io--parse-unreadable
-     "#<marker (moves after insertion) at 100 in my buffer<3>>")))
-  (should
-   (equal
-    '(turtles-buffer :live nil)
-    (turtles-io--parse-unreadable "#<killed buffer>")))
-  (should
-   (equal
-    '(turtles-frame :live nil)
-    (turtles-io--parse-unreadable "#<dead frame myframe 0xaf01ee03>")))
-  (should
-   (equal
-    '(turtles-obj :type xwidget)
-    (turtles-io--parse-unreadable "#<xwidget 0xa701ee03>")))
-  (should
-   (equal
-    '(turtles-obj :type xwidget)
-    (turtles-io--parse-unreadable "#<killed xwidget>"))))
+  (ert-deftest turtles-io-test-rewrite-unreadable ()
+    (should
+     (equal
+      '(turtles-obj :type INVALID_LISP_OBJECT)
+      (turtles-io--parse-unreadable
+       "#<INVALID_LISP_OBJECT 0xaf0001>")))
+    (should
+     (equal
+      '(turtles-obj :type SOME_LISP_OBJECT)
+      (turtles-io--parse-unreadable
+       "#<SOME_LISP_OBJECT 0xaf0001>")))
+    (should
+     (equal
+      '(turtles-marker)
+      (turtles-io--parse-unreadable
+       "#<marker in no buffer>")))
+    (should
+     (equal
+      '(turtles-marker)
+      (turtles-io--parse-unreadable
+       "#<marker (moves after insertion) in no buffer>")))
+    (should
+     (equal
+      '(turtles-marker :pos 100 :buffer "my buffer<3>")
+      (turtles-io--parse-unreadable
+       "#<marker at 100 in my buffer<3>>")))
+    (should
+     (equal
+      '(turtles-marker :pos 100 :buffer "my buffer<3>")
+      (turtles-io--parse-unreadable
+       "#<marker (moves after insertion) at 100 in my buffer<3>>")))
+    (should
+     (equal
+      '(turtles-buffer :live nil)
+      (turtles-io--parse-unreadable "#<killed buffer>")))
+    (should
+     (equal
+      '(turtles-frame :live nil)
+      (turtles-io--parse-unreadable "#<dead frame myframe 0xaf01ee03>")))
+    (should
+     (equal
+      '(turtles-obj :type xwidget)
+      (turtles-io--parse-unreadable "#<xwidget 0xa701ee03>")))
+    (should
+     (equal
+      '(turtles-obj :type xwidget)
+      (turtles-io--parse-unreadable "#<killed xwidget>")))))
