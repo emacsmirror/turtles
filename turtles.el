@@ -643,6 +643,13 @@ Expects the current test to be defined in FILE-NAME."
 
       (unless inst
         (error "No turtles instance defined with ID %s" inst-id))
+
+      ;; Last ditch attempt at getting back the file name, if it was
+      ;; lost. This only works starting with Emacs 29.1.
+      (when (eval-when-compile (>= emacs-major-version 29))
+        (unless file-name
+          (setq file-name (ert-test-file-name test))))
+
       (turtles-start-instance inst)
       (let ((timeout (or timeout 10.0))
             (conn (turtles-instance-conn inst))
