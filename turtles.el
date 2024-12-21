@@ -814,7 +814,7 @@ The following keyword arguments post-process what was grabbed:
                               (if (consp region) (nth 1 region))))
       (when point
         (insert point))
-      (turtles-mark-text-with-faces (turtles---filter-faces-for-mark faces))
+      (turtles-mark-text-with-faces (turtles--filter-faces-for-mark faces))
       (when trim
         (turtles-trim-buffer))
       (buffer-substring-no-properties (point-min) (point-max)))))
@@ -884,7 +884,7 @@ BODY:
          (turtles--internal-grab
           ,frame ,win ,buf ,calling-buf ,minibuffer
           ,mode-line ,header-line ,faces-var ,margins)
-         (turtles-mark-text-with-faces (turtles---filter-faces-for-mark ,faces-var))
+         (turtles-mark-text-with-faces (turtles--filter-faces-for-mark ,faces-var))
 
          ,@body))))
 
@@ -948,7 +948,7 @@ Do not call this function outside of this file."
   "Filter FACES t pass to `turtles-grab-buffer'"
   (mapcar (lambda (c) (if (consp c) (car c) c)) faces))
 
-(defun turtles---filter-faces-for-mark (faces)
+(defun turtles--filter-faces-for-mark (faces)
   (delq nil (mapcar (lambda (c) (if (consp c) c)) faces)))
 
 (defun turtles-pop-to-buffer (buffer &rest pop-to-buffer-args)
