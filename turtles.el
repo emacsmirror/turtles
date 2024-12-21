@@ -43,21 +43,26 @@
   '(turtles-pop-to-buffer-copy
     turtles-pop-to-buffer-embedded
     turtles-pop-to-buffer-new-frame)
-  "Set of possible handlers of remote buffers.
+  "Set of possible handlers of instance buffers.
 
-This are actions called by `turtles-pop-to-buffer'.
+This are actions called by `turtles-pop-to-buffer' to display
+buffers from other instances. When more than on action is
+available, `turtles-pop-to-buffer' show a list of possible
+actions, identified by the short documentation string of the
+function.
 
 The signature of these functions must be (action inst buffer-name
 &rest pop-to-buffer-args).
 
 When ACTION is \\='check, the function must
 check whether it can pop to BUFFER and, if yes, return non-nil.
+
 When ACTION is \\='display, the function must do what it can do
 display BUFFER.
 
-INST is a live `turtles-instance' containig the buffer.
+INST is a live `turtles-instance' containing the buffer.
 
-BUFFER-NAME is the name of a buffer on INST."
+BUFFER-NAME is the name of a buffer in INST."
   :type '(list function)
   :group 'turtles)
 
@@ -966,21 +971,30 @@ itself."
       (error "Unknown instance referenced in %s" buffer))
     (unless (turtles-instance-live-p inst)
       (error "Cannot display buffer. Instance %s is dead" inst-id))
-    (setq actions (delq nil (mapcar (lambda (func)
-                                      (when (funcall func 'check inst buffer)
-                                        func))
-                                    turtles-pop-to-buffer-actions)))
+    (setq actions
+          (delq nil (mapcar (lambda (func)
+                              (when (funcall func 'check inst buffer)
+                                func))
+                            turtles-pop-to-buffer-actions)))
     (cond
      ((length= actions 0)
       (error "No available action. Check out M-x configure-option turtles-pop-to-buffer-actions"))
      ((length= actions 1)
       (apply (car actions) 'display inst buffer-name pop-to-buffer-args))
      (t
-      (let ((action
+      (let* ((action-alist (mapcar (lambda (func)
+                                     (cons (or (car (split-string (documentation func) "\n"))
+                                               (when (symbolp func) (symbol-name func))
+                                               "Anonymous action")
+                                           func))
+                                   actions))
+             (action
              (completing-read
-              "Pop to remote buffer: " actions nil 'require-match nil 'pop-to-buffer-action-history)))
+              "Display buffer: "
+              action-alist nil 'require-match nil 'pop-to-buffer-action-history)))
         (when action
-          (apply (intern action) 'display inst buffer-name pop-to-buffer-args)))))))
+          (apply (alist-get action action-alist nil nil 'string=)
+                 'display inst buffer-name pop-to-buffer-args)))))))
 
 (defun turtles-pop-to-buffer-embedded (action inst buffer-name &rest pop-to-buffer-args)
   "Display buffer in the terminal buffer.
@@ -1010,7 +1024,7 @@ This function is meant to be added to
    (t (error "Unknown action %s" action))))
 
 (defun turtles-pop-to-buffer-copy (action inst buffer-name &rest pop-to-buffer-args)
-  "Display a copy of the remote buffer.
+  "Display a copy of the instance buffer.
 
 When called with ACTION set to \\='display, connect to the
 instance INST to copy the text, point and mark of BUFFER-NAME
@@ -1046,7 +1060,7 @@ This function is meant to be added to
    (t (error "Unknown action %s" action))))
 
 (defun turtles-pop-to-buffer-new-frame (action inst buffer-name &rest _ignored)
-  "Tell the instance to open the buffer in a new frame.
+  "Ask instance to open the buffer in a new frame.
 
 When called with ACTION set to \\='display, display BUFFER-NAME
 in the Turtles instance INST, by asking the instance to create a
