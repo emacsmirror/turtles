@@ -330,6 +330,12 @@ This is a poor replacement for `prin1-to-string', to be used in
 be called."
   (concat "\"" (replace-regexp-in-string "[\\\"]" "\\\\\\&" str) "\""))
 
+;; Always declare these pre-29 functions to keep the compiler happy.
+;; They're not used in Emacs >= 29.
+(defun turtles-io--rewrite-unreadables (_start-pos _end-pos))
+(defun turtles-io--search-unreadable (_limit))
+(defun turtles--match-unreadable (_list _regex-func))
+
 (when (eval-when-compile (< emacs-major-version 29))
   (defun turtles-io--rewrite-unreadables (start-pos end-pos)
     "Transform unreadable objects into something readable.
