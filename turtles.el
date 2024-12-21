@@ -592,14 +592,6 @@ See `turtles-grab-window-into' for more details."
     (turtles-grab-window-into win (current-buffer))
     (buffer-string)))
 
-(defun turtles-grab-frame-to-string ()
-  "Grab the frame into a string.
-
-See `turtles-grab-frame-into' for more details."
-  (with-temp-buffer
-    (turtles-grab-frame-into (current-buffer))
-    (buffer-string)))
-
 (defun turtles-trim-buffer ()
   "Remove trailing spaces and final newlines.
 
