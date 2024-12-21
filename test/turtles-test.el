@@ -28,14 +28,14 @@
   (setq-local truncate-lines t)
   (setq-local left-margin-width 0))
 
-(ert-deftest turtles-grab-frame-into ()
+(ert-deftest turtles-grab-frame ()
   (turtles-ert-test)
 
   (with-current-buffer (get-scratch-buffer-create)
     (turtles-display-buffer-full-frame (current-buffer))
     (insert "De Chelonian Mobile")
     (with-temp-buffer
-      (turtles-grab-frame-into (current-buffer))
+      (turtles-grab-frame (current-buffer))
       (goto-char (point-min))
       (should (search-forward "De Chelonian Mobile")))))
 
@@ -154,7 +154,7 @@
         (set-window-buffer center-win buf1)
 
         (ert-with-test-buffer (:name "grab")
-          (turtles-grab-window-into center-win (current-buffer))
+          (turtles-grab-window center-win (current-buffer))
           (should
            (equal
             (concat
@@ -166,8 +166,7 @@
              "line 5-------------------------------------------------------------------------$\n"
              "line 6-------------------------------------------------------------------------$\n"
              "line 7-------------------------------------------------------------------------$\n"
-             "line 8-------------------------------------------------------------------------$\n"
-             "line 9-------------------------------------------------------------------------$\n")
+             "line 8-------------------------------------------------------------------------$\n")
             (buffer-string))))))))
 
 (ert-deftest turtles-grab-window-vert-center ()
@@ -199,7 +198,7 @@
         (set-window-buffer center-win buf1)
 
         (ert-with-test-buffer (:name "grab")
-          (turtles-grab-window-into center-win (current-buffer))
+          (turtles-grab-window center-win (current-buffer))
           (should
            (equal
             (concat
@@ -249,7 +248,7 @@
         (set-window-buffer center-win buf1)
 
         (ert-with-test-buffer (:name "grab")
-          (turtles-grab-window-into center-win (current-buffer))
+          (turtles-grab-window center-win (current-buffer))
           (should
            (equal
             (concat
@@ -302,7 +301,7 @@
                 "line 9..")
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-grab-buffer test-buffer (current-buffer))
            (turtles-mark-point "<>")
            (buffer-string))))))))
 
@@ -340,7 +339,7 @@
                 "line 7..")
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-grab-buffer test-buffer (current-buffer))
            (turtles-mark-point "<>")
            (buffer-string))))))))
 
@@ -379,7 +378,7 @@
                 "line 9..")
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-grab-buffer test-buffer (current-buffer))
            (insert "]")
            (goto-char (mark))
            (insert "[")
@@ -423,7 +422,7 @@
                 "line 9..")
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-grab-buffer test-buffer (current-buffer))
            (insert "]")
            (goto-char (mark))
            (insert "[")
@@ -468,7 +467,7 @@
                 "line 98.")
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-grab-buffer test-buffer (current-buffer))
            (insert "]")
            (goto-char (mark))
            (insert "[")
@@ -516,7 +515,7 @@
          "]")
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-grab-buffer test-buffer (current-buffer))
            (insert "[")
            (goto-char (mark))
            (insert "]")
@@ -558,7 +557,7 @@
                 "line 9..")
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into test-buffer (current-buffer))
+           (turtles-grab-buffer test-buffer (current-buffer))
            (insert "]")
            (goto-char (mark))
            (insert "[")
@@ -583,7 +582,7 @@
       (setq pos (1- (match-end 0)))
       (goto-char (point-min))
       (ert-with-test-buffer (:name "grab")
-        (turtles-grab-buffer-into test-buffer (current-buffer))
+        (turtles-grab-buffer test-buffer (current-buffer))
         (goto-char (turtles-pos-in-window-grab pos))
         (turtles-mark-point "<>")
         (delete-trailing-whitespace)
@@ -620,7 +619,7 @@
       (setq pos (match-beginning 0))
       (goto-char (point-min))
       (ert-with-test-buffer (:name "grab")
-        (turtles-grab-buffer-into test-buffer (current-buffer))
+        (turtles-grab-buffer test-buffer (current-buffer))
         (goto-char (turtles-pos-in-window-grab pos))
         (should (equal "line 6."
                        (buffer-substring
@@ -640,7 +639,7 @@
       (insert (concat "  " (propertize "success" 'face 'success) "\n"))
 
       (ert-with-test-buffer (:name "grab")
-        (turtles-grab-buffer-into
+        (turtles-grab-buffer
          test-buffer (current-buffer)
          ;; list of faces to be grabbed
          '(highlight error success))
@@ -687,7 +686,7 @@
         "{Some} faces:\n  [highlight]\n  <<error>>\n  {success}"
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into
+           (turtles-grab-buffer
             test-buffer (current-buffer)
             '(highlight error success))
 
@@ -715,7 +714,7 @@
         "#s[Some] faces:\n  #h[highlight]\n  #e[error]\n  #s[success]"
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into
+           (turtles-grab-buffer
             test-buffer (current-buffer)
             '(highlight error success))
 
@@ -743,7 +742,7 @@
         "Some faces:\n  [highlight]\n  e[error]\n  success"
         (string-trim
          (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer-into
+           (turtles-grab-buffer
             test-buffer (current-buffer)
             '(highlight error success))
 
@@ -775,7 +774,7 @@
                (concat "|-Hello<>,\n"
                        "  world.                                                                      -|\n")
                (with-temp-buffer
-                 (turtles-grab-buffer-into testbuf (current-buffer) nil 'margins)
+                 (turtles-grab-buffer testbuf (current-buffer) nil 'margins)
                  (turtles-mark-point "<>")
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
@@ -792,7 +791,7 @@
       (should (equal
                "My very own header\n"
                (with-temp-buffer
-                 (turtles-grab-header-line-into testbuf (current-buffer))
+                 (turtles-grab-header-line testbuf (current-buffer))
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
@@ -808,7 +807,7 @@
       (should (equal
                "My very own mode line\n"
                (with-temp-buffer
-                 (turtles-grab-mode-line-into testbuf (current-buffer))
+                 (turtles-grab-mode-line testbuf (current-buffer))
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
@@ -905,7 +904,7 @@
       (insert "\n")
       (ert-with-test-buffer (:name "capture")
         (setq capture-buf (current-buffer))
-        (turtles-grab-buffer-into orig-buf capture-buf)
+        (turtles-grab-buffer orig-buf capture-buf)
         (goto-char (point-min))
 
         (should (search-forward "green on red"))
