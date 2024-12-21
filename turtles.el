@@ -584,14 +584,6 @@ as opening marker and CLOSING-MARKER as closing."
           (goto-char beg)
           (insert opening))))))
 
-(defun turtles-grab-buffer-to-string (buf)
-  "Grab BUF into a string.
-
-See `turtles-grab-buffer-into' for more details."
-  (with-temp-buffer
-    (turtles-grab-buffer-into buf (current-buffer))
-    (buffer-string)))
-
 (defun turtles-grab-window-to-string (win)
   "Grab WIN into a string.
 
