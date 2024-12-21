@@ -447,7 +447,7 @@ special cases like reading from the minibuffer."
                          (concat (format "[%s] " (turtles-this-instance))
                                  (apply #'format msg args))))))
 
-(defun turtles-instance-new-frame (inst-or-id)
+(defun turtles-new-frame-in-instance (inst-or-id)
   "Ask the instance INST-OR-ID to create a new frame.
 
 This opens a new frame on the Emacs instance run by turtles on a
