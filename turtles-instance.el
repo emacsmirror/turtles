@@ -130,10 +130,9 @@ either an instance or an instance id."
 (defun turtles-instance-shortdoc (inst)
   "Return the first line of the documentation of INST.
 
-Return the empty string if there is no documentation."
-  (if-let ((doc (turtles-instance-doc inst)))
-      (car (string-split doc"\n"))
-    ""))
+Return nil if there is no documentation."
+  (when-let ((doc (turtles-instance-doc inst)))
+      (car (string-split doc"\n"))))
 
 (defsubst turtles-instance-term-proc (inst)
   "Returns the process running in the term window.
@@ -315,7 +314,7 @@ Does nothing if the instance is already running."
         (turtles-io-wait-for 5 "Turtles Emacs failed to connect"
                              (lambda () (turtles-instance-conn inst)))
         (message "Turtles started %s: %s" (turtles-instance-id inst)
-                 (turtles-instance-shortdoc inst))))
+                 (or (turtles-instance-shortdoc inst) ""))))
 
     (with-current-buffer (turtles-instance-term-buf inst)
       (let ((w (turtles-instance-width inst))
@@ -357,15 +356,33 @@ Does nothing if the instance is already running."
 
     inst))
 
-(defun turtles-read-instance (prompt predicate)
-  (turtles-get-instance
-   (intern
-    (completing-read
-     prompt
-     turtles-instance-alist
-     (lambda (cell)
-       (funcall predicate (cdr cell)))
-     'require-match nil 'turtles-read-instance-history))))
+(defun turtles-read-instance (&optional prompt predicate)
+  "Ask the user to select an instance.
+
+Displays PROMPT and let the user choose among instances that
+match PREDICATE. Returns the `turtles-instance' that was chosen
+or nil.
+
+If specified, PREDICATE must be a function that takes a single
+argument of type `turtles-instance'."
+  (let ((completion-extra-properties
+         '(:annotation-function
+           (lambda (id-as-str)
+             (when-let* ((inst (turtles-get-instance (intern id-as-str)))
+                         (doc (turtles-instance-shortdoc inst)))
+               (concat " " doc)))))
+        (predicate (if predicate
+                       (lambda (cell)
+                         (funcall predicate (cdr cell)))
+                     #'always)))
+    (unless (delq nil (mapcar predicate turtles-instance-alist))
+      (error "No appropriate instances"))
+    (let ((choice (completing-read
+                   (or prompt "Instance: ")
+                   turtles-instance-alist predicate
+                   'require-match nil 'turtles-read-instance-history)))
+      (when choice
+        (alist-get (intern choice) turtles-instance-alist)))))
 
 (defun turtles--dirs-from-load-path ()
   (let ((args nil))
@@ -430,8 +447,8 @@ special cases like reading from the minibuffer."
                          (concat (format "[%s] " (turtles-this-instance))
                                  (apply #'format msg args))))))
 
-(defun turtles-new-client-frame (inst)
-  "Ask the instance INST to create a new frame.
+(defun turtles-instance-new-frame (inst-or-id)
+  "Ask the instance INST-OR-ID to create a new frame.
 
 This opens a new frame on the Emacs instance run by turtles on a
 window system, which is convenient for debugging.
@@ -442,19 +459,20 @@ frame, which only makes sense for graphical displays."
    (list
     (turtles-read-instance
      "Instance: " #'turtles-instance-live-p)))
-  (unless (turtles-instance-live-p inst)
-    (error "Instance not running: %s" (turtles-instance-id inst)))
-  (let ((params (frame-parameters)))
-    (unless (alist-get 'window-system params)
-      (error "No window system"))
-    (message "New client frame for %s: %s"
-             (turtles-instance-id inst)
-             (turtles-instance-eval inst
-              `(progn
-                 (prin1-to-string
-                  (make-frame
-                   '((window-system . ,(alist-get 'window-system params))
-                     (display . ,(alist-get 'display params))))))))))
+  (let ((inst (turtles-get-instance inst-or-id)))
+    (unless (turtles-instance-live-p inst)
+      (error "Instance not running: %s" (turtles-instance-id inst)))
+    (let ((params (frame-parameters)))
+      (unless (alist-get 'window-system params)
+        (error "No window system"))
+      (message "New client frame for %s: %s"
+               (turtles-instance-id inst)
+               (turtles-instance-eval inst
+                 `(progn
+                    (prin1-to-string
+                     (make-frame
+                      '((window-system . ,(alist-get 'window-system params))
+                        (display . ,(alist-get 'display params)))))))))))
 
 (defun turtles--let-term-settle (inst)
   "Wait until the Emacs process of INST is done updating the buffer."
