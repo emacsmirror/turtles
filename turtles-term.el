@@ -38,24 +38,24 @@
 (defvar term-width) ;; declared in term.el
 (defvar term-height) ;; declared in term.el
 
-(cl-defmethod turtles--term-exec ((_type (eql 'term)) cmdline width height)
+(cl-defmethod turtles--term-exec ((_type (eql term)) cmdline width height)
   (term-mode)
   (setq-local term-width width)
   (setq-local term-height height)
   (term-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline))
   (term-char-mode))
 
-(cl-defmethod turtles--term-truecolor-p ((_type (eql 'term)))
+(cl-defmethod turtles--term-truecolor-p ((_type (eql term)))
   (>= emacs-major-version 29))
 
-(cl-defmethod turtles--term-resize ((_type (eql 'term)) w h)
+(cl-defmethod turtles--term-resize ((_type (eql term)) w h)
   (unless (and (= term-width w) (= term-height h))
     (set-process-window-size (get-buffer-process (current-buffer)) h w)
     (term-reset-size h w)
 
     t))
 
-(cl-defmethod turtles--term-screen-string ((_type (eql 'term)))
+(cl-defmethod turtles--term-screen-string ((_type (eql term)))
   (turtles--term-substring-with-properties
    term-home-marker (point-max) '((font-lock-face . face))))
 

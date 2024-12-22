@@ -38,7 +38,7 @@
 (require 'eat)
 (require 'turtles-instance)
 
-(cl-defmethod turtles--term-exec ((_type (eql 'eat)) cmdline _width _height)
+(cl-defmethod turtles--term-exec ((_type (eql eat)) cmdline _width _height)
   ;; Recompile the terminfo database once before even attempting to
   ;; start eat. This avoids issues with the precompiled database being
   ;; incompatible with the current system.
@@ -57,15 +57,15 @@
   (setq-local eat-minimum-latency 0)
 
   ;; Don't blink
-  (setq-local eat-visible-cursor-type '(t nil nil))
+  (setq-local eat-default-cursor-type '(t nil nil))
   (setq-local eat-very-visible-cursor-type '(t nil nil))
 
   (eat-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline)))
 
-(cl-defmethod turtles--term-truecolor-p ((_type (eql 'eat)))
+(cl-defmethod turtles--term-truecolor-p ((_type (eql eat)))
   t)
 
-(cl-defmethod turtles--term-resize ((_type (eql 'eat)) width height)
+(cl-defmethod turtles--term-resize ((_type (eql eat)) width height)
   (let ((size (eat-term-size eat-terminal)))
     (when (or (/= width (car size))
               (/= height (cdr size)))
@@ -75,7 +75,7 @@
 
       t)))
 
-(cl-defmethod turtles--term-screen-string ((_type (eql 'eat)))
+(cl-defmethod turtles--term-screen-string ((_type (eql eat)))
   (turtles--term-substring-with-properties
           (eat-term-beginning eat-terminal)
           (eat-term-end eat-terminal)
