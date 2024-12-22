@@ -38,7 +38,7 @@
 (require 'eat)
 (require 'turtles-instance)
 
-(cl-defmethod turtles--term-exec ((_type (eql eat)) cmdline _width _height)
+(cl-defmethod turtles-terminal-exec ((_type (eql eat)) cmdline _width _height)
   ;; Recompile the terminfo database once before even attempting to
   ;; start eat. This avoids issues with the precompiled database being
   ;; incompatible with the current system.
@@ -81,10 +81,10 @@
 
   (eat-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline)))
 
-(cl-defmethod turtles--term-truecolor-p ((_type (eql eat)))
+(cl-defmethod turtles-terminal-truecolor-p ((_type (eql eat)))
   t)
 
-(cl-defmethod turtles--term-resize ((_type (eql eat)) width height)
+(cl-defmethod turtles-terminal-resize ((_type (eql eat)) width height)
   (let ((size (eat-term-size eat-terminal)))
     (when (or (/= width (car size))
               (/= height (cdr size)))
@@ -94,7 +94,7 @@
 
       t)))
 
-(cl-defmethod turtles--term-screen-range ((_type (eql eat)))
+(cl-defmethod turtles-terminal-screen-range ((_type (eql eat)))
   (cons (eat-term-beginning eat-terminal)
         (eat-term-end eat-terminal)))
 

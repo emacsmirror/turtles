@@ -126,7 +126,7 @@
         (insert " ")
         (insert (propertize "color" 'face '(:foreground "blue"))))
 
-      (let ((str (turtles--term-substring-with-properties
+      (let ((str (turtles--substring-with-properties
                   ;; start
                   (save-excursion
                     (goto-char (point-min))

@@ -237,9 +237,9 @@ Does nothing if the server is already live."
                           ;; it's likely in the middle of a redisplay.
                           (turtles--let-term-settle inst)
                           (with-current-buffer (turtles-instance-term-buf inst)
-                            (let ((range (turtles--term-screen-range
+                            (let ((range (turtles-terminal-screen-range
                                           (turtles-instance-terminal inst))))
-                              (turtles--term-substring-with-properties
+                              (turtles--substring-with-properties
                                (car range) (cdr range)
                                '((font-lock-face . face) (face . face))))))))
              (message . ,(lambda (_conn _id _method msg)
@@ -306,13 +306,13 @@ Does nothing if the instance is already running."
                                         ,(turtles-io-server-socket turtles--server)
                                         ',(turtles-instance-id inst)
                                         (lambda () ,(turtles-instance-setup inst))))))))
-          (when (turtles--term-truecolor-p terminal)
+          (when (turtles-terminal-truecolor-p terminal)
             ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
             ;; colors even if the termcap entry doesn't define that.
             ;; That works as long as the Emacs-side terminal supports 24bit colors,
             ;; which is the case for eat and term.el in Emacs 29.1 and later.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
-          (turtles--term-exec
+          (turtles-terminal-exec
            terminal
            cmdline
            (turtles-instance-width inst)
@@ -329,7 +329,7 @@ Does nothing if the instance is already running."
                  (or (turtles-instance-shortdoc inst) ""))))
 
     (with-current-buffer (turtles-instance-term-buf inst)
-      (when (turtles--term-resize terminal
+      (when (turtles-terminal-resize terminal
                                   (turtles-instance-width inst)
                                   (turtles-instance-height inst))
         (turtles--let-term-settle inst)))
@@ -488,32 +488,32 @@ frame, which only makes sense for graphical displays."
     (when (accept-process-output p 0.05)
       (accept-process-output p 0))))
 
-(cl-defgeneric turtles--term-exec (type cmdline width height)
+(cl-defgeneric turtles-terminal-exec (type cmdline width height)
   "Execute CMDLINE in a terminal of the TYPE in the current buffer.
 
 The terminal size is set to WIDTH x HEIGHT.")
 
-(cl-defgeneric turtles--term-truecolor-p (type)
+(cl-defgeneric turtles-terminal-truecolor-p (type)
   "Return non-nil if the terminal supports 24bit colors.")
 
-(cl-defgeneric turtles--term-resize (type width height)
+(cl-defgeneric turtles-terminal-resize (type width height)
   "Set the size of the terminal in the current buffer.
 
 TYPE specifies the terminal type. It must be the same as what was
-passed to `turtles--term-exec'.
+passed to `turtles-terminal-exec'.
 
 This function resizes the terminal to WIDTH x HEIGHT, if needed and return
 non-nil. If the terminal size is already correct, return nil.")
 
-(cl-defgeneric turtles--term-screen-range (type)
+(cl-defgeneric turtles-terminal-screen-range (type)
   "Return the start and end position of the terminal in the buffer.
 
 The return type should be a (cons start end).
 
 TYPE specifies the terminal type. It must be the same as what was
-passed to `turtles--term-exec'.")
+passed to `turtles-terminal-exec'.")
 
-(defun turtles--term-substring-with-properties (start end prop-alist)
+(defun turtles--substring-with-properties (start end prop-alist)
   "Take a string from a region of the current buffer.
 
 This function takes the string at the region START to END from
@@ -523,12 +523,12 @@ PROP-ALIST to the resulting string.
 PROP-ALIST is a list of source properties to dest properties."
   (let ((str (buffer-substring-no-properties start end)))
     (dolist (prop-cell prop-alist)
-      (turtles--term-copy-property
+      (turtles--copy-property
        (current-buffer) start end str 0 (car prop-cell) (cdr prop-cell)))
 
     str))
 
-(defun turtles--term-copy-property (src start-src end-src dest start-dest prop-src prop-dest)
+(defun turtles--copy-property (src start-src end-src dest start-dest prop-src prop-dest)
   "Copy a single property from SRC to DEST.
 
 START-SRC and END-SRC defines the source range in SRC.
