@@ -1,6 +1,7 @@
 ; -*- mode: emacs-lisp; lexical-binding: t -*-
 
 (eldev-use-package-archive 'gnu-elpa)
+(eldev-use-package-archive 'nongnu-elpa)
 
 (setq eldev-build-treat-warnings-as-errors t)
 (setf eldev-project-loading-mode 'byte-compiled)
@@ -9,6 +10,7 @@
 (eldev-use-plugin 'maintainer)
 (setq eldev-release-test-local t)
 (eldev-add-loading-roots 'test "test")
+(eldev-add-extra-dependencies 'test '(:package eat :optional t))
 
 ;; Exclude work and build files so Eldev doctor ignores them.
 (setf eldev-standard-excludes

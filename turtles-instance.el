@@ -28,12 +28,13 @@
 (require 'pcase)
 (require 'server)
 (require 'subr-x) ;; when-let
-(require 'term)
 (require 'turtles-io)
+(require 'turtles-term)
 
-(defvar term-home-marker) ;; declared in term.el
-(defvar term-width) ;; declared in term.el
-(defvar term-height) ;; declared in term.el
+(defcustom turtles-terminal-type 'term
+  "Package providing terminal implementation for the instance."
+  :group 'turtles
+  :type '(choice (const eat) (const term)))
 
 (defconst turtles-term-face-remapping-alist
   '((term :foreground "#ffffff" :background "#000000")
@@ -115,7 +116,8 @@ Accessed using `turtles-this-instance'.")
   (width 80 :read-only t :documentation "Terminal width, in characters.")
   (height 24 :read-only t :documentation "Terminal height, in characters.")
   (setup nil :read-only t :documentation "Expression to execute before every test.")
-  (term-buf nil :documentation "Buffer running this instance, if live."))
+  (term-buf nil :documentation "Buffer running this instance, if live.")
+  (type nil :documentation "Terminal type, \\='term or \\='eat."))
 
 (defun turtles-get-instance (id)
   "Get an instance from its ID.
@@ -176,13 +178,17 @@ For example:
    (turtles-instance-conn (turtles-get-instance inst-or-id))
    'eval expr :timeout timeout))
 
-(cl-defmacro turtles-definstance (id (&key (width 80) (height 24))
+(cl-defmacro turtles-definstance (id (&key (width 80) (height 24) type)
                                      doc &rest setup)
   "Define an instance with the given ID.
 
 DOC is a documentation string for that instance.
 
 WIDTH and HEIGHT are the terminal dimensions.
+
+TYPE is the terminal type to use for this instance, \\='term or
+\\='eat. By default, the value of `turtles-terminal-type' is used
+the first time this instance is started.
 
 SETUP is code to run on the instance before every test."
   (declare (indent 2) (doc-string 3))
@@ -192,9 +198,10 @@ SETUP is code to run on the instance before every test."
           :doc ,doc
           :width ,width
           :height ,height
+          :type ,type
           :setup '(progn ,@setup))))
 
-(turtles-definstance default (:width 80 :height 20)
+(turtles-definstance default (:width 80 :height 20 :type 'term)
   "Emacs instance to run tests on.
 
 This is the instance used by `ert-test' when no instance is
@@ -242,7 +249,8 @@ Does nothing if the server is already live."
                           ;; it's likely in the middle of a redisplay.
                           (turtles--let-term-settle inst)
                           (with-current-buffer (turtles-instance-term-buf inst)
-                            (buffer-substring term-home-marker (point-max))))))
+                            (turtles--term-screen-string
+                             (turtles-instance-type inst))))))
              (message . ,(lambda (_conn _id _method msg)
                            (message msg))))))))
 
@@ -275,18 +283,21 @@ Does nothing if the instance is already running."
                    (not (turtles-instance-live-p inst))))))
   (let ((inst (turtles-get-instance inst-or-id)))
     (turtles-start-server)
+
     (unless (turtles-instance-live-p inst)
       (turtles-stop-instance inst) ; cleanup
+
+      (unless (turtles-instance-type inst)
+        (setf (turtles-instance-type inst) turtles-terminal-type))
+      (pcase (turtles-instance-type inst)
+        ('term (require 'turtles-term-term))
+        ('eat (require 'turtles-term-eat)))
+
       (setf (turtles-instance-term-buf inst)
             (if (buffer-live-p (turtles-instance-term-buf inst))
                 (turtles-instance-term-buf inst)
               (generate-new-buffer (format " *term-%s*" (turtles-instance-id inst)))))
       (with-current-buffer (turtles-instance-term-buf inst)
-        (term-mode)
-        (setq-local face-remapping-alist turtles-term-face-remapping-alist)
-        (setq-local term-width (turtles-instance-width inst))
-        (setq-local term-height (turtles-instance-height inst))
-
         (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
                          "-nw" "-Q")))
           (setq cmdline
@@ -308,8 +319,13 @@ Does nothing if the instance is already running."
             ;; only defines 256. That works, because term.el in
             ;; Emacs 29.1 and later support 24 bit colors.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
-          (term-exec (current-buffer) "*turtles*" (car cmdline) nil (cdr cmdline)))
-        (term-char-mode)
+          (turtles--term-exec
+           (turtles-instance-type inst)
+           cmdline
+           (turtles-instance-width inst)
+           (turtles-instance-height inst)))
+
+        (setq-local face-remapping-alist turtles-term-face-remapping-alist)
         (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
         (turtles-io-wait-until
          (lambda () (turtles-instance-conn inst))
@@ -319,12 +335,10 @@ Does nothing if the instance is already running."
                  (or (turtles-instance-shortdoc inst) ""))))
 
     (with-current-buffer (turtles-instance-term-buf inst)
-      (let ((w (turtles-instance-width inst))
-            (h (turtles-instance-height inst)))
-        (unless (and (= term-width w) (= term-height h))
-          (set-process-window-size (get-buffer-process (turtles-instance-term-buf inst)) h w)
-          (term-reset-size h w)
-          (turtles--let-term-settle inst))))
+      (when (turtles--term-resize (turtles-instance-type inst)
+                                  (turtles-instance-width inst)
+                                  (turtles-instance-height inst))
+        (turtles--let-term-settle inst)))
 
     inst))
 
