@@ -111,4 +111,41 @@
           (custom-set-variables `(turtles-send-messages-upstream ,original-value now)))
       (setq turtles-send-messages-upstream original-value))))
 
+(ert-deftest turtles-term-substring-with-properties ()
+  (ert-with-test-buffer ()
+    (let ((source (current-buffer)))
+      (let ((inhibit-read-only t))
+        (insert (propertize "This buffer " 'read-only t))
+        (insert (propertize "is" 'font-lock-face '(:foreground "purple")))
+        (insert " ")
+        (insert (propertize "in" 'face '(:foreground "yellow")))
+        (insert " ")
+        (insert (propertize "full"
+                            'font-lock-face '(:foreground "red")
+                            'cursor-face '(:background "cyan")))
+        (insert " ")
+        (insert (propertize "color" 'face '(:foreground "blue"))))
+
+      (let ((str (turtles--term-substring-with-properties
+                  ;; start
+                  (save-excursion
+                    (goto-char (point-min))
+                    (search-forward "buffer")
+                    (match-beginning 0))
+                  ;; end
+                  (save-excursion
+                    (goto-char (point-min))
+                    (search-forward "full"))
+                  '((face . face) (font-lock-face . face)))))
+
+        (should (equal "buffer is in full" str))
+        (should (equal '(:foreground "purple") (get-text-property 7 'face str)))
+        (should (equal '(:foreground "purple") (get-text-property 8 'face str)))
+        (should (equal nil (get-text-property 9 'face str)))
+        (should (equal '(:foreground "yellow") (get-text-property 10 'face str)))
+        (should (equal '(:foreground "yellow") (get-text-property 11 'face str)))
+        (should (equal nil (get-text-property 12 'face str)))
+        (should (equal '(:foreground "red") (get-text-property 13 'face str)))
+        (should (equal '(:foreground "red") (get-text-property 16 'face str)))))))
+
 (require 'turtles-instance)
