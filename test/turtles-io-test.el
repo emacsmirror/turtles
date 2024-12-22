@@ -354,9 +354,9 @@
   (with-temp-buffer
     (insert str)
     (cl-letf (((symbol-function 'buffer-list)
-               (lambda () '(mybuffer1 mybuffer2 mybuffer3)))
+               (lambda (&rest _) '(mybuffer1 mybuffer2 mybuffer3)))
               ((symbol-function 'buffer-name)
-               (lambda (buf)
+               (lambda (buf &rest _)
                  (cond
                   ((eq buf 'mybuffer1) "my buffer<1>")
                   ((eq buf 'mybuffer2) "my buffer<2>")
