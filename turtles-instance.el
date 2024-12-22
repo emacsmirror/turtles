@@ -29,7 +29,6 @@
 (require 'server)
 (require 'subr-x) ;; when-let
 (require 'turtles-io)
-(require 'turtles-term)
 
 (defconst turtles-term-face-remapping-alist
   '((term :foreground "#ffffff" :background "#000000")
@@ -288,9 +287,12 @@ Does nothing if the instance is already running."
     (unless (turtles-instance-live-p inst)
       (turtles-stop-instance inst) ; cleanup
 
-      (pcase (turtles-instance-terminal inst)
-        ('term (require 'turtles-term-term))
-        ('eat (require 'turtles-term-eat)))
+      ;; Load turtles-term for interfacing with term.el, turtles-eat
+      ;; for interfacing with eat.el.
+      (let ((terminal-ext (intern (concat "turtles-" (symbol-name (turtles-instance-terminal inst))))))
+        (unless (require terminal-ext nil 'noerror)
+          (error "Extension %s failed to load. Did you install package %s properly?"
+                 terminal-ext terminal-ext)))
 
       (setf (turtles-instance-term-buf inst)
             (if (buffer-live-p (turtles-instance-term-buf inst))
@@ -328,7 +330,9 @@ Does nothing if the instance is already running."
         (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
         (turtles-io-wait-until
          (lambda () (turtles-instance-conn inst))
-         (lambda () "Turtles Emacs failed to connect")
+         (lambda () (format "Turtles Emacs failed to connect.<<EOF\n%sEOF"
+                            (with-current-buffer (turtles-instance-term-buf inst)
+                              (buffer-string))))
          :max-wait-time 0.25)
         (message "Turtles started %s: %s" (turtles-instance-id inst)
                  (or (turtles-instance-shortdoc inst) ""))))
@@ -492,6 +496,67 @@ frame, which only makes sense for graphical displays."
   (when-let ((p (turtles-instance-term-proc inst)))
     (when (accept-process-output p 0.05)
       (accept-process-output p 0))))
+
+(cl-defgeneric turtles--term-exec (type cmdline width height)
+  "Execute CMDLINE in a terminal of the TYPE in the current buffer.
+
+The terminal size is set to WIDTH x HEIGHT.")
+
+(cl-defgeneric turtles--term-truecolor-p (type)
+  "Return non-nil if the terminal supports 24bit colors.")
+
+(cl-defgeneric turtles--term-resize (type width height)
+  "Set the size of the terminal in the current buffer.
+
+TYPE specifies the terminal type. It must be the same as what was
+passed to `turtles--term-exec'.
+
+This function resizes the terminal to WIDTH x HEIGHT, if needed and return
+non-nil. If the terminal size is already correct, return nil.")
+
+(cl-defgeneric turtles--term-screen-string (type)
+  "Return a string containing the current buffer terminal screen.
+
+TYPE specifies the terminal type. It must be the same as what was
+passed to `turtles--term-exec'.")
+
+(defun turtles--term-substring-with-properties (start end prop-alist)
+  "Take a string from a region of the current buffer.
+
+This function takes the string at the region START to END from
+the current buffer and copies only the properties listed in
+PROP-ALIST to the resulting string.
+
+PROP-ALIST is a list of source properties to dest properties."
+  (let ((str (buffer-substring-no-properties start end)))
+    (dolist (prop-cell prop-alist)
+      (turtles--term-copy-property
+       (current-buffer) start end str 0 (car prop-cell) (cdr prop-cell)))
+
+    str))
+
+(defun turtles--term-copy-property (src start-src end-src dest start-dest prop-src prop-dest)
+  "Copy a single property from SRC to DEST.
+
+START-SRC and END-SRC defines the source range in SRC.
+
+DEST is the destination object. The destination range start at
+START-DEST and is of the same length as the source range.
+
+PROP-SRC is the property from SRC to copy and PROP-DEST is the
+property to set in DEST.
+
+SRC and DEST can be a string or a buffer."
+  (let ((pos-src start-src)
+        (diff (- start-dest start-src))
+        next-pos-src)
+    (while (< pos-src end-src)
+      (let ((val (get-text-property pos-src prop-src src)))
+        (setq next-pos-src (next-single-property-change pos-src prop-src src end-src))
+        (when val
+          (add-text-properties
+           (+ pos-src diff) (+ next-pos-src diff) (list prop-dest val) dest))
+        (setq pos-src next-pos-src)))))
 
 (provide 'turtles-instance)
 

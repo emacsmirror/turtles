@@ -1,4 +1,4 @@
-;;; turtles-term.el --- Generic terminal interface -*- lexical-binding: t -*-
+;;; turtles-term.el --- Turtles terminal using term.el -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024 Stephane Zermatten
 
@@ -22,68 +22,41 @@
 ;; communicate with a terminal implementations.
 ;;
 
+;;; Commentary:
+;;
+;; This package provides an implementation of the generic interface of
+;; turtles-term.el that's based on the term.el package.
+;;
+
 ;;; Code:
+
 (require 'cl-lib)
+(require 'term)
+(require 'turtles-instance)
 
-(cl-defgeneric turtles--term-exec (type cmdline width height)
-  "Execute CMDLINE in a terminal of the TYPE in the current buffer.
+(defvar term-home-marker) ;; declared in term.el
+(defvar term-width) ;; declared in term.el
+(defvar term-height) ;; declared in term.el
 
-The terminal size is set to WIDTH x HEIGHT.")
+(cl-defmethod turtles--term-exec ((_type (eql 'term)) cmdline width height)
+  (term-mode)
+  (setq-local term-width width)
+  (setq-local term-height height)
+  (term-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline))
+  (term-char-mode))
 
-(cl-defgeneric turtles--term-truecolor-p (type)
-  "Return non-nil if the terminal supports 24bit colors.")
+(cl-defmethod turtles--term-truecolor-p ((_type (eql 'term)))
+  (>= emacs-major-version 29))
 
-(cl-defgeneric turtles--term-resize (type width height)
-  "Set the size of the terminal in the current buffer.
+(cl-defmethod turtles--term-resize ((_type (eql 'term)) w h)
+  (unless (and (= term-width w) (= term-height h))
+    (set-process-window-size (get-buffer-process (current-buffer)) h w)
+    (term-reset-size h w)
 
-TYPE specifies the terminal type. It must be the same as what was
-passed to `turtles--term-exec'.
+    t))
 
-This function resizes the terminal to WIDTH x HEIGHT, if needed and return
-non-nil. If the terminal size is already correct, return nil.")
-
-(cl-defgeneric turtles--term-screen-string (type)
-  "Return a string containing the current buffer terminal screen.
-
-TYPE specifies the terminal type. It must be the same as what was
-passed to `turtles--term-exec'.")
-
-(defun turtles--term-substring-with-properties (start end prop-alist)
-  "Take a string from a region of the current buffer.
-
-This function takes the string at the region START to END from
-the current buffer and copies only the properties listed in
-PROP-ALIST to the resulting string.
-
-PROP-ALIST is a list of source properties to dest properties."
-  (let ((str (buffer-substring-no-properties start end)))
-    (dolist (prop-cell prop-alist)
-      (turtles--term-copy-property
-       (current-buffer) start end str 0 (car prop-cell) (cdr prop-cell)))
-
-    str))
-
-(defun turtles--term-copy-property (src start-src end-src dest start-dest prop-src prop-dest)
-  "Copy a single property from SRC to DEST.
-
-START-SRC and END-SRC defines the source range in SRC.
-
-DEST is the destination object. The destination range start at
-START-DEST and is of the same length as the source range.
-
-PROP-SRC is the property from SRC to copy and PROP-DEST is the
-property to set in DEST.
-
-SRC and DEST can be a string or a buffer."
-  (let ((pos-src start-src)
-        (diff (- start-dest start-src))
-        next-pos-src)
-    (while (< pos-src end-src)
-      (let ((val (get-text-property pos-src prop-src src)))
-        (setq next-pos-src (next-single-property-change pos-src prop-src src end-src))
-        (when val
-          (add-text-properties
-           (+ pos-src diff) (+ next-pos-src diff) (list prop-dest val) dest))
-        (setq pos-src next-pos-src)))))
+(cl-defmethod turtles--term-screen-string ((_type (eql 'term)))
+  (turtles--term-substring-with-properties
+   term-home-marker (point-max) '((font-lock-face . face))))
 
 (provide 'turtles-term)

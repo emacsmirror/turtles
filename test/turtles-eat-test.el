@@ -21,7 +21,7 @@
 (require 'ert-x)
 (require 'eat)
 (require 'turtles)
-(require 'turtles-term-eat)
+(require 'turtles-eat)
 
 (ert-deftest turtles-eat-hello-world ()
   (turtles-ert-test :instance 'eat)
