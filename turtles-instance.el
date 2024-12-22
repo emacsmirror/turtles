@@ -30,18 +30,6 @@
 (require 'subr-x) ;; when-let
 (require 'turtles-io)
 
-(defconst turtles-term-face-remapping-alist
-  '((term :foreground "#ffffff" :background "#000000")
-    (term-color-black :foreground "#000000" :background "#000000")
-    (term-color-red :foreground "#ff0000" :background "#ff0000")
-    (term-color-green :foreground "#00ff00" :background "#00ff00")
-    (term-color-blue :foreground "#0000ff" :background "#0000ff")
-    (term-color-yellow :foreground "#ffff00" :background "#ffff0")
-    (term-color-magenta :foreground "#ff00ff" :background "#ff00ff")
-    (term-color-cyan :foreground "#00ffff" :background "#00ffff")
-    (term-color-white :foreground "#ffffff" :background "#fffff"))
-  "Hardcoded color faces for term-mode, for consistency.")
-
 (defvar turtles-instance-alist nil
   "Alist of symbol to `turtles-instance' definitions.")
 
@@ -326,7 +314,6 @@ Does nothing if the instance is already running."
            (turtles-instance-width inst)
            (turtles-instance-height inst)))
 
-        (setq-local face-remapping-alist turtles-term-face-remapping-alist)
         (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
         (turtles-io-wait-until
          (lambda () (turtles-instance-conn inst))

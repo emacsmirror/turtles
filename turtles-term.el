@@ -38,8 +38,22 @@
 (defvar term-width) ;; declared in term.el
 (defvar term-height) ;; declared in term.el
 
+
+(defconst turtles--term-face-remapping-alist
+  '((term :foreground "#ffffff" :background "#000000")
+    (term-color-black :foreground "#000000" :background "#000000")
+    (term-color-red :foreground "#ff0000" :background "#ff0000")
+    (term-color-green :foreground "#00ff00" :background "#00ff00")
+    (term-color-blue :foreground "#0000ff" :background "#0000ff")
+    (term-color-yellow :foreground "#ffff00" :background "#ffff0")
+    (term-color-magenta :foreground "#ff00ff" :background "#ff00ff")
+    (term-color-cyan :foreground "#00ffff" :background "#00ffff")
+    (term-color-white :foreground "#ffffff" :background "#fffff"))
+  "Hardcoded color faces for term-mode, for consistency.")
+
 (cl-defmethod turtles--term-exec ((_type (eql term)) cmdline width height)
   (term-mode)
+  (setq-local face-remapping-alist turtles--term-face-remapping-alist)
   (setq-local term-width width)
   (setq-local term-height height)
   (term-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline))
