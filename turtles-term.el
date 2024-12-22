@@ -30,6 +30,9 @@
 
 The terminal size is set to WIDTH x HEIGHT.")
 
+(cl-defgeneric turtles--term-truecolor-p (type)
+  "Return non-nil if the terminal supports 24bit colors.")
+
 (cl-defgeneric turtles--term-resize (type width height)
   "Set the size of the terminal in the current buffer.
 
@@ -44,7 +47,6 @@ non-nil. If the terminal size is already correct, return nil.")
 
 TYPE specifies the terminal type. It must be the same as what was
 passed to `turtles--term-exec'.")
-
 
 (defun turtles--term-substring-with-properties (start end prop-alist)
   "Take a string from a region of the current buffer.

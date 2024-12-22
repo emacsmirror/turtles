@@ -319,11 +319,11 @@ Does nothing if the instance is already running."
                                         ,(turtles-io-server-socket turtles--server)
                                         ',(turtles-instance-id inst)
                                         (lambda () ,(turtles-instance-setup inst))))))))
-          (when (>= emacs-major-version 29)
+          (when (turtles--term-truecolor-p (turtles-instance-type inst))
             ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
-            ;; colors even though the termcap entry for eterm-color
-            ;; only defines 256. That works, because term.el in
-            ;; Emacs 29.1 and later support 24 bit colors.
+            ;; colors even if the termcap entry doesn't define that.
+            ;; That works as long as the Emacs-side terminal supports 24bit colors,
+            ;; which is the case for eat and term.el in Emacs 29.1 and later.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
           (turtles--term-exec
            (turtles-instance-type inst)

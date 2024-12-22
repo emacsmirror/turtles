@@ -39,6 +39,9 @@
   (term-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline))
   (term-char-mode))
 
+(cl-defmethod turtles--term-truecolor-p ((_type (eql 'term)))
+  (>= emacs-major-version 29))
+
 (cl-defmethod turtles--term-resize ((_type (eql 'term)) w h)
   (unless (and (= term-width w) (= term-height h))
     (set-process-window-size (get-buffer-process (current-buffer)) h w)

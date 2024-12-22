@@ -30,7 +30,18 @@
 
 (cl-defmethod turtles--term-exec ((_type (eql 'eat)) cmdline _width _height)
   (eat-mode)
+  ;; Force truecolor mode, no matter the display, so we can grab these
+  ;; colors during tests.
+  (setq-local eat-term-name "eat-truecolor")
+
+  ;; Latency doesn't play well with tests. Turn it off.
+  (setq-local eat-maximum-latency 0)
+  (setq-local eat-minimum-latency 0)
+
   (eat-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline)))
+
+(cl-defmethod turtles--term-truecolor-p ((_type (eql 'eat)))
+  t)
 
 (cl-defmethod turtles--term-resize ((_type (eql 'eat)) width height)
   (let ((size (eat-term-size eat-terminal)))
@@ -44,9 +55,9 @@
 
 (cl-defmethod turtles--term-screen-string ((_type (eql 'eat)))
   (turtles--term-substring-with-properties
-   (eat-term-beginning eat-terminal)
-   (eat-term-end eat-terminal)
-   '((font-lock-face . face)
-     (face . face))))
+          (eat-term-beginning eat-terminal)
+          (eat-term-end eat-terminal)
+          '((font-lock-face . face)
+            (face . face))))
 
 (provide 'turtles-term-eat)

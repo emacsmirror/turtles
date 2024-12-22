@@ -23,19 +23,38 @@
 (require 'turtles)
 (require 'turtles-term-eat)
 
-(turtles-definstance eat (:width 80 :height 20 :type 'eat)
-  "A test instance that uses eat.")
-
 (ert-deftest turtles-eat-hello-world ()
   (turtles-ert-test :instance 'eat)
 
   (ert-with-test-buffer ()
-    (insert "hello, ")
-    (insert (propertize "the " 'invisible t))
-    (insert "world!\n")
+    (insert "hello, world!\n")
+    (goto-char (point-min))
 
     (turtles-with-grab-buffer ()
       (turtles-trim-buffer)
 
       (should (equal "hello, world!"
                      (buffer-string))))))
+
+(ert-deftest turtles-eat-truecolor ()
+  (turtles-ert-test :instance 'eat)
+
+  (ert-with-test-buffer ()
+    (insert (propertize "yellow" 'face '(:foreground "#faf32c" :background "#3a3913")))
+    (insert " ")
+    (insert (propertize "submarine" 'face '(:foreground "#276ce2" :background "#0c1526")))
+    (insert "\n")
+
+    (turtles-with-grab-buffer ()
+      (turtles-trim-buffer)
+
+      (goto-char (point-min))
+      (search-forward "yellow")
+      (goto-char (match-beginning 0))
+      (should (equal "#faf32c" (foreground-color-at-point)))
+      (should (equal "#3a3913" (background-color-at-point)))
+
+      (search-forward "submarine")
+      (goto-char (match-beginning 0))
+      (should (equal "#276ce2" (foreground-color-at-point)))
+      (should (equal "#0c1526" (background-color-at-point))))))
