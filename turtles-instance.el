@@ -321,9 +321,12 @@ Does nothing if the instance is already running."
         (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
         (turtles-io-wait-until
          (lambda () (turtles-instance-conn inst))
-         (lambda () (format "Turtles Emacs failed to connect.<<EOF\n%sEOF"
-                            (with-current-buffer (turtles-instance-term-buf inst)
-                              (buffer-string))))
+         (lambda () (concat
+                     "Turtles Emacs failed to connect: "
+                     (let ((end (min (+ 60 (point-min)) (point-max))))
+                       (concat
+                        (buffer-substring-no-properties (point-min) (point-max))
+                        (when (< end (point-max)) "...")))))
          :max-wait-time 0.25)
         (message "Turtles started %s: %s" (turtles-instance-id inst)
                  (or (turtles-instance-shortdoc inst) ""))))
