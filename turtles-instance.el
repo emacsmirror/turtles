@@ -210,6 +210,12 @@ given."
     (clear-minibuffer-message))
   (menu-bar-mode -1))
 
+(turtles-definstance eat (:width 80 :height 24 :type 'eat)
+  "Emacs instance in an eat terminal."
+  (when (eval-when-compile (>= emacs-major-version 29))
+    (clear-minibuffer-message))
+  (menu-bar-mode -1))
+
 (defun turtles-this-instance ()
   "ID of the instance for which the current Emacs process was started.
 
