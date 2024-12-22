@@ -27,8 +27,7 @@
 (require 'cl-lib)
 (require 'subr-x) ;; when-let
 
-(when (eval-when-compile (< emacs-major-version 29))
-  (defvar print-unreadable-function nil))
+(defvar print-unreadable-function nil) ;; Emacs 29.1
 
 (cl-defstruct (turtles-io-server
                (:constructor turtles-io--make-server)
@@ -66,12 +65,11 @@ one of which is ever specified.")
 (define-error 'turtles-io-unknown-method "Unknown method")
 (define-error 'turtles-io-timeout "Operation timed out")
 
-(defvar turtles-io-unreadable-obj-functions nil
-  "Hook that is passed replacement objects created for unreadables.
+(defvar turtles-io-unreadable-obj-props nil
+  "Properties added to unreadable objects.
 
-These objects are all cons starting with a symbol followed by a
-property list. This is an opportunity to allow adding properties
-to identify the current process to the remote process.")
+This is useful to add properties that identify the current
+process to the objects it retruns.")
 
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
@@ -104,15 +102,15 @@ Return an instance of type `turtles-io-server'."
                   :socket socket
                   :method-alist method-alist))
          (proc (make-network-process
-                 :name " *turtles-io-server*"
-                 :family 'local
-                 :service socket
-                 :server t
-                 :noquery t
-                 :stop t
-                 :sentinel (lambda (proc _msg)
-                             (turtles-io--server-sentinel server proc))
-                 :filter nil)))
+                :name " *turtles-io-server*"
+                :family 'local
+                :service socket
+                :server t
+                :noquery t
+                :stop t
+                :sentinel (lambda (proc _msg)
+                            (turtles-io--server-sentinel server proc))
+                :filter nil)))
     (setf (turtles-io-server-proc server) proc)
     (continue-process proc)
 
@@ -157,17 +155,17 @@ as an error response."
         (id-var (make-symbol "id"))
         (result-var (make-symbol "result"))
         (method-var (make-symbol "_method")))
-  `(lambda (,conn-var ,id-var ,method-var ,var)
-     (let ((,result-var (condition-case err
-                            `(:result ,(progn ,@body))
-                          ;; Just t would be enough on Emacs 29, but
-                          ;; Emacs 26 doesn't support catching
-                          ;; everything with t.
-                          ((error t) `(:error ,err)))))
-       (when ,id-var
-         (turtles-io--send
-          ,conn-var
-          `(:id ,,id-var . ,,result-var)))))))
+    `(lambda (,conn-var ,id-var ,method-var ,var)
+       (let ((,result-var (condition-case err
+                              `(:result ,(progn ,@body))
+                            ;; Just t would be enough on Emacs 29, but
+                            ;; Emacs 26 doesn't support catching
+                            ;; everything with t.
+                            ((error t) `(:error ,err)))))
+         (when ,id-var
+           (turtles-io--send
+            ,conn-var
+            `(:id ,,id-var . ,,result-var)))))))
 
 (defun turtles-io-send-error (conn id error)
   "Send an error back to the caller.
@@ -264,93 +262,79 @@ MSG can be any lisp object that can be printed."
         (print-number-table nil)
         (float-output-format nil)
         (print-unreadable-function
-         (when (eval-when-compile (>= emacs-major-version 29))
+         (when (>= emacs-major-version 29)
            (turtles-io--make-print-unreadable-func))))
     (prin1 msg (current-buffer))
 
-    (when (eval-when-compile (< emacs-major-version 29))
+    (unless print-unreadable-function
       (turtles-io--rewrite-unreadables start-pos (point)))))
 
-;; Always declare these post-29 functions to keep the compiler happy.
-;; They're not used in Emacs < 29.
-(defun turtles-io--make-print-unreadable-func ())
-(defun turtles-io--quote-str (_str))
-
-(when (eval-when-compile (>= emacs-major-version 29))
-  (defun turtles-io--make-print-unreadable-func ()
-    "Return a function that transforms unreadable OBJ.
+(defun turtles-io--make-print-unreadable-func ()
+  "Return a function that transforms unreadable OBJ.
 
 The returned function transform OBJ into a readable placeholder.
 
 This is meant to be used as `print-unreadable-function'."
-    (let ((closing
-           (let ((obj `(turtles-obj)))
-             ;; It would be much more convenient to create
-             ;; objects, pass them to the hook, then call
-             ;; prin1-to-string, unfortunately calling prin1
-             ;; from this print-unreadable-function messes up
-             ;; the output, at least in Emacs 29.
-             (run-hook-with-args 'turtles-io-unreadable-obj-functions obj)
-             (if (cdr obj)
-                 (concat " " (substring (prin1-to-string (cdr obj)) 1 -1) ")")
-               ")"))))
-      (lambda (obj _escaped)
-        (concat
-         "(turtles-"
-         (pcase (type-of obj)
-           ('buffer
-            (if (buffer-live-p obj)
-                (format "buffer :name %s"
-                        (turtles-io--quote-str (buffer-name obj)))
-              "buffer :live nil"))
-           ('process
-            (format "process :name %s"
-                    (turtles-io--quote-str (process-name obj))))
-           ('frame
-            (if (frame-live-p obj)
-                (format "frame :name %s"
-                        (turtles-io--quote-str
-                         (alist-get 'name (frame-parameters obj))))
-              "frame :live nil"))
-           ('window
-            (if-let ((buf (window-buffer obj)))
-                (format "window :buffer %s"
-                        (turtles-io--quote-str (buffer-name buf)))
-              "window"))
-           ('marker
-            (if-let ((pos (marker-position obj))
-                     (buf (marker-buffer obj)))
-                (format "marker :pos %d :buffer %s"
-                        (marker-position obj)
-                        (turtles-io--quote-str (buffer-name buf)))
-              "marker"))
-           ('overlay
-            (format "overlay :from %d :to %d :buffer %s"
-                    (overlay-start obj)
-                    (overlay-end obj)
-                    (turtles-io--quote-str
-                     (buffer-name (overlay-buffer obj)))))
-           (type (format "obj :type %s" type)))
-         closing)))))
+  (let ((closing
+           ;; It would be much more convenient to call prin1-to-string
+           ;; on each objects, unfortunately calling prin1 from this
+           ;; print-unreadable-function messes up the output, at least
+           ;; in Emacs 29.
+           (if turtles-io-unreadable-obj-props
+               (concat
+                " "
+                (substring (prin1-to-string turtles-io-unreadable-obj-props) 1 -1)
+                ")")
+             ")")))
+    (lambda (obj _escaped)
+      (concat
+       "(turtles-"
+       (pcase (type-of obj)
+         ('buffer
+          (if (buffer-live-p obj)
+              (format "buffer :name %s"
+                      (turtles-io--quote-str (buffer-name obj)))
+            "buffer :live nil"))
+         ('process
+          (format "process :name %s"
+                  (turtles-io--quote-str (process-name obj))))
+         ('frame
+          (if (frame-live-p obj)
+              (format "frame :name %s"
+                      (turtles-io--quote-str
+                       (alist-get 'name (frame-parameters obj))))
+            "frame :live nil"))
+         ('window
+          (if-let ((buf (window-buffer obj)))
+              (format "window :buffer %s"
+                      (turtles-io--quote-str (buffer-name buf)))
+            "window"))
+         ('marker
+          (if-let ((pos (marker-position obj))
+                   (buf (marker-buffer obj)))
+              (format "marker :pos %d :buffer %s"
+                      (marker-position obj)
+                      (turtles-io--quote-str (buffer-name buf)))
+            "marker"))
+         ('overlay
+          (format "overlay :from %d :to %d :buffer %s"
+                  (overlay-start obj)
+                  (overlay-end obj)
+                  (turtles-io--quote-str
+                   (buffer-name (overlay-buffer obj)))))
+         (type (format "obj :type %s" type)))
+       closing))))
 
-(when (eval-when-compile (>= emacs-major-version 29))
-  (defun turtles-io--quote-str (str)
-    "Quote STR for Emacs.
+(defun turtles-io--quote-str (str)
+  "Quote STR for Emacs.
 
 This is a poor replacement for `prin1-to-string', to be used in
 `print-unreadable-function', during which `prin1' cannot safely
 be called."
-    (concat "\"" (replace-regexp-in-string "[\\\"]" "\\\\\\&" str) "\"")))
+  (concat "\"" (replace-regexp-in-string "[\\\"]" "\\\\\\&" str) "\""))
 
-;; Always declare these pre-29 functions to keep the compiler happy.
-;; They're not used in Emacs >= 29.
-(defun turtles-io--rewrite-unreadables (_start-pos _end-pos))
-(defun turtles-io--search-unreadable (_limit))
-(defun turtles-io--match-unreadable (_list _regex-func))
-
-(when (eval-when-compile (< emacs-major-version 29))
-  (defun turtles-io--rewrite-unreadables (start-pos end-pos)
-    "Transform unreadable objects into something readable.
+(defun turtles-io--rewrite-unreadables (start-pos end-pos)
+  "Transform unreadable objects into something readable.
 
 This function processes the buffer region between START-POS and
 END-POS that should be the output of `prin1', transforming
@@ -364,107 +348,108 @@ unfortunately-named dead frames or unsupported objects.
 
 This is only useful before Emacs 29.1, as setting
 `print-unreadable-function' is much safer and simpler."
-    (let ((end-pos (copy-marker end-pos)))
-      (unwind-protect
-          (save-excursion
-            (goto-char start-pos)
-            (while (turtles-io--search-unreadable end-pos)
-              ;; point is after "#<"
-              (let* ((obj-start (point)) obj)
-                (setq
-                 obj
-                 (cond
-                  ;; #<killed-buffer>
-                  ((looking-at "killed buffer>")
-                   (goto-char (match-end 0))
-                   '(turtles-buffer :live nil))
+  (let ((end-pos (copy-marker end-pos)))
+    (unwind-protect
+        (save-excursion
+          (goto-char start-pos)
+          (while (turtles-io--search-unreadable end-pos)
+            ;; point is after "#<"
+            (let* ((obj-start (point)) obj)
+              (setq
+               obj
+               (cond
+                ;; #<killed-buffer>
+                ((looking-at "killed buffer>")
+                 (goto-char (match-end 0))
+                 '(turtles-buffer :live nil))
 
-                  ;; #<buffer <buffer-name>>
-                  ((looking-at "buffer ")
-                   (turtles-io--match-unreadable
-                    (buffer-list)
-                    (lambda (b)
-                      (format "\\(%s\\)" (regexp-quote (buffer-name b)))))
-                   `(turtles-buffer :name ,(match-string 1)))
+                ;; #<buffer <buffer-name>>
+                ((looking-at "buffer ")
+                 (turtles-io--match-unreadable
+                  (buffer-list)
+                  (lambda (b)
+                    (format "\\(%s\\)" (regexp-quote (buffer-name b)))))
+                 `(turtles-buffer :name ,(match-string 1)))
 
-                  ;; #<process <process-name>>
-                  ((looking-at "process ")
-                   (turtles-io--match-unreadable
-                    (process-list)
-                    (lambda (p)
-                      (format "\\(%s\\)" (regexp-quote (process-name p)))))
-                   `(turtles-process :name ,(match-string 1)))
+                ;; #<process <process-name>>
+                ((looking-at "process ")
+                 (turtles-io--match-unreadable
+                  (process-list)
+                  (lambda (p)
+                    (format "\\(%s\\)" (regexp-quote (process-name p)))))
+                 `(turtles-process :name ,(match-string 1)))
 
-                  ;; #<frame <frame-name> 0x[0-9a-f]+>
-                  ((looking-at "frame ")
-                   (turtles-io--match-unreadable
-                    (frame-list)
-                    (lambda (f)
-                      (format "\\(%s\\) 0x[0-9a-f]+"
-                              (regexp-quote (alist-get 'name (frame-parameters f))))))
-                   `(turtles-frame :name ,(match-string 1)))
+                ;; #<frame <frame-name> 0x[0-9a-f]+>
+                ((looking-at "frame ")
+                 (turtles-io--match-unreadable
+                  (frame-list)
+                  (lambda (f)
+                    (format "\\(%s\\) 0x[0-9a-f]+"
+                            (regexp-quote (alist-get 'name (frame-parameters f))))))
+                 `(turtles-frame :name ,(match-string 1)))
 
-                  ;; #<dead frame <frame-name> 0x[0-9a-f]+>
-                  ((looking-at "dead frame ")
-                   ;; Dead frames still include the name. We can but
-                   ;; hope that it doesn't contain any >.
-                   (search-forward ">")
-                   `(turtles-frame :live nil))
+                ;; #<dead frame <frame-name> 0x[0-9a-f]+>
+                ((looking-at "dead frame ")
+                 ;; Dead frames still include the name. We can but
+                 ;; hope that it doesn't contain any >.
+                 (search-forward ">")
+                 `(turtles-frame :live nil))
 
-                  ;; #<window [0-9]+>
-                  ((looking-at "window [0-9]+>")
-                   (goto-char (match-end 0))
-                   `(turtles-window))
+                ;; #<window [0-9]+>
+                ((looking-at "window [0-9]+>")
+                 (goto-char (match-end 0))
+                 `(turtles-window))
 
-                  ;; #<window [0-9]+ on <buffer-name>>
-                  ((looking-at "window ")
-                   (turtles-io--match-unreadable
-                    (buffer-list)
-                    (lambda (b)
-                      (format "[0-9]+ on \\(%s\\)" (regexp-quote (buffer-name b)))))
-                   `(turtles-window :buffer ,(match-string 1)))
+                ;; #<window [0-9]+ on <buffer-name>>
+                ((looking-at "window ")
+                 (turtles-io--match-unreadable
+                  (buffer-list)
+                  (lambda (b)
+                    (format "[0-9]+ on \\(%s\\)" (regexp-quote (buffer-name b)))))
+                 `(turtles-window :buffer ,(match-string 1)))
 
-                  ;; #<marker in no buffer>
-                  ((looking-at "marker \\((moves after insertion) \\)?in no buffer>")
-                   (goto-char (match-end 0))
-                   `(turtles-marker))
+                ;; #<marker in no buffer>
+                ((looking-at "marker \\((moves after insertion) \\)?in no buffer>")
+                 (goto-char (match-end 0))
+                 `(turtles-marker))
 
-                  ;; #<marker at [0-9]+ in <buffer-name>>
-                  ((looking-at "marker \\((moves after insertion) \\)?")
-                   (turtles-io--match-unreadable
-                    (buffer-list)
-                    (lambda (b) (format "at \\([0-9]+\\) in \\(%s\\)"
-                                        (regexp-quote (buffer-name b)))))
-                   `(turtles-marker
-                     :pos ,(string-to-number (match-string 1))
-                     :buffer ,(match-string 2)))
+                ;; #<marker at [0-9]+ in <buffer-name>>
+                ((looking-at "marker \\((moves after insertion) \\)?")
+                 (turtles-io--match-unreadable
+                  (buffer-list)
+                  (lambda (b) (format "at \\([0-9]+\\) in \\(%s\\)"
+                                      (regexp-quote (buffer-name b)))))
+                 `(turtles-marker
+                   :pos ,(string-to-number (match-string 1))
+                   :buffer ,(match-string 2)))
 
-                  ;; #<overlay from [0-9]+ to [0-9]+ on <buffer-name>>
-                  ((looking-at "overlay ")
-                   (turtles-io--match-unreadable
-                    (buffer-list)
-                    (lambda (b) (format "from \\([0-9]+\\) to \\([0-9]+\\) in \\(%s\\)"
-                                        (regexp-quote (buffer-name b)))))
-                   `(turtles-overlay
-                     :from ,(string-to-number (match-string 1))
-                     :to ,(string-to-number (match-string 2))
-                     :buffer ,(match-string 3)))
+                ;; #<overlay from [0-9]+ to [0-9]+ on <buffer-name>>
+                ((looking-at "overlay ")
+                 (turtles-io--match-unreadable
+                  (buffer-list)
+                  (lambda (b) (format "from \\([0-9]+\\) to \\([0-9]+\\) in \\(%s\\)"
+                                      (regexp-quote (buffer-name b)))))
+                 `(turtles-overlay
+                   :from ,(string-to-number (match-string 1))
+                   :to ,(string-to-number (match-string 2))
+                   :buffer ,(match-string 3)))
 
-                  ((looking-at "\\(killed \\|dead \\)?\\([A-Za-z-_]+\\)\\( .*?\\)?>")
-                   (goto-char (match-end 0))
-                   `(turtles-obj :type ,(intern (match-string 2))))
-                  (t (error "Cannot parse unreadable %s"
-                            (buffer-substring-no-properties
-                             (- obj-start 2) (min end-pos (+ obj-start 30)))))))
-                ;; point is after the closing ">"
-                (delete-region (- obj-start 2) (point))
-                (run-hook-with-args 'turtles-io-unreadable-obj-functions obj)
-                (prin1 obj (current-buffer)))))
+                ((looking-at "\\(killed \\|dead \\)?\\([A-Za-z-_]+\\)\\( .*?\\)?>")
+                 (goto-char (match-end 0))
+                 `(turtles-obj :type ,(intern (match-string 2))))
+                (t (error "Cannot parse unreadable %s"
+                          (buffer-substring-no-properties
+                           (- obj-start 2) (min end-pos (+ obj-start 30)))))))
+              ;; point is after the closing ">"
+              (delete-region (- obj-start 2) (point))
+              (when turtles-io-unreadable-obj-props
+                (setcdr obj (append (cdr obj) turtles-io-unreadable-obj-props)))
+              (prin1 obj (current-buffer)))))
 
-        (move-marker end-pos nil))))
+      (move-marker end-pos nil))))
 
-  (defun turtles-io--match-unreadable (list regexp-func)
-    "Find a matching unreadable regexp.
+(defun turtles-io--match-unreadable (list regexp-func)
+  "Find a matching unreadable regexp.
 
 This function builds a list of regexps by applying REGEXP-FUNC on
 LIST and tries to apply one of them in order just after the end
@@ -474,20 +459,20 @@ It fails if it cannot find a match.
 
 Check the match data after a successful return for information
 about what matched."
-    (let ((start-pos (match-beginning 0))
-          (names (sort (mapcar regexp-func list)
-                       (lambda (a b) (> (length a) (length b))))))
-      (goto-char (match-end 0))
-      (catch 'turtles-return
-        (dolist (name-regexp names)
-          (when (looking-at (concat name-regexp ">"))
-            (goto-char (match-end 0))
-            (throw 'turtles-return nil)))
-        (error "Failed to parse unreadable: #<%s..."
-               (buffer-substring-no-properties start-pos (min (point-max) (+ 30 (point))))))))
+  (let ((start-pos (match-beginning 0))
+        (names (sort (mapcar regexp-func list)
+                     (lambda (a b) (> (length a) (length b))))))
+    (goto-char (match-end 0))
+    (catch 'turtles-return
+      (dolist (name-regexp names)
+        (when (looking-at (concat name-regexp ">"))
+          (goto-char (match-end 0))
+          (throw 'turtles-return nil)))
+      (error "Failed to parse unreadable: #<%s..."
+             (buffer-substring-no-properties start-pos (min (point-max) (+ 30 (point))))))))
 
-  (defun turtles-io--search-unreadable (limit)
-    "Search for the start of an unreadable object from point to LIMIT.
+(defun turtles-io--search-unreadable (limit)
+  "Search for the start of an unreadable object from point to LIMIT.
 
 This function goes through the region from point to LIMIT looking
 for a #<, which signals the opening of an unreadable object. It
@@ -496,24 +481,24 @@ ignores escaped and quoted #<.
 Returns non-nil when an opening #< was found, with the point just
 after the #<. Return nil once LIMIT was reached without finding
 any unreadable object."
-    (let ((escaped nil) (in-quote nil) (dash nil))
-      (while (and (< (point) limit) (not (and dash (eq (char-after) ?<))))
-        (when dash (setq dash nil))
-        (let ((c (char-after)))
-          (cond
-           (escaped
-            (setq escaped nil))
-           ((eq c ?\\)
-            (setq escaped t))
-           ((eq c ?\")
-            (setq in-quote (not in-quote)))
-           ((and (not in-quote) (eq c ?#))
-            (setq dash t))))
-        (goto-char (1+ (point)))))
-    (when (eq (char-after) ?<)
-      (goto-char (1+ (point)))
+  (let ((escaped nil) (in-quote nil) (dash nil))
+    (while (and (< (point) limit) (not (and dash (eq (char-after) ?<))))
+      (when dash (setq dash nil))
+      (let ((c (char-after)))
+        (cond
+         (escaped
+          (setq escaped nil))
+         ((eq c ?\\)
+          (setq escaped t))
+         ((eq c ?\")
+          (setq in-quote (not in-quote)))
+         ((and (not in-quote) (eq c ?#))
+          (setq dash t))))
+      (goto-char (1+ (point)))))
+  (when (eq (char-after) ?<)
+    (goto-char (1+ (point)))
 
-      t)))
+    t))
 
 (defun turtles-io--server-sentinel (server proc)
   "Process sentinel for server connections"

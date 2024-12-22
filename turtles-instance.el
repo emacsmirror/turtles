@@ -423,9 +423,7 @@ special cases like reading from the minibuffer."
   (interactive "F")
   (setq turtles--this-instance instance-id)
   (advice-add 'message :after #'turtles--send-message-upstream)
-  (add-hook 'turtles-io-unreadable-obj-functions
-            (lambda (obj)
-              (setcdr obj (plist-put (cdr obj) :instance instance-id))))
+  (setq turtles-io-unreadable-obj-props `(:instance ,instance-id))
   (setq turtles--upstream
         (turtles-io-connect
          socket
