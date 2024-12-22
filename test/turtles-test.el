@@ -653,24 +653,19 @@
 
         (search-forward "faces")
         (should (equal nil (get-text-property (1- (point)) 'face)))
-        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
 
         (search-forward "highlight")
         (should (equal 'highlight (get-text-property (1- (point)) 'face)))
-        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
 
         (search-forward "error")
         (should (equal 'error (get-text-property (1- (point)) 'face)))
-        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
 
         (search-forward "link")
         ;; link isn't on the list of faces to be grabbed
         (should (equal nil (get-text-property (1- (point)) 'face)))
-        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))
 
         (search-forward "success")
-        (should (equal 'success (get-text-property (1- (point)) 'face)))
-        (should (equal nil (get-text-property (1- (point)) 'font-lock-face)))))))
+        (should (equal 'success (get-text-property (1- (point)) 'face)))))))
 
 (ert-deftest turtles-grab-and-mark-faces ()
   (turtles-ert-test)
@@ -919,18 +914,18 @@
 
 (ert-deftest turtles-faces-from-color ()
   (ert-with-test-buffer ()
-    (insert (propertize "red" 'font-lock-face '(:foreground "#ff0000" :background "#000000")))
+    (insert (propertize "red" 'face '(:foreground "#ff0000" :background "#000000")))
     (insert " ")
-    (insert (propertize "green" 'font-lock-face '(:foreground "#00ff00" :background "#000000")))
+    (insert (propertize "green" 'face '(:foreground "#00ff00" :background "#000000")))
     (insert " ")
-    (insert (propertize "blue" 'font-lock-face '(:foreground "#0000ff" :background "#000000")))
+    (insert (propertize "blue" 'face '(:foreground "#0000ff" :background "#000000")))
     (insert "\n")
 
-    (insert (propertize "red bg" 'font-lock-face '(:foreground "#ffffff" :background "#ff0000")))
+    (insert (propertize "red bg" 'face '(:foreground "#ffffff" :background "#ff0000")))
     (insert " ")
-    (insert (propertize "green bg" 'font-lock-face '(:foreground "#ffffff" :background "#00ff00")))
+    (insert (propertize "green bg" 'face '(:foreground "#ffffff" :background "#00ff00")))
     (insert " ")
-    (insert (propertize "blue bg" 'font-lock-face '(:foreground "#ffffff" :background "#0000ff")))
+    (insert (propertize "blue bg" 'face '(:foreground "#ffffff" :background "#0000ff")))
 
     (turtles--faces-from-color '((error . (:foreground "#ff0000" :background "#000000"))
                                  (success . (:foreground "#00ff00" :background "#000000"))
@@ -942,18 +937,15 @@
 
     (should (equal (concat "[red](error) [green](success) blue\n"
                            "red bg green bg [blue bg](link)")
-                   (buffer-string)))
-
-    (should-not (get-text-property (point-min) 'font-lock-face))
-    (should-not (next-single-property-change (point-min) 'font-lock-face))))
+                   (buffer-string)))))
 
 (ert-deftest turtles-faces-from-color-inexact ()
   (ert-with-test-buffer ()
-    (insert (propertize "red" 'font-lock-face '(:foreground "#e10000" :background "black")))
+    (insert (propertize "red" 'face '(:foreground "#e10000" :background "black")))
     (insert " ")
-    (insert (propertize "green" 'font-lock-face '(:foreground "#007100" :background "black")))
+    (insert (propertize "green" 'face '(:foreground "#007100" :background "black")))
     (insert " ")
-    (insert (propertize "blue" 'font-lock-face '(:foreground "#0000ef" :background "black")))
+    (insert (propertize "blue" 'face '(:foreground "#0000ef" :background "black")))
 
     (turtles--faces-from-color '((error . (:foreground "#ff0000" :background "#000000"))
                                  (success . (:foreground "#008000" :background "#000000"))

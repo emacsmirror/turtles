@@ -129,7 +129,7 @@ want to test, it's usually better to call `turtles-grab-buffer'
 or `turtles-grab-win', which just return the window body.
 
 If GRAB-FACES is empty, the colors are copied as
-\\='font-lock-face text properties, with as much fidelity as the
+\\='face text properties, with as much fidelity as the
 terminal allows.
 
 If GRAB-FACES is not empty, the faces on that list - and only
@@ -154,7 +154,6 @@ so any other face not in GRAB-FACE are absent."
           (let ((grab (turtles-io-call-method
                        (turtles-upstream) 'grab (turtles-this-instance))))
             (insert grab))
-          (font-lock-mode)
           (when grab-faces
             (turtles--faces-from-color grab-face-alist)))
       (turtles--teardown-grab-faces cookies))))
@@ -243,7 +242,7 @@ current buffer, if possible.
 If MARGIN is non-nil, include the left and right margins.
 
 If GRAB-FACES is empty, the colors are copied as
-\\='font-lock-face text properties, with as much fidelity as the
+\\='face text properties, with as much fidelity as the
 terminal allows.
 
 If GRAB-FACES is not empty, the faces on that list - and only
@@ -404,7 +403,7 @@ COOKIES is one of the return values of
 (defun turtles--faces-from-color (face-alist)
   "Recognize faces from FACE-ALIST in current buffer.
 
-This function replaces the font-lock-face color properties set by
+This function replaces the face color properties set by
 ansi-color with face properties from FACE-ALIST.
 
 FACE-ALIST must be an alist of face symbol to face spec, as
@@ -425,7 +424,7 @@ set."
       (while
           (progn
             (goto-char next)
-            (let* ((spec (get-text-property (point) 'font-lock-face))
+            (let* ((spec (get-text-property (point) 'face))
                    (col (when spec (turtles--color-values spec)))
                    (face (when col (alist-get col reverse-face-alist nil nil #'equal))))
               (when face
@@ -435,7 +434,7 @@ set."
 
             (let ((next (or next (point-max))))
               (when (> next (point))
-                (remove-text-properties (point) next '(font-lock-face nil)))
+                (remove-text-properties (point) next '(face nil)))
               (when current-face
                 (add-text-properties range-start next `(face ,current-face))
                 (setq range-start nil)
