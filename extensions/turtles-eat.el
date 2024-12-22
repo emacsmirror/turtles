@@ -42,9 +42,28 @@
   ;; Recompile the terminfo database once before even attempting to
   ;; start eat. This avoids issues with the precompiled database being
   ;; incompatible with the current system.
-  (let ((stamp (expand-file-name ".recompiled" eat-term-terminfo-directory)))
+  (let ((stamp (expand-file-name ".turtles" eat-term-terminfo-directory)))
     (unless (file-exists-p stamp)
       (eat-compile-terminfo)
+
+      ;; eat-truecolor define Tc, but that's not enough for Emacs 26.
+      ;; https://www.gnu.org/software/emacs/manual/html_node/efaq/Colors-on-a-TTY.html
+      (when (= emacs-major-version 26)
+        (let ((extra-tic
+               (make-temp-file
+                "eat-24bit" nil ".tic"
+                (concat "eat-truecolor|Emacs Eat with truecolor for Emacs 26,\n"
+                        "  use=eat-256color,\n"
+                        "  Tc,\n"
+                        "  setb24=\\E[48;2;%p1%{65536}%/%d;%p1%{256}%/%{255}%&%d;%p1%{255}%&%dm,\n"
+                        "  setf24=\\E[38;2;%p1%{65536}%/%d;%p1%{256}%/%{255}%&%d;%p1%{255}%&%dm,\n"))))
+          (with-temp-buffer
+            (unless (zerop (call-process
+                            "env" nil (current-buffer) nil
+                            (format "TERMINFO=%s" eat-term-terminfo-directory)
+                            (executable-find "tic") "-x" extra-tic))
+              (error "Failed to create eat-truecolor %s" (buffer-string))))))
+
       (with-temp-buffer (write-file stamp))))
 
   (eat-mode)

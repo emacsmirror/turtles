@@ -39,6 +39,8 @@
 (ert-deftest turtles-eat-truecolor ()
   (turtles-ert-test :instance 'eat)
 
+  (should (equal 16777216 (display-color-cells)))
+
   (ert-with-test-buffer ()
     (insert (propertize "yellow" 'face '(:foreground "#faf32c" :background "#3a3913")))
     (insert " ")
