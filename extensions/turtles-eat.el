@@ -5,7 +5,7 @@
 ;; Author: Stephane Zermatten <szermatt@gmx.net>
 ;; Maintainer: Stephane Zermatten <szermatt@gmail.com>
 ;; Version: 0.1snapshot
-;; Package-Requires: ((turtles "0.1snapshot"))
+;; Package-Requires: ((turtles "0.1snapshot") (eat "0.9"))
 ;; Keywords: testing, unix
 ;; URL: http://github.com/szermatt/turtles
 
