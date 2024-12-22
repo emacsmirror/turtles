@@ -21,18 +21,18 @@
 (require 'ert-x)
 (require 'turtles-instance)
 
-(turtles-definstance turtles-test-restart ()
-  "A one-off test instance to test restart.")
+(turtles-definstance turtles--restart ()
+  "A private test instance to test restart.")
 
-(turtles-definstance turtles-test-larger-frame (:width 132 :height 43)
-  "A test instance with a larger frame.")
+(turtles-definstance turtles--132x43 (:width 132 :height 43)
+  "A private test instance with a larger frame.")
 
 (ert-deftest turtles-instance-restart ()
   (turtles-start-server)
   (should turtles--server)
   (should (turtles-io-server-live-p turtles--server))
 
-  (let ((inst (turtles-get-instance 'turtles-test-restart))
+  (let ((inst (turtles-get-instance 'turtles--restart))
         buf proc)
     (should inst)
     (should (eq inst (turtles-stop-instance inst)))
@@ -71,8 +71,8 @@
       (should (equal 80 term-width))
       (should (equal 20 term-height)))))
 
-(ert-deftest turtles-instance-larger-frame-size ()
-  (let ((inst (turtles-start-instance 'turtles-test-larger-frame)))
+(ert-deftest turtles-instance-turtles--132x43-size ()
+  (let ((inst (turtles-start-instance 'turtles--132x43)))
     (with-current-buffer (turtles-instance-term-buf inst)
       (should (equal 132 term-width))
       (should (equal 43 term-height)))))
