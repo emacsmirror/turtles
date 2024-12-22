@@ -269,7 +269,8 @@ Does nothing if the instance is already running."
                  "Instance to start: "
                  (lambda (inst)
                    (not (turtles-instance-live-p inst))))))
-  (let ((inst (turtles-get-instance inst-or-id)))
+  (let* ((inst (turtles-get-instance inst-or-id))
+         (terminal (turtles-instance-terminal inst)))
     (turtles-start-server)
 
     (unless (turtles-instance-live-p inst)
@@ -277,7 +278,7 @@ Does nothing if the instance is already running."
 
       ;; Load turtles-term for interfacing with term.el, turtles-eat
       ;; for interfacing with eat.el.
-      (let ((terminal-ext (intern (concat "turtles-" (symbol-name (turtles-instance-terminal inst))))))
+      (let ((terminal-ext (intern (concat "turtles-" (symbol-name terminal)))))
         (unless (require terminal-ext nil 'noerror)
           (error "Extension %s failed to load. Did you install package %s properly?"
                  terminal-ext terminal-ext)))
@@ -302,14 +303,14 @@ Does nothing if the instance is already running."
                                         ,(turtles-io-server-socket turtles--server)
                                         ',(turtles-instance-id inst)
                                         (lambda () ,(turtles-instance-setup inst))))))))
-          (when (turtles--term-truecolor-p (turtles-instance-terminal inst))
+          (when (turtles--term-truecolor-p terminal)
             ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
             ;; colors even if the termcap entry doesn't define that.
             ;; That works as long as the Emacs-side terminal supports 24bit colors,
             ;; which is the case for eat and term.el in Emacs 29.1 and later.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
           (turtles--term-exec
-           (turtles-instance-terminal inst)
+           terminal
            cmdline
            (turtles-instance-width inst)
            (turtles-instance-height inst)))
@@ -325,7 +326,7 @@ Does nothing if the instance is already running."
                  (or (turtles-instance-shortdoc inst) ""))))
 
     (with-current-buffer (turtles-instance-term-buf inst)
-      (when (turtles--term-resize (turtles-instance-terminal inst)
+      (when (turtles--term-resize terminal
                                   (turtles-instance-width inst)
                                   (turtles-instance-height inst))
         (turtles--let-term-settle inst)))
