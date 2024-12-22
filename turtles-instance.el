@@ -31,11 +31,6 @@
 (require 'turtles-io)
 (require 'turtles-term)
 
-(defcustom turtles-terminal-type 'term
-  "Package providing terminal implementation for the instance."
-  :group 'turtles
-  :type '(choice (const eat) (const term)))
-
 (defconst turtles-term-face-remapping-alist
   '((term :foreground "#ffffff" :background "#000000")
     (term-color-black :foreground "#000000" :background "#000000")
@@ -117,7 +112,7 @@ Accessed using `turtles-this-instance'.")
   (height 24 :read-only t :documentation "Terminal height, in characters.")
   (setup nil :read-only t :documentation "Expression to execute before every test.")
   (term-buf nil :documentation "Buffer running this instance, if live.")
-  (type nil :documentation "Terminal type, \\='term or \\='eat."))
+  (terminal 'term :documentation "Terminal type, \\='term or \\='eat."))
 
 (defun turtles-get-instance (id)
   "Get an instance from its ID.
@@ -178,17 +173,17 @@ For example:
    (turtles-instance-conn (turtles-get-instance inst-or-id))
    'eval expr :timeout timeout))
 
-(cl-defmacro turtles-definstance (id (&key (width 80) (height 24) type)
-                                     doc &rest setup)
+(cl-defmacro turtles-definstance
+    (id (&key (width 80) (height 24) (terminal 'term))
+        doc &rest setup)
   "Define an instance with the given ID.
 
 DOC is a documentation string for that instance.
 
 WIDTH and HEIGHT are the terminal dimensions.
 
-TYPE is the terminal type to use for this instance, \\='term or
-\\='eat. By default, the value of `turtles-terminal-type' is used
-the first time this instance is started.
+TERMINAL is the terminal type to use for this instance, term or
+eat, term by default.
 
 SETUP is code to run on the instance before every test."
   (declare (indent 2) (doc-string 3))
@@ -198,10 +193,10 @@ SETUP is code to run on the instance before every test."
           :doc ,doc
           :width ,width
           :height ,height
-          :type ,type
+          :terminal ',terminal
           :setup '(progn ,@setup))))
 
-(turtles-definstance default (:width 80 :height 20 :type 'term)
+(turtles-definstance default (:width 80 :height 20)
   "Emacs instance to run tests on.
 
 This is the instance used by `ert-test' when no instance is
@@ -210,7 +205,7 @@ given."
     (clear-minibuffer-message))
   (menu-bar-mode -1))
 
-(turtles-definstance eat (:width 80 :height 24 :type 'eat)
+(turtles-definstance eat (:terminal eat :width 80 :height 24)
   "Emacs instance in an eat terminal."
   (when (eval-when-compile (>= emacs-major-version 29))
     (clear-minibuffer-message))
@@ -256,7 +251,7 @@ Does nothing if the server is already live."
                           (turtles--let-term-settle inst)
                           (with-current-buffer (turtles-instance-term-buf inst)
                             (turtles--term-screen-string
-                             (turtles-instance-type inst))))))
+                             (turtles-instance-terminal inst))))))
              (message . ,(lambda (_conn _id _method msg)
                            (message msg))))))))
 
@@ -293,9 +288,7 @@ Does nothing if the instance is already running."
     (unless (turtles-instance-live-p inst)
       (turtles-stop-instance inst) ; cleanup
 
-      (unless (turtles-instance-type inst)
-        (setf (turtles-instance-type inst) turtles-terminal-type))
-      (pcase (turtles-instance-type inst)
+      (pcase (turtles-instance-terminal inst)
         ('term (require 'turtles-term-term))
         ('eat (require 'turtles-term-eat)))
 
@@ -319,14 +312,14 @@ Does nothing if the instance is already running."
                                         ,(turtles-io-server-socket turtles--server)
                                         ',(turtles-instance-id inst)
                                         (lambda () ,(turtles-instance-setup inst))))))))
-          (when (turtles--term-truecolor-p (turtles-instance-type inst))
+          (when (turtles--term-truecolor-p (turtles-instance-terminal inst))
             ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
             ;; colors even if the termcap entry doesn't define that.
             ;; That works as long as the Emacs-side terminal supports 24bit colors,
             ;; which is the case for eat and term.el in Emacs 29.1 and later.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
           (turtles--term-exec
-           (turtles-instance-type inst)
+           (turtles-instance-terminal inst)
            cmdline
            (turtles-instance-width inst)
            (turtles-instance-height inst)))
@@ -341,7 +334,7 @@ Does nothing if the instance is already running."
                  (or (turtles-instance-shortdoc inst) ""))))
 
     (with-current-buffer (turtles-instance-term-buf inst)
-      (when (turtles--term-resize (turtles-instance-type inst)
+      (when (turtles--term-resize (turtles-instance-terminal inst)
                                   (turtles-instance-width inst)
                                   (turtles-instance-height inst))
         (turtles--let-term-settle inst)))
