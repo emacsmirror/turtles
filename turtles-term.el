@@ -69,8 +69,7 @@
 
     t))
 
-(cl-defmethod turtles--term-screen-string ((_type (eql term)))
-  (turtles--term-substring-with-properties
-   term-home-marker (point-max) '((font-lock-face . face))))
+(cl-defmethod turtles--term-screen-range ((_type (eql term)))
+  (cons term-home-marker (point-max)))
 
 (provide 'turtles-term)

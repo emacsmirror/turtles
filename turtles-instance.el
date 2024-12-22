@@ -237,8 +237,11 @@ Does nothing if the server is already live."
                           ;; it's likely in the middle of a redisplay.
                           (turtles--let-term-settle inst)
                           (with-current-buffer (turtles-instance-term-buf inst)
-                            (turtles--term-screen-string
-                             (turtles-instance-terminal inst))))))
+                            (let ((range (turtles--term-screen-range
+                                          (turtles-instance-terminal inst))))
+                              (turtles--term-substring-with-properties
+                               (car range) (cdr range)
+                               '((font-lock-face . face) (face . face))))))))
              (message . ,(lambda (_conn _id _method msg)
                            (message msg))))))))
 
@@ -502,8 +505,10 @@ passed to `turtles--term-exec'.
 This function resizes the terminal to WIDTH x HEIGHT, if needed and return
 non-nil. If the terminal size is already correct, return nil.")
 
-(cl-defgeneric turtles--term-screen-string (type)
-  "Return a string containing the current buffer terminal screen.
+(cl-defgeneric turtles--term-screen-range (type)
+  "Return the start and end position of the terminal in the buffer.
+
+The return type should be a (cons start end).
 
 TYPE specifies the terminal type. It must be the same as what was
 passed to `turtles--term-exec'.")

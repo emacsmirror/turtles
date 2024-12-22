@@ -94,12 +94,9 @@
 
       t)))
 
-(cl-defmethod turtles--term-screen-string ((_type (eql eat)))
-  (turtles--term-substring-with-properties
-          (eat-term-beginning eat-terminal)
-          (eat-term-end eat-terminal)
-          '((font-lock-face . face)
-            (face . face))))
+(cl-defmethod turtles--term-screen-range ((_type (eql eat)))
+  (cons (eat-term-beginning eat-terminal)
+        (eat-term-end eat-terminal)))
 
 (provide 'turtles-eat)
 
