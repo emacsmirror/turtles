@@ -48,7 +48,7 @@
 
       ;; eat-truecolor define Tc, but that's not enough for Emacs 26.
       ;; https://www.gnu.org/software/emacs/manual/html_node/efaq/Colors-on-a-TTY.html
-      (when (= emacs-major-version 26)
+      (when (<= emacs-major-version 27)
         (let ((extra-tic
                (make-temp-file
                 "eat-24bit" nil ".tic"
