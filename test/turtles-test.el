@@ -52,7 +52,6 @@
       (insert (format "line %d\n" i)))
     (goto-char (point-min))
     (turtles-with-grab-buffer ()
-      (turtles-trim-buffer)
       (should
        (equal
         (concat
@@ -85,7 +84,6 @@
       (insert (format "line %d\n" i)))
     (goto-char (point-max))
     (turtles-with-grab-buffer ()
-      (turtles-trim-buffer)
       (should
        (equal
         (concat
@@ -129,7 +127,7 @@
          "line 14------------------------------------------------------------------------$\n"
          "line 15------------------------------------------------------------------------$\n"
          "line 16------------------------------------------------------------------------$\n"
-         "line 17------------------------------------------------------------------------$\n")
+         "line 17------------------------------------------------------------------------$")
         (buffer-string))))))
 
 (ert-deftest turtles-grab-window-horiz-center ()
@@ -1190,7 +1188,6 @@
     (insert ", ")
     (insert (propertize "success" 'face 'success))
     (turtles-with-grab-buffer (:faces '(success (error . "{}") ))
-      (turtles-trim-buffer)
       (should (equal "{error}, success" (buffer-string)))
       (goto-char (point-min))
       (search-forward "success")
@@ -1208,7 +1205,7 @@
 
       (turtles-with-grab-buffer (:margins t)
         (delete-trailing-whitespace)
-        (should (equal "|-Hello, world.                                                               -|\n"
+        (should (equal "|-Hello, world.                                                               -|"
                        (buffer-string))))))
 
 (ert-deftest turtles-with-grab-mode-line ()
@@ -1217,8 +1214,7 @@
   (ert-with-test-buffer ()
     (setq-local mode-line-format "My mode line")
     (turtles-with-grab-buffer (:mode-line t)
-      (delete-trailing-whitespace)
-      (should (equal "My mode line\n" (buffer-string))))))
+      (should (equal "My mode line" (buffer-string))))))
 
 
 (ert-deftest turtles-with-grab-header-line ()
@@ -1227,8 +1223,7 @@
   (ert-with-test-buffer ()
     (setq-local header-line-format "My header line")
     (turtles-with-grab-buffer (:header-line t)
-      (delete-trailing-whitespace)
-      (should (equal "My header line\n" (buffer-string))))))
+      (should (equal "My header line" (buffer-string))))))
 
 (ert-deftest turtles-read-from-minibuffer ()
   (turtles-ert-test)
@@ -1255,8 +1250,6 @@
     (insert "world!\n")
 
     (turtles-with-grab-buffer () ;; Grab the current buffer content
-      (turtles-trim-buffer)      ;; Remove any extra newlines
-
       ;; Check the buffer content that was displayed
       (should (equal "hello, world!"
                      (buffer-string))))))

@@ -814,7 +814,7 @@ The following keyword arguments post-process what was grabbed:
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
                                               frame win buf minibuffer mode-line header-line
-                                              margins faces)
+                                              margins faces trim)
                                         &rest body)
   "Grab a section of the terminal and store it into a test buffer.
 
@@ -833,8 +833,8 @@ Additionally, unless FACES is specified, captured colors are
 available as overlay colors, within the limits of the turtles
 terminal, usually limited to 256 colors.
 
-More keyword arguments can be specified in parentheses, before
-BODY:
+The following keyword arguments can be specified in parentheses,
+before BODY, to modify what is grabbed:
 
   - The key argument BUF specifies a buffer to capture. It
     defaults to the current buffer. The buffer is installed as
@@ -858,6 +858,9 @@ BODY:
 
   - Set the key argument FRAME to t to capture the whole frame.
 
+The following keyword arguments can be specified in parentheses,
+before BODY, to customize how what is grabbed is post-processed:
+
   - The key argument FACES asks for a specific set of faces to
     be detected and grabbed. They'll be available as face
     symbols set to the properties \\='face.
@@ -866,7 +869,12 @@ BODY:
     comparison with `turtles-mark-text-with-faces'.
 
     Note that colors won't be available in the grabbed buffer
-    content when FACES is specified."
+    content when FACES is specified.
+
+  - Set the key argument TRIM to nil to *not* trim the newlines
+    at the end of the grabbed string. Without trimming, there is
+    one newline per line of the grabbed window, even if the
+    buffer content is shorter."
   (declare (indent 1))
   (let ((calling-buf (make-symbol "calling-buf"))
         (faces-var (make-symbol "faces")))
@@ -877,7 +885,8 @@ BODY:
           ,frame ,win ,buf ,calling-buf ,minibuffer
           ,mode-line ,header-line ,faces-var ,margins)
          (turtles-mark-text-with-faces (turtles--filter-faces-for-mark ,faces-var))
-
+         (unless ,trim
+           (turtles-trim-buffer))
          ,@body))))
 
 (defmacro turtles-read-from-minibuffer (read &rest body)

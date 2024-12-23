@@ -31,8 +31,6 @@
     (goto-char (point-min))
 
     (turtles-with-grab-buffer ()
-      (turtles-trim-buffer)
-
       (should (equal "hello, world!"
                      (buffer-string))))))
 
@@ -54,8 +52,6 @@
     (insert "\n")
 
     (turtles-with-grab-buffer ()
-      (turtles-trim-buffer)
-
       (goto-char (point-min))
       (search-forward "yellow")
       (goto-char (match-beginning 0))
