@@ -897,8 +897,8 @@ result.
 
 BODY is executed while READ is waiting for minibuffer input with
 the minibuffer active. Input can be provided by calling
-`execute-kbd-macro'. BODY must eventually either signal an error
-or exit the minibuffer.
+`execute-kbd-macro'. The minibuffer exits at the end of BODY, and
+the whole macro returns with the result of READ.
 
 This macro allows mixing `execute-kbd-macro' and commands
 manipulating minibuffer with grab commands such as
@@ -922,8 +922,9 @@ Return whatever READ eventually evaluates to."
         0 nil
         (lambda ()
           (progn ,@body)
+          ;; We *have* to exit the minibufer
           (when (active-minibuffer-window)
-            (error "Minibuffer still active at end of body form"))))
+            (exit-minibuffer))))
        (sleep-for 0.01)
        ,mb-result-var)))
 
