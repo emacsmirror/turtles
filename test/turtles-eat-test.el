@@ -36,6 +36,12 @@
       (should (equal "hello, world!"
                      (buffer-string))))))
 
+(ert-deftest turtles-eat-term-size ()
+  (turtles-ert-test :instance 'eat)
+
+  (should (equal 24 (frame-height)))
+  (should (equal 80 (frame-width))))
+
 (ert-deftest turtles-eat-truecolor ()
   (turtles-ert-test :instance 'eat)
 
