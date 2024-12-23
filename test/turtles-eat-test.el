@@ -1,4 +1,4 @@
-;;; turtles-term-eat-test.el --- Test integration with eat.el -*- lexical-binding: t -*-
+;;; turtles-eat-test.el --- Test integration with eat.el -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024 Stephane Zermatten
 
