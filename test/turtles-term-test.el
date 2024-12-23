@@ -1,4 +1,4 @@
-;;; turtles-eat-test.el --- Test integration with eat.el -*- lexical-binding: t -*-
+;;; turtles-term-test.el --- Test integration with term.el -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024 Stephane Zermatten
 
@@ -19,31 +19,17 @@
 (require 'compat)
 (require 'ert)
 (require 'ert-x)
-(require 'eat)
+(require 'term)
 (require 'turtles)
-(require 'turtles-eat)
+(require 'turtles-term)
 
-(ert-deftest turtles-eat-hello-world ()
-  (turtles-ert-test :instance 'eat)
+(ert-deftest turtles-term-truecolor ()
+  (skip-unless (>= emacs-major-version 29))
+  ;; Truecolor in term.el became available in Emacs 29.1. Before that,
+  ;; term was limited to just 16 (Emacs 28) and even 8 (Emacs 26)
+  ;; colors.
 
-  (ert-with-test-buffer ()
-    (insert "hello, world!\n")
-    (goto-char (point-min))
-
-    (turtles-with-grab-buffer ()
-      (turtles-trim-buffer)
-
-      (should (equal "hello, world!"
-                     (buffer-string))))))
-
-(ert-deftest turtles-eat-term-size ()
-  (turtles-ert-test :instance 'eat)
-
-  (should (equal 24 (frame-height)))
-  (should (equal 80 (frame-width))))
-
-(ert-deftest turtles-eat-truecolor ()
-  (turtles-ert-test :instance 'eat)
+  (turtles-ert-test)
 
   (should (equal 16777216 (display-color-cells)))
 
