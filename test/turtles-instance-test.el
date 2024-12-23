@@ -61,9 +61,16 @@
         (turtles-instance-eval inst
          '(let ((turtles-send-messages-upstream t))
             (message "hello from turtles-test-message")))
-        (let ((message "[default] hello from turtles-test-message"))
-          (unless (member message (string-split messages "\n" 'omit-nulls))
-            (error "message not found in %s" messages)))))))
+        (should (equal "[default] hello from turtles-test-message\n" messages))))))
+
+(ert-deftest turtles-instance-inhibit-message ()
+  (let ((inst (turtles-start-instance 'default)))
+    (ert-with-message-capture messages
+      (turtles-instance-eval inst
+         '(let ((turtles-send-messages-upstream t)
+                (inhibit-message t))
+            (message "hello from turtles-test-message")))
+      (should (equal "" messages)))))
 
 (ert-deftest turtles-instance-default-size ()
   (let ((inst (turtles-start-instance 'default)))

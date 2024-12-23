@@ -450,7 +450,8 @@ special cases like reading from the minibuffer."
 
 (defun turtles--send-message-upstream (msg &rest args)
   "Send a message to the server."
-  (when (and turtles-send-messages-upstream
+  (when (and (not inhibit-message)
+             turtles-send-messages-upstream
              (turtles-upstream)
              (not (> turtles--sending-messages-up 0)))
     (turtles--with-incremented-var turtles--sending-messages-up
