@@ -802,19 +802,12 @@ The following keyword arguments post-process what was grabbed:
     (ert-with-test-buffer (:name name)
       (turtles--internal-grab
        frame win buf calling-buf minibuffer mode-line header-line faces margins)
-      (when region
-        (turtles-mark-region (if (consp region) (car region) region)
-                              (if (consp region) (nth 1 region))))
-      (when point
-        (insert point))
-      (turtles-mark-text-with-faces (turtles--filter-faces-for-mark faces))
-      (when trim
-        (turtles-trim-buffer))
+      (turtles--internal-postprocess region point (turtles--filter-faces-for-mark faces) trim)
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
                                               frame win buf minibuffer mode-line header-line
-                                              margins faces (trim t))
+                                              margins faces region point (trim t))
                                         &rest body)
   "Grab a section of the terminal and store it into a test buffer.
 
@@ -871,23 +864,50 @@ before BODY, to customize how what is grabbed is post-processed:
     Note that colors won't be available in the grabbed buffer
     content when FACES is specified.
 
+  - Pass a string to the key argument POINT to insert at point,
+    so that position is visible in the returned string.
+
+  - The key argument REGION makes the active region visible in
+    the returned string. Pass a string composed of opening and
+    closing strings of the same length, such as \"[]\" or
+    \"/**/\", to mark the beginning and end of the region.
+    Alternatively, you can also pass a list made up of two
+    strings, the opening and closing string, which then don't
+    need to be of the same size. See also `turtles-mark-region'.
+
   - Set the key argument TRIM to nil to *not* trim the newlines
     at the end of the grabbed string. Without trimming, there is
     one newline per line of the grabbed window, even if the
     buffer content is shorter."
   (declare (indent 1))
   (let ((calling-buf (make-symbol "calling-buf"))
-        (faces-var (make-symbol "faces")))
+        (faces-var (make-symbol "faces"))
+        (region-var (make-symbol "region")))
     `(let ((,calling-buf (current-buffer))
-           (,faces-var ,faces))
+           (,faces-var ,faces)
+           (,region-var ,region))
        (ert-with-test-buffer (:name ,name)
          (turtles--internal-grab
           ,frame ,win ,buf ,calling-buf ,minibuffer
           ,mode-line ,header-line ,faces-var ,margins)
-         (turtles-mark-text-with-faces (turtles--filter-faces-for-mark ,faces-var))
-         (when ,trim
-           (turtles-trim-buffer))
+         (turtles--internal-postprocess
+          ,region ,point (turtles--filter-faces-for-mark ,faces-var) ,trim)
          ,@body))))
+
+(defun turtles--internal-postprocess (region point faces trim)
+  "Post-process a grabbed buffer.
+
+This is a helper for macros in this file. Don't use it outside of
+it; call the functions directly."
+  (when region
+    (turtles-mark-region (if (consp region) (car region) region)
+                         (if (consp region) (nth 1 region))))
+  (when point
+    (insert point))
+  (when faces
+    (turtles-mark-text-with-faces faces))
+  (when trim
+    (turtles-trim-buffer)))
 
 (defmacro turtles-read-from-minibuffer (read &rest body)
   "Run BODY while executing READ.

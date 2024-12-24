@@ -1208,6 +1208,37 @@
         (should (equal "|-Hello, world.                                                               -|"
                        (buffer-string))))))
 
+(ert-deftest turtles-with-grab-buffer-point ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (insert "baa, baa, black sheep, have you any wool?")
+    (goto-char (point-min))
+    (search-forward "black")
+
+    (turtles-with-grab-buffer (:point "><")
+      (should
+       (equal
+        "baa, baa, black>< sheep, have you any wool?"
+        (buffer-string))))))
+
+(ert-deftest turtles-with-grab-buffer-point-and-region ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (insert "baa, baa, black sheep, have you any wool?")
+    (goto-char (point-min))
+    (search-forward "baa, black")
+    (push-mark (match-beginning 0) 'nomsg)
+    (search-forward "sheep")
+    (activate-mark)
+
+    (turtles-with-grab-buffer (:point "><" :region "[]")
+      (should
+       (equal
+        "baa, [baa, black sheep><], have you any wool?"
+        (buffer-string))))))
+
 (ert-deftest turtles-with-grab-mode-line ()
   (turtles-ert-test)
 
