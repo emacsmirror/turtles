@@ -50,11 +50,9 @@
     (term-color-white :foreground "#ffffff" :background "#fffff"))
   "Hardcoded color faces for term-mode, for consistency.")
 
-(cl-defmethod turtles-terminal-exec ((_type (eql term)) cmdline width height)
+(cl-defmethod turtles-terminal-exec ((_type (eql term)) cmdline)
   (term-mode)
   (setq-local face-remapping-alist turtles-term-face-remapping-alist)
-  (setq-local term-width width)
-  (setq-local term-height height)
   (term-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline))
   (term-char-mode))
 

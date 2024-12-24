@@ -198,20 +198,29 @@ SETUP is code to run on the instance before every test."
           :terminal ',terminal
           :setup '(progn ,@setup))))
 
+(defun turtles-default-terminal-setup ()
+  "Setup for terminals defined in this file."
+  (when (eval-when-compile (>= emacs-major-version 29))
+    (clear-minibuffer-message))
+  (menu-bar-mode -1))
+
 (turtles-definstance default (:width 80 :height 20)
   "Emacs instance to run tests on.
 
 This is the instance used by `ert-test' when no instance is
 given."
-  (when (eval-when-compile (>= emacs-major-version 29))
-    (clear-minibuffer-message))
-  (menu-bar-mode -1))
+  (turtles-default-terminal-setup))
+
+(turtles-definstance larger (:width 132 :height 43)
+  "Emacs instance to run tests on.
+
+This is the instance used by `ert-test' when no instance is
+given."
+  (turtles-default-terminal-setup))
 
 (turtles-definstance eat (:terminal eat :width 80 :height 24)
   "Emacs instance in an eat terminal."
-  (when (eval-when-compile (>= emacs-major-version 29))
-    (clear-minibuffer-message))
-  (menu-bar-mode -1))
+  (turtles-default-terminal-setup))
 
 (defun turtles-this-instance ()
   "ID of the instance for which the current Emacs process was started.
@@ -335,11 +344,7 @@ Does nothing if the instance is already running."
             ;; That works as long as the Emacs-side terminal supports 24bit colors,
             ;; which is the case for eat and term.el in Emacs 29.1 and later.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
-          (turtles-terminal-exec
-           terminal
-           cmdline
-           (turtles-instance-width inst)
-           (turtles-instance-height inst)))
+          (turtles-terminal-exec terminal cmdline))
 
         (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
         (turtles-io-wait-until
@@ -519,10 +524,8 @@ frame, which only makes sense for graphical displays."
     (when (accept-process-output p 0.05)
       (accept-process-output p 0))))
 
-(cl-defgeneric turtles-terminal-exec (type cmdline width height)
-  "Execute CMDLINE in a terminal of the TYPE in the current buffer.
-
-The terminal size is set to WIDTH x HEIGHT.")
+(cl-defgeneric turtles-terminal-exec (type cmdline)
+  "Execute CMDLINE in a terminal of the TYPE in the current buffer.")
 
 (cl-defgeneric turtles-terminal-truecolor-p (type)
   "Return non-nil if the terminal supports 24bit colors.")

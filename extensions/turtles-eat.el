@@ -38,7 +38,7 @@
 (require 'eat)
 (require 'turtles-instance)
 
-(cl-defmethod turtles-terminal-exec ((_type (eql eat)) cmdline _width _height)
+(cl-defmethod turtles-terminal-exec ((_type (eql eat)) cmdline)
   ;; Recompile the terminfo database once before even attempting to
   ;; start eat. This avoids issues with the precompiled database being
   ;; incompatible with the current system.

@@ -1285,6 +1285,16 @@
       (should (equal "hello, world!"
                      (buffer-string))))))
 
+(ert-deftest turtles-hello-world-larger ()
+  (turtles-ert-test :instance 'larger)
+
+  ;; This makes sure that screen grabbing isn't confused by a larger
+  ;; terminal size.
+  (ert-with-test-buffer ()
+    (insert "hello, world!\n")
+    (turtles-with-grab-buffer ()
+      (should (equal "hello, world!" (buffer-string))))))
+
 (ert-deftest turtles-pop-to-buffer-copy ()
   (let ((inst (turtles-get-instance 'default)))
     (should inst)
