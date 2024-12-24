@@ -73,13 +73,22 @@
   (let ((inst (turtles-start-instance 'default)))
     (with-current-buffer (turtles-instance-term-buf inst)
       (should (equal 80 term-width))
-      (should (equal 20 term-height)))))
+      (should (equal 24 term-height)))
 
-(ert-deftest turtles-instance-turtles--larger-size ()
+    (should (equal
+             (cons 80 24)
+             (turtles-instance-eval
+              inst '(cons (frame-width) (frame-height)))))))
+
+(ert-deftest turtles-instance-turtles-larger-size ()
   (let ((inst (turtles-start-instance 'larger)))
     (with-current-buffer (turtles-instance-term-buf inst)
       (should (equal 132 term-width))
-      (should (equal 43 term-height)))))
+      (should (equal 43 term-height)))
+    (should (equal
+             (cons 132 43)
+             (turtles-instance-eval
+              inst '(cons (frame-width) (frame-height)))))))
 
 (ert-deftest turtles-instance-unreadable-buffer ()
   (let ((inst (turtles-start-instance 'default)))

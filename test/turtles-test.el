@@ -72,7 +72,11 @@
          "line 14\n"
          "line 15\n"
          "line 16\n"
-         "line 17")
+         "line 17\n"
+         "line 18\n"
+         "line 19\n"
+         "line 20\n"
+         "line 21")
         (buffer-string))))))
 
 (ert-deftest turtles-grab-buffer-tail ()
@@ -87,6 +91,8 @@
       (should
        (equal
         (concat
+         "line 89\n"
+         "line 90\n"
          "line 91\n"
          "line 92\n"
          "line 93\n"
@@ -127,7 +133,11 @@
          "line 14------------------------------------------------------------------------$\n"
          "line 15------------------------------------------------------------------------$\n"
          "line 16------------------------------------------------------------------------$\n"
-         "line 17------------------------------------------------------------------------$")
+         "line 17------------------------------------------------------------------------$\n"
+         "line 18------------------------------------------------------------------------$\n"
+         "line 19------------------------------------------------------------------------$\n"
+         "line 20------------------------------------------------------------------------$\n"
+         "line 21------------------------------------------------------------------------$")
         (buffer-string))))))
 
 (ert-deftest turtles-grab-window-horiz-center ()
@@ -223,7 +233,11 @@
              "line 14-----------$\n"
              "line 15-----------$\n"
              "line 16-----------$\n"
-             "line 17-----------$\n")
+             "line 17-----------$\n"
+             "line 18-----------$\n"
+             "line 19-----------$\n"
+             "line 20-----------$\n"
+             "line 21-----------$\n")
             (buffer-string))))))))
 
 (ert-deftest turtles-grab-window-vert-center-empty-buffer ()
@@ -240,6 +254,9 @@
       (ert-with-test-buffer (:name "buf2")
         (turtles-test-init-buffer)
 
+        ;; The buffer on the right being empty causes display issues
+        ;; in a noninteractive Emacs instance. This is why this test
+        ;; exists.
         (setq buf2 (current-buffer))
         (insert "mostly empty\n\n.")
         (goto-char (point-min))
@@ -273,7 +290,11 @@
              "line 14-----------$\n"
              "line 15-----------$\n"
              "line 16-----------$\n"
-             "line 17-----------$\n")
+             "line 17-----------$\n"
+             "line 18-----------$\n"
+             "line 19-----------$\n"
+             "line 20-----------$\n"
+             "line 21-----------$\n")
             (buffer-string))))))))
 
 (ert-deftest turtles-grab-point ()
@@ -340,7 +361,9 @@
                 "line 4..\n"
                 "line 5..\n"
                 "line 6<>..\n"
-                "line 7..")
+                "line 7..\n"
+                "line 8..\n"
+                "line 9..")
         (string-trim
          (ert-with-test-buffer (:name "grab")
            (turtles-grab-buffer test-buffer)
@@ -451,7 +474,9 @@
 
       (should
        (equal
-        (concat "[line 81.\n"
+        (concat "[line 79.\n"
+                "line 80.\n"
+                "line 81.\n"
                 "line 82.\n"
                 "line 83.\n"
                 "line 84.\n"
@@ -468,7 +493,8 @@
                 "line 95.\n"
                 "line 96.\n"
                 "line 97.\n"
-                "line 98.")
+                "line 98.\n"
+                "line 99.")
         (string-trim
          (ert-with-test-buffer (:name "grab")
            (turtles-grab-buffer test-buffer)
@@ -516,6 +542,10 @@
          "line 15.\n"
          "line 16.\n"
          "line 17.\n"
+         "line 18.\n"
+         "line 19.\n"
+         "line 20.\n"
+         "line 21.\n"
          "]")
         (string-trim
          (ert-with-test-buffer (:name "grab")

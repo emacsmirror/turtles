@@ -201,10 +201,9 @@ SETUP is code to run on the instance before every test."
 (defun turtles-default-terminal-setup ()
   "Setup for terminals defined in this file."
   (when (eval-when-compile (>= emacs-major-version 29))
-    (clear-minibuffer-message))
-  (menu-bar-mode -1))
+    (clear-minibuffer-message)))
 
-(turtles-definstance default (:width 80 :height 20)
+(turtles-definstance default (:width 80 :height 24)
   "Emacs instance to run tests on.
 
 This is the instance used by `ert-test' when no instance is
@@ -212,7 +211,7 @@ given."
   (turtles-default-terminal-setup))
 
 (turtles-definstance larger (:width 132 :height 43)
-  "Emacs instance to run tests on.
+  "Emacs instance with a larger frame.
 
 This is the instance used by `ert-test' when no instance is
 given."
@@ -454,6 +453,7 @@ special cases like reading from the minibuffer."
               turtles--magic-key
               (lambda (_ignored)
                 (pop turtles--processing-key-stack)))
+  (menu-bar-mode -1) ;; Recover one line in frame-height
   (setq turtles--upstream
         (turtles-io-connect
          socket
