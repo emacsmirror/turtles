@@ -896,37 +896,68 @@ READ is a form that reads from the minibuffer and return the
 result.
 
 BODY is executed while READ is waiting for minibuffer input with
-the minibuffer active. Input can be provided by calling
-`execute-kbd-macro'. The minibuffer exits at the end of BODY, and
-the whole macro returns with the result of READ.
+the minibuffer active. The minibuffer exits at the end of BODY,
+and the whole macro returns with the result of READ.
 
-This macro allows mixing `execute-kbd-macro' and commands
-manipulating minibuffer with grab commands such as
-`turtles-to-string' and `turtles-with-grab-buffer'. `should'
-can also be called directly on BODY.
+BODY can be a mix of lisp expressions and :keys \"...\".
+
+:keys must be followed by a string in the same format as accepted
+by `kbd'. It tells Turtles to feed some input to Emacs to be
+executed in the normal command loop. This is the real thing,
+contrary to `execute-kbd-macro' or `ert-simulate-keys'.
+
+It most cases, the difference doesn't matter and it's just more
+convenient to call commands directly as a lisp expression,
+without using :keys.
+
+BODY usually contains calls to `should' to check the Emacs state,
+and `turtles-with-grab-buffer' or `turtles-to-string' to check
+its display.
 
 This is provided here as a replacement to `ert-simulate-keys', as
 the approach taken by `ert-simulate-keys' doesn't allow grabbing
-intermediate states. This is because Emacs won't redisplay as
-long as there's pending input.
+intermediate states, because Emacs won't redisplay as long as
+there's pending input.
 
 Return whatever READ eventually evaluates to."
   (declare (indent 1))
   (let ((mb-result-var (make-symbol "mb-result")))
-    `(progn
+    `(let ((,mb-result-var nil))
        (run-with-timer
         0 nil
         (lambda ()
           (setq ,mb-result-var (progn ,read))))
-       (run-with-timer
-        0 nil
-        (lambda ()
-          (progn ,@body)
-          ;; We *have* to exit the minibufer
-          (when (active-minibuffer-window)
-            (exit-minibuffer))))
+       (turtles--run-with-minibuffer .
+        ,(turtles--read-from-minibuffer-split-body body))
        (sleep-for 0.01)
        ,mb-result-var)))
+
+(defun turtles--read-from-minibuffer-split-body (body)
+  "Interpret :keys in BODY for `turtles-read-from-minibuffer'.
+
+This function splits a BODY containing a mix of lisp expressions
+and :keys string into a list of lambdas that can be fed to
+`turtles--run-with-minibuffer'."
+  (let* ((rest body)
+         (lambdas nil)
+         (current-lambda nil)
+         (close-current-lambda
+          (lambda ()
+            (when current-lambda
+              (push `(lambda () . ,(nreverse current-lambda)) lambdas)
+              (setq current-lambda nil)))))
+    (while rest
+      (cond
+       ((eq :keys (car rest))
+        (pop rest)
+        (push `(turtles--push-input (kbd ,(pop rest))) current-lambda)
+        (push '(turtles--press-magic-key) current-lambda)
+        (funcall close-current-lambda))
+       (t (push (pop rest) current-lambda))))
+    (push '(when (active-minibuffer-window) (exit-minibuffer))
+          current-lambda)
+    (funcall close-current-lambda)
+    (nreverse lambdas)))
 
 (defun turtles--internal-grab (frame win buf calling-buf minibuffer
                                      mode-line header-line grab-faces margins)

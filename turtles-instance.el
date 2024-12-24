@@ -88,6 +88,21 @@ Accessed using `turtles-this-instance'.")
                                  (expand-file-name load-file-name default-directory))
                                (buffer-file-name)))
 
+(defconst turtles--magic-key "\e[1;4Q" ;; F62
+  "Special key sent from upstream to feed input to an instance.
+
+Each such key is decoded into the head
+`turtles--processing-key-stack' and processed as such by the
+instance.")
+
+(defvar turtles--pending-key-stack nil
+  "Stack of keys to feed to the current instance using the magic key.
+
+Note that the keys are in the reverse order.")
+
+(defvar turtles--processing-key-stack nil
+  "Stack of keys to use to translate magic key presses.")
+
 (cl-defstruct (turtles-instance
                (:constructor turtles--make-instance)
                (:copier nil))
@@ -242,6 +257,14 @@ Does nothing if the server is already live."
                               (turtles--substring-with-properties
                                (car range) (cdr range)
                                '((font-lock-face . face) (face . face))))))))
+             (press-magic-key . ,(turtles-io-method-handler (params)
+                                   (let ((instance-id (nth 0 params))
+                                         (count (nth 1 params)))
+                                     (let ((inst (turtles-get-instance instance-id)))
+                                       (process-send-string
+                                        (turtles-instance-term-proc inst)
+                                        (mapconcat #'identity
+                                                   (make-list count turtles--magic-key) ""))))))
              (message . ,(lambda (_conn _id _method msg)
                            (message msg))))))))
 
@@ -422,6 +445,10 @@ special cases like reading from the minibuffer."
   (setq turtles--this-instance instance-id)
   (advice-add 'message :after #'turtles--send-message-upstream)
   (setq turtles-io-unreadable-obj-props `(:instance ,instance-id))
+  (define-key key-translation-map
+              turtles--magic-key
+              (lambda (_ignored)
+                (pop turtles--processing-key-stack)))
   (setq turtles--upstream
         (turtles-io-connect
          socket
@@ -554,6 +581,46 @@ SRC and DEST can be a string or a buffer."
           (add-text-properties
            (+ pos-src diff) (+ next-pos-src diff) (list prop-dest val) dest))
         (setq pos-src next-pos-src)))))
+
+(defun turtles--push-input (keyvec)
+  "Push KEYVEC into the key stack to be sent by `turtles--press-magic-key'."
+  (mapc (lambda (key) (push (make-vector 1 key) turtles--pending-key-stack))
+        keyvec))
+
+(defun turtles--press-magic-key ()
+  "Feed the keys from the key stack to the current instance.
+
+Warning: Don't call this function again until the key stack has
+been fully emptied."
+  (when turtles--pending-key-stack
+    (let ((key-count (length turtles--pending-key-stack)))
+      (setq turtles--processing-key-stack
+            (append turtles--processing-key-stack
+                    (nreverse turtles--pending-key-stack)))
+      (setq turtles--pending-key-stack nil)
+      (turtles-io-call-method (turtles-upstream)
+                              'press-magic-key
+                              (list (turtles-this-instance) key-count)))))
+
+(defun turtles--run-once-input-processed (funclist)
+  "Wait until Emacs has process the key stack then from FUNCLIST.
+
+This function waits for `turtles--processing-key-stack' to be
+emptied, runs the head of FUNCLIST, and repeat until FUNCLIST is
+empty."
+  (when funclist
+    (if turtles--processing-key-stack
+        (run-with-idle-timer 0 nil #'turtles--run-once-input-processed funclist)
+      (funcall (car funclist))
+      (turtles--run-once-input-processed (cdr funclist)))))
+
+(defun turtles--run-with-minibuffer (&rest funclist)
+  "Run FUNCLIST while the minibuffer is active
+
+The elements of FUNCLIST are executed in order in a timer.
+Additionally, this function waits for the key stack to empty
+between the execution each element of FUNCLIST"
+  (run-with-timer 0 nil #'turtles--run-once-input-processed funclist))
 
 (provide 'turtles-instance)
 

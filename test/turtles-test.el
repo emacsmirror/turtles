@@ -1320,3 +1320,43 @@
   ;; just not available.
   (should (eq (alist-get 'window-system (frame-parameters))
               (turtles-pop-to-buffer-new-frame 'check nil nil))))
+
+(ert-deftest turtles-read-from-minibuffer-split-body ()
+  (should
+   (equal
+    '((lambda ()
+        (should (equal "Prompt:" (turtles-to-string)))
+        (turtles--push-input (kbd "he"))
+        (turtles--press-magic-key))
+      (lambda nil
+        (should (equal "Prompt: he" (turtles-to-string)))
+        (turtles--push-input (kbd "llo"))
+        (turtles--press-magic-key))
+      (lambda nil
+        (should (equal "Prompt: hello" (turtles-to-string)))
+        (when
+            (active-minibuffer-window)
+          (exit-minibuffer))))
+    (turtles--read-from-minibuffer-split-body
+     `((should (equal "Prompt:" (turtles-to-string)))
+       :keys "he"
+       (should (equal "Prompt: he" (turtles-to-string)))
+       :keys "llo"
+       (should (equal "Prompt: hello" (turtles-to-string))))))))
+
+(ert-deftest turtles-read-from-minibuffer-with-keys ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
+    (should
+     (equal
+      "hello"
+      (turtles-read-from-minibuffer
+          (read-from-minibuffer "Prompt: ")
+
+        (should (equal "Prompt:" (turtles-to-string)))
+        :keys "hep"
+        (should (equal "Prompt: hep" (turtles-to-string)))
+        :keys "DEL llo"
+        (should (equal "Prompt: hello" (turtles-to-string))))))))
