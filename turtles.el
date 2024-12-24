@@ -814,7 +814,7 @@ The following keyword arguments post-process what was grabbed:
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
                                               frame win buf minibuffer mode-line header-line
-                                              margins faces trim)
+                                              margins faces (trim t))
                                         &rest body)
   "Grab a section of the terminal and store it into a test buffer.
 
@@ -885,7 +885,7 @@ before BODY, to customize how what is grabbed is post-processed:
           ,frame ,win ,buf ,calling-buf ,minibuffer
           ,mode-line ,header-line ,faces-var ,margins)
          (turtles-mark-text-with-faces (turtles--filter-faces-for-mark ,faces-var))
-         (unless ,trim
+         (when ,trim
            (turtles-trim-buffer))
          ,@body))))
 
