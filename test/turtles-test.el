@@ -1360,3 +1360,61 @@
         (should (equal "Prompt: hep" (turtles-to-string)))
         :keys "DEL llo"
         (should (equal "Prompt: hello" (turtles-to-string))))))))
+
+(ert-deftest turtles-read-from-minibuffer-with-command ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
+    (should
+     (equal
+      "foo, bar, "
+      (turtles-read-from-minibuffer
+          (read-from-minibuffer "Prompt: ")
+
+        (should (equal "Prompt:" (turtles-to-string)))
+        :keys "foo, SPC bar, SPC foo, SPC foo"
+        (should (equal "Prompt: foo, bar, foo, foo" (turtles-to-string)))
+
+        :command #'backward-kill-word
+        (should (equal "Prompt: foo, bar, foo," (turtles-to-string)))
+
+        (set-transient-map (let ((map (make-sparse-keymap)))
+                             (define-key map (kbd "<f62>") #'backward-kill-word)
+                             map))
+
+        :command #'backward-kill-word
+        (should (equal "Prompt: foo, bar," (turtles-to-string))))))))
+
+(ert-deftest turtles-read-from-minibuffer-with-command-lambda ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
+    (should
+     (equal
+      "hello world"
+      (turtles-read-from-minibuffer
+          (read-from-minibuffer "Prompt: ")
+
+        :command (lambda ()
+                   (interactive)
+                   (insert "hello world"))
+        (should (equal "Prompt: hello world" (turtles-to-string))))))))
+
+(ert-deftest turtles-read-from-minibuffer-with-command-with-keybinding ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
+    (should
+     (equal
+      "C-c t"
+      (turtles-read-from-minibuffer
+          (read-from-minibuffer "Prompt: ")
+
+        :command-with-keybinding
+        "C-c t" (lambda ()
+                  (interactive)
+                  (insert (key-description (this-command-keys))))
+        (should (equal "Prompt: C-c t" (turtles-to-string))))))))

@@ -602,6 +602,19 @@ been fully emptied."
                               'press-magic-key
                               (list (turtles-this-instance) key-count)))))
 
+(defun turtles--send-command (command &optional keybinding)
+  "Feed COMMAND to the current instance.
+
+This function binds COMMAND to KEYBINDING in a transient map,
+then triggers that using the magic key."
+  (let ((keybinding (or keybinding (kbd "<f62>"))))
+    (set-transient-map (let ((map (make-sparse-keymap)))
+                         (define-key map keybinding command)
+                         map)
+                       (lambda () turtles--processing-key-stack))
+    (turtles--push-input keybinding)
+    (turtles--press-magic-key)))
+
 (defun turtles--run-once-input-processed (funclist)
   "Wait until Emacs has process the key stack then from FUNCLIST.
 

@@ -899,16 +899,29 @@ BODY is executed while READ is waiting for minibuffer input with
 the minibuffer active. The minibuffer exits at the end of BODY,
 and the whole macro returns with the result of READ.
 
-BODY can be a mix of lisp expressions and :keys \"...\".
+BODY can be a mix of:
+ - lisp expressions
+ - :keys \"...\"
+ - :command #\\='mycommand
+ - :command-with-keybinding keybinding #\\='mycommand
 
 :keys must be followed by a string in the same format as accepted
 by `kbd'. It tells Turtles to feed some input to Emacs to be
 executed in the normal command loop. This is the real thing,
 contrary to `execute-kbd-macro' or `ert-simulate-keys'.
 
-It most cases, the difference doesn't matter and it's just more
-convenient to call commands directly as a lisp expression,
-without using :keys.
+:command must be followed by a command. It tells turtle to make
+Emacs execute that command in the normal command loop.
+
+:command-with-keybinding must be followed by a keybinding and a
+command. The command is executed in the normal command loop, with
+`this-command-keys' reporting it to have been triggered by the
+given keybinding.
+
+It most cases, the difference between sending keys or launching a
+command directly or interactively doesn't matter and it's just
+more convenient to call commands directly as a lisp expression
+rather than use :keys or :command.
 
 BODY usually contains calls to `should' to check the Emacs state,
 and `turtles-with-grab-buffer' or `turtles-to-string' to check
@@ -933,10 +946,13 @@ Return whatever READ eventually evaluates to."
        ,mb-result-var)))
 
 (defun turtles--read-from-minibuffer-split-body (body)
-  "Interpret :keys in BODY for `turtles-read-from-minibuffer'.
+  "Interpret :keys and others in BODY.
 
-This function splits a BODY containing a mix of lisp expressions
-and :keys string into a list of lambdas that can be fed to
+This is the core code-generation logic of `turtles-read-from-minibuffer'.
+
+This function splits a BODY containing a mix of lisp expressions,
+:keys string, :command cmd, :command-with-keybinding keybinding
+cmd, into a list of lambdas that can be fed to
 `turtles--run-with-minibuffer'."
   (let* ((rest body)
          (lambdas nil)
@@ -952,6 +968,17 @@ and :keys string into a list of lambdas that can be fed to
         (pop rest)
         (push `(turtles--push-input (kbd ,(pop rest))) current-lambda)
         (push '(turtles--press-magic-key) current-lambda)
+        (funcall close-current-lambda))
+       ((eq :command (car rest))
+        (pop rest)
+        (push `(turtles--send-command ,(pop rest)) current-lambda)
+        (funcall close-current-lambda))
+       ((eq :command-with-keybinding (car rest))
+        (pop rest)
+        (let ((keybinding (kbd (pop rest)))
+              (command (pop rest)))
+          (push `(turtles--send-command ,command ,keybinding)
+                current-lambda))
         (funcall close-current-lambda))
        (t (push (pop rest) current-lambda))))
     (push '(when (active-minibuffer-window) (exit-minibuffer))
