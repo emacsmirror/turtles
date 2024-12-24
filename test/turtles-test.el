@@ -1418,3 +1418,18 @@
                   (interactive)
                   (insert (key-description (this-command-keys))))
         (should (equal "Prompt: C-c t" (turtles-to-string))))))))
+
+(ert-deftest turtles-read-from-minibuffer-with-events ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
+    (should
+     (equal
+      "hello"
+      (turtles-read-from-minibuffer
+          (read-from-minibuffer "Prompt: ")
+
+        :events (kbd "hello")
+        (should (equal "Prompt: hello" (turtles-to-string))))))))
+

@@ -902,6 +902,7 @@ and the whole macro returns with the result of READ.
 BODY can be a mix of:
  - lisp expressions
  - :keys \"...\"
+ - :events [...]
  - :command #\\='mycommand
  - :command-with-keybinding keybinding #\\='mycommand
 
@@ -909,6 +910,10 @@ BODY can be a mix of:
 by `kbd'. It tells Turtles to feed some input to Emacs to be
 executed in the normal command loop. This is the real thing,
 contrary to `execute-kbd-macro' or `ert-simulate-keys'.
+
+:events works as :keys but takes an event array. This alternative
+can be useful to feed non-keyboard events to the current
+instance.
 
 :command must be followed by a command. It tells turtle to make
 Emacs execute that command in the normal command loop.
@@ -967,6 +972,11 @@ cmd, into a list of lambdas that can be fed to
        ((eq :keys (car rest))
         (pop rest)
         (push `(turtles--push-input (kbd ,(pop rest))) current-lambda)
+        (push '(turtles--press-magic-key) current-lambda)
+        (funcall close-current-lambda))
+       ((eq :events (car rest))
+        (pop rest)
+        (push `(turtles--push-input ,(pop rest)) current-lambda)
         (push '(turtles--press-magic-key) current-lambda)
         (funcall close-current-lambda))
        ((eq :command (car rest))
