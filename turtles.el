@@ -961,15 +961,19 @@ Return whatever READ eventually evaluates to."
   (declare (indent 1))
   (when noninteractive
     (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
-  (let ((mb-result-var (make-symbol "mb-result")))
-    `(let ((,mb-result-var nil))
+  (let ((mb-result-var (make-symbol "mb-result"))
+        (has-mb-result-var (make-symbol "has-mb-result")))
+    `(let ((,mb-result-var nil)
+           (,has-mb-result-var nil))
        (run-with-timer
         0 nil
         (lambda ()
-          (setq ,mb-result-var (progn ,read))))
+          (setq ,mb-result-var (progn ,read))
+          (setq ,has-mb-result-var t)))
        (turtles--run-with-minibuffer .
         ,(turtles--read-from-minibuffer-split-body body))
-       (sleep-for 0.01)
+       (while (not ,has-mb-result-var)
+         (sleep-for 0.01))
        ,mb-result-var)))
 
 (defun turtles--read-from-minibuffer-split-body (body)
