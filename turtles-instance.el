@@ -626,7 +626,12 @@ emptied, runs the head of FUNCLIST, and repeat until FUNCLIST is
 empty."
   (when funclist
     (if turtles--processing-key-stack
-        (run-with-idle-timer 0 nil #'turtles--run-once-input-processed funclist)
+        ;; Waiting for a key to finish to be process, it seems that an
+        ;; idle timer would be more appropriate. However, an idle
+        ;; timer can be interrupted or escape the sit-for in
+        ;; turtles-read-from-minibuffer, so we use here a timer and
+        ;; what is basically a busy loop.
+        (run-with-timer 0 nil #'turtles--run-once-input-processed funclist)
       (funcall (car funclist))
       (turtles--run-once-input-processed (cdr funclist)))))
 
