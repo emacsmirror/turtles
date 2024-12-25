@@ -1514,3 +1514,21 @@
          (read-from-minibuffer "Prompt: ")
        :typo (kbd "hello")))))
 
+(ert-deftest turtles-read-from-minibuffer-pile-up-errors ()
+  (turtles-ert-test)
+
+  ;; This test makes sure that a failures from the body of
+  ;; turtles-read-from-minibuffer is the one that's reported when both
+  ;; body and read sections fail.
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
+    (should
+     (equal "first"
+            (catch 'thrown
+              (turtles-read-from-minibuffer
+                  (progn
+                    (read-from-minibuffer "Prompt: ")
+                    (throw 'thrown "second"))
+                :keys "boo"
+                (turtles-with-grab-buffer ()
+                  (throw 'thrown "first"))))))))
