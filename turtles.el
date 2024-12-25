@@ -1010,6 +1010,8 @@ cmd, into a list of lambdas that can be fed to
           (push `(turtles--send-command ,command ,keybinding)
                 current-lambda))
         (funcall close-current-lambda))
+       ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
+        (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))
        (t (push (pop rest) current-lambda))))
     (push '(when (active-minibuffer-window) (exit-minibuffer))
           current-lambda)

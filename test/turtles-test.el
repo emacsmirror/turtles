@@ -1504,3 +1504,13 @@
         :events (kbd "hello")
         (should (equal "Prompt: hello" (turtles-to-string))))))))
 
+(ert-deftest turtles-read-from-minibuffer-with-typo ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (select-window (display-buffer (current-buffer)))
+    (should-error
+     (turtles-read-from-minibuffer
+         (read-from-minibuffer "Prompt: ")
+       :typo (kbd "hello")))))
+
