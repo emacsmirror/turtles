@@ -959,12 +959,12 @@ there's pending input.
 
 Return whatever READ eventually evaluates to."
   (declare (indent 1))
-  (when noninteractive
-    (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
   (let ((mb-result-var (make-symbol "mb-result"))
         (has-mb-result-var (make-symbol "has-mb-result")))
     `(let ((,mb-result-var nil)
            (,has-mb-result-var nil))
+       (when noninteractive
+         (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
        (run-with-timer
         0 nil
         (lambda ()
