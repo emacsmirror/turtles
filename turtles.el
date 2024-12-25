@@ -289,9 +289,20 @@ boundaries.
 
 Return a position in the current buffer. If the point does not
 appear in the grab, return nil."
-  (let ((win turtles-source-window))
-    (unless win
-      (error "Current buffer does not contain a window grab"))
+  (unless (and turtles-source-window turtles-source-buffer)
+    (error "Current buffer does not contain a window grab"))
+  (let* ((win turtles-source-window)
+         (buf turtles-source-buffer)
+         (minibuffer-hack
+          (and pos-in-source-buf
+               (> pos-in-source-buf (with-current-buffer buf (point-min)))
+               (< pos-in-source-buf (with-current-buffer buf (point-max)))
+               (window-minibuffer-p win)
+               (stringp (get-text-property pos-in-source-buf 'display buf))
+               (> pos-in-source-buf 1)
+               (not (stringp (get-text-property (1- pos-in-source-buf) 'display buf))))))
+    (when minibuffer-hack
+      (cl-decf pos-in-source-buf))
     (cond
      ((null pos-in-source-buf) nil)
      ((and range (<= pos-in-source-buf (window-start win)))
@@ -303,6 +314,8 @@ appear in the grab, return nil."
                                  pos-in-source-buf win)))
           (when (and x y)
             (save-excursion
+              (when minibuffer-hack
+                  (cl-incf x))
               (goto-char (point-min))
               (forward-line (- y top))
               (move-to-column (+ (- x left) turtles--left-margin-width))

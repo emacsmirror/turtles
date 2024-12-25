@@ -659,6 +659,44 @@
                        (buffer-substring
                         (point) (line-end-position))))))))
 
+(ert-deftest turtles-pos-before-display-in-normal-buffer ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (turtles-test-init-buffer)
+
+      (insert "hello")
+      (insert (propertize "HH" 'display " → "))
+      (insert "world")
+      (goto-char (minibuffer-prompt-end))
+      (search-forward "hello")
+      (push-mark (1+ (point)) 'nomsg)
+      (activate-mark)
+      (ert-with-test-buffer ()
+        (turtles-grab-buffer testbuf)
+        (turtles-mark-region "[]")
+        (turtles-trim-buffer)
+        (should (equal "hello[ → ]world" (buffer-string)))))))
+
+(ert-deftest turtles-pos-before-display-in-minibuffer ()
+  (turtles-ert-test)
+
+  (turtles-read-from-minibuffer
+      (read-from-minibuffer "Prompt: ")
+    (insert "hello")
+    (insert (propertize "HH" 'display " → "))
+    (insert "world")
+    (goto-char (minibuffer-prompt-end))
+    (search-forward "hello")
+    (push-mark (1+ (point)) 'nomsg)
+    (activate-mark)
+    (ert-with-test-buffer ()
+      (turtles-grab-window (minibuffer-window))
+      (turtles-mark-region "[]")
+      (turtles-trim-buffer)
+      (should (equal "Prompt: hello[ → ]world" (buffer-string))))))
+
 (ert-deftest turtles-grab-faces ()
   (turtles-ert-test)
 
