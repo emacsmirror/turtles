@@ -1532,3 +1532,19 @@
                 :keys "boo"
                 (turtles-with-grab-buffer ()
                   (throw 'thrown "first"))))))))
+
+(ert-deftest turtles-read-from-minibuffer-not-in-an-instance ()
+  ;; turtles-read-from-minibuffer only works in interactive mode.
+  :expected-result (if noninteractive :failed :passed)
+  (should (equal "ok"
+                 (turtles-read-from-minibuffer
+                     (read-from-minibuffer "Prompt: ")
+                   (execute-kbd-macro "ok")))))
+
+(ert-deftest turtles-read-from-minibuffer-not-in-an-turtles-test ()
+  ;; In contrast to the previous test, using :keys outside of an
+  ;; instance cannot work.
+  (should-error
+   (turtles-read-from-minibuffer
+       (read-from-minibuffer "Prompt: ")
+     :keys "ok")))

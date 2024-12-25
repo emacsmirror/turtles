@@ -608,7 +608,7 @@ Expects the current test to be defined in FILE-NAME."
            (inst-id (or inst-id 'default))
            (inst (turtles-get-instance inst-id)))
       (unless test
-        (error "Call turtles-ert-test from inside a ERT test."))
+        (error "Not in an ERT test. Call (turtles-ert-test) from inside a test"))
       (cl-assert test-sym)
 
       (unless inst
@@ -959,6 +959,8 @@ there's pending input.
 
 Return whatever READ eventually evaluates to."
   (declare (indent 1))
+  (when noninteractive
+    (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
   (let ((mb-result-var (make-symbol "mb-result")))
     `(let ((,mb-result-var nil))
        (run-with-timer

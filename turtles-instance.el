@@ -595,6 +595,8 @@ SRC and DEST can be a string or a buffer."
 
 Warning: Don't call this function again until the key stack has
 been fully emptied."
+  (unless (turtles-upstream)
+    (error "Not in a Turtles instance. Did you forget to add (turtles-ert-test)?"))
   (when turtles--pending-key-stack
     (let ((key-count (length turtles--pending-key-stack)))
       (setq turtles--processing-key-stack
