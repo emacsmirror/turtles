@@ -620,8 +620,10 @@ then triggers that using the magic key."
     (turtles--push-input keybinding)
     (turtles--press-magic-key)))
 
-(defun turtles--run-once-input-processed (funclist)
+(defun turtles--run-once-input-processed (set-timer funclist)
   "Wait until Emacs has process the key stack then from FUNCLIST.
+
+Any timer that's created should be passed to SET-TIMER.
 
 This function waits for `turtles--processing-key-stack' to be
 emptied, runs the head of FUNCLIST, and repeat until FUNCLIST is
@@ -633,17 +635,21 @@ empty."
         ;; timer can be interrupted or escape the sit-for in
         ;; turtles-read-from-minibuffer, so we use here a timer and
         ;; what is basically a busy loop.
-        (run-with-timer 0 nil #'turtles--run-once-input-processed funclist)
+        (funcall set-timer
+                 (run-with-timer 0 nil #'turtles--run-once-input-processed
+                                 set-timer funclist))
       (funcall (car funclist))
-      (turtles--run-once-input-processed (cdr funclist)))))
+      (turtles--run-once-input-processed set-timer (cdr funclist)))))
 
-(defun turtles--run-with-minibuffer (&rest funclist)
+(defun turtles--run-with-minibuffer (set-timer &rest funclist)
   "Run FUNCLIST while the minibuffer is active
+
+Any timer that's created should be passed to SET-TIMER.
 
 The elements of FUNCLIST are executed in order in a timer.
 Additionally, this function waits for the key stack to empty
 between the execution each element of FUNCLIST"
-  (run-with-timer 0 nil #'turtles--run-once-input-processed funclist))
+  (run-with-timer 0 nil #'turtles--run-once-input-processed set-timer funclist))
 
 (provide 'turtles-instance)
 

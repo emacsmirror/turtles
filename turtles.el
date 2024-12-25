@@ -960,9 +960,11 @@ there's pending input.
 Return whatever READ eventually evaluates to."
   (declare (indent 1))
   (let ((mb-result-var (make-symbol "mb-result"))
-        (has-mb-result-var (make-symbol "has-mb-result")))
+        (has-mb-result-var (make-symbol "has-mb-result"))
+        (timer-var (make-symbol "timer")))
     `(let ((,mb-result-var nil)
-           (,has-mb-result-var nil))
+           (,has-mb-result-var nil)
+           (,timer-var nil))
        (when noninteractive
          (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
        (run-with-timer
@@ -970,10 +972,13 @@ Return whatever READ eventually evaluates to."
         (lambda ()
           (setq ,mb-result-var (progn ,read))
           (setq ,has-mb-result-var t)))
-       (turtles--run-with-minibuffer .
+       (turtles--run-with-minibuffer (lambda (newtimer)
+                                       (setq ,timer-var newtimer)) .
         ,(turtles--read-from-minibuffer-split-body body))
        (while (not ,has-mb-result-var)
          (sleep-for 0.01))
+       (when ,timer-var
+         (cancel-timer ,timer-var))
        ,mb-result-var)))
 
 (defun turtles--read-from-minibuffer-split-body (body)
