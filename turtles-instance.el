@@ -254,17 +254,7 @@ Does nothing if the server is already live."
                             (when id
                               (turtles-io--send conn `(:id ,id :result ,ret))))))
              (grab . ,(turtles-io-method-handler (instance-id)
-                        (let ((inst (turtles-get-instance instance-id)))
-                          ;; Wait until all output from the other
-                          ;; Emacs instance have been processed, as
-                          ;; it's likely in the middle of a redisplay.
-                          (turtles--let-term-settle inst)
-                          (with-current-buffer (turtles-instance-term-buf inst)
-                            (let ((range (turtles-terminal-screen-range
-                                          (turtles-instance-terminal inst))))
-                              (turtles--substring-with-properties
-                               (car range) (cdr range)
-                               '((font-lock-face . face) (face . face))))))))
+                        (turtles--grab (turtles-get-instance instance-id))))
              (press-magic-key . ,(turtles-io-method-handler (params)
                                    (let ((instance-id (nth 0 params))
                                          (count (nth 1 params)))
@@ -275,6 +265,25 @@ Does nothing if the server is already live."
                                                    (make-list count turtles--magic-key) ""))))))
              (message . ,(lambda (_conn _id _method msg)
                            (message msg))))))))
+
+(defun turtles--grab (inst)
+  "Grab the terminal frame of INST and return it.
+
+Returns (cons buffer-string . point). The point can be nil if it
+is outside of the screen."
+  ;; Wait until all output from the other
+  ;; Emacs instance have been processed, as
+  ;; it's likely in the middle of a redisplay.
+  (turtles--let-term-settle inst)
+  (with-current-buffer (turtles-instance-term-buf inst)
+    (let ((range (turtles-terminal-screen-range
+                  (turtles-instance-terminal inst))))
+      (cons
+       (turtles--substring-with-properties
+        (car range) (cdr range)
+        '((font-lock-face . face) (face . face)))
+       (when (<= (car range) (point) (cdr range))
+         (1+ (- (point) (car range))))))))
 
 (defun turtles-shutdown ()
   (interactive)

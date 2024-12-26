@@ -34,6 +34,19 @@
       (should (equal "hello, world!"
                      (buffer-string))))))
 
+(ert-deftest turtles-eat-mark-point ()
+  (turtles-ert-test :instance 'eat)
+
+  (ert-with-test-buffer ()
+    (insert "hello, world!\n")
+    (goto-char (point-min))
+    (search-forward "world")
+
+    (turtles-with-grab-buffer ()
+      (turtles-mark-point "<>")
+      (should (equal "hello, world<>!"
+                     (buffer-string))))))
+
 (ert-deftest turtles-eat-term-size ()
   (turtles-ert-test :instance 'eat)
 

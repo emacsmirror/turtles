@@ -35,6 +35,7 @@
 (require 'compat)
 (require 'ert)
 (require 'ert-x)
+(require 'pcase)
 (require 'subr-x) ;; when-let
 (require 'turtles-io)
 (require 'turtles-instance)
@@ -83,18 +84,6 @@ automatically even with the low precision of
 `turtles--color-values'. They don't need to be pretty, as they're
 never actually visible.")
 
-(defvar-local turtles-source-window nil
-  "The turtles frame window the current buffer was grabbed from.
-
-This is local variable set in a grab buffer filled by
-`turtles-grab-window' or `turtles-grab-buffer'.")
-
-(defvar-local turtles-source-buffer nil
-  "The buffer the current buffer was grabbed from.
-
-This is local variable set in a grab buffer filled by
-`turtles-grab-window' or `turtles-grab-buffer'.")
-
 (defvar-local turtles--left-margin-width 0
   "Width of the left margin left by `turtles--clip-in-frame-grab'.")
 
@@ -121,7 +110,7 @@ rougher and available in Emacs 26."
 (advice-add 'ert-run-tests :around #'turtles--around-ert-run-tests)
 (advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)
 
-(defun turtles-grab-frame (&optional grab-faces)
+(defun turtles-grab-frame (&optional grab-faces win)
   "Grab a snapshot current frame into the current buffer.
 
 This includes all windows and decorations. Unless that's what you
@@ -135,7 +124,10 @@ terminal allows.
 If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
-so any other face not in GRAB-FACE are absent."
+so any other face not in GRAB-FACE are absent.
+
+If WIN is non-nil, this is the window that must be selected when
+grabbing the frame. The grabbed pointer will be in that window." 
   (unless (turtles-io-conn-live-p (turtles-upstream))
     (error "No upstream connection"))
   (pcase-let ((`(,grab-face-alist . ,cookies)
@@ -146,14 +138,17 @@ so any other face not in GRAB-FACE are absent."
                 ;; pass in that buffer.
                 (turtles--all-displayed-buffers))))
     (unwind-protect
-        (progn
-          (redraw-frame)
-          (unless (redisplay t)
-            (error "Emacs won't redisplay in this context, likely because of pending input."))
+        (let (grabbed)
+          (with-selected-window (or win (selected-window))
+            (redraw-frame)
+            (unless (redisplay t)
+              (error "Emacs won't redisplay in this context, likely because of pending input."))
+            (setq grabbed (turtles-io-call-method
+                           (turtles-upstream)
+                           'grab (turtles-this-instance))))
           (delete-region (point-min) (point-max))
-          (let ((grab (turtles-io-call-method
-                       (turtles-upstream) 'grab (turtles-this-instance))))
-            (insert grab))
+          (insert (car grabbed))
+          (goto-char (or (cdr grabbed) (point-min)))
           (when grab-faces
             (turtles--faces-from-color grab-face-alist)))
       (turtles--teardown-grab-faces cookies))))
@@ -204,8 +199,6 @@ the buffer content and the effect of GRAB-FACES."
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
     (turtles-grab-frame grab-faces)
-    (setq turtles-source-window win)
-    (setq turtles-source-buffer (window-buffer win))
     (pcase-let ((`(,left _ ,right ,bottom) (window-edges win nil))
                 (`(_ _ _ ,body-bottom) (window-edges win 'body)))
       (turtles--clip left body-bottom right bottom))))
@@ -223,8 +216,6 @@ the buffer content and the effect of GRAB-FACES."
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
     (turtles-grab-frame grab-faces)
-    (setq turtles-source-window win)
-    (setq turtles-source-buffer (window-buffer win))
     (pcase-let ((`(,left ,top ,right _) (window-edges win nil))
                 (`(_ ,body-top _ _) (window-edges win 'body)))
       (turtles--clip left top right body-top))))
@@ -236,8 +227,8 @@ WIN must be a window on the turtles frame.
 
 When this function returns, the current buffer contains the
 textual representation of the content of that window. The point,
-mark and region are also set to corresponding positions in the
-current buffer, if possible.
+is also set to corresponding positions in the current buffer, if
+possible.
 
 If MARGIN is non-nil, include the left and right margins.
 
@@ -249,77 +240,11 @@ If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
-  (turtles-grab-frame grab-faces)
-  (setq turtles-source-window win)
-  (setq turtles-source-buffer (window-buffer win))
+  (turtles-grab-frame grab-faces win)
   (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
               (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
     (setq-local turtles--left-margin-width (- left-body left))
-    (turtles--clip left top right bottom))
-
-  (let ((point-pos (turtles-pos-in-window-grab (window-point win)))
-        (mark-pos (turtles-pos-in-window-grab
-                   (with-selected-window win (mark)) 'range)))
-    (when point-pos
-      (goto-char point-pos))
-    (when mark-pos
-      (push-mark mark-pos 'nomsg nil))
-
-    (when (and point-pos
-               mark-pos
-               (with-selected-window win
-                 (region-active-p)))
-      (activate-mark))))
-
-(defun turtles-pos-in-window-grab (pos-in-source-buf &optional range)
-  "Convert a position in the source buffer to the current buffer.
-
-For this to work, the current buffer must be a grab buffer
-created by `turtles-grab-window' or
-`turtles-grab-buffer' and neither its content nor the
-source buffer or source window must have changed since the grab.
-
-POS-IN-SOURCE-BUF should be a position in the source buffer. It
-might be nil, in which case this function returns nil.
-
-When RANGE is non-nil, if the position is before window start,
-set it at (point-min), if it is after window end, set it
-at (point-max). This is appropriate when highlighting range
-boundaries.
-
-Return a position in the current buffer. If the point does not
-appear in the grab, return nil."
-  (unless (and turtles-source-window turtles-source-buffer)
-    (error "Current buffer does not contain a window grab"))
-  (let* ((win turtles-source-window)
-         (buf turtles-source-buffer)
-         (minibuffer-hack
-          (and pos-in-source-buf
-               (> pos-in-source-buf (with-current-buffer buf (point-min)))
-               (< pos-in-source-buf (with-current-buffer buf (point-max)))
-               (window-minibuffer-p win)
-               (stringp (get-text-property pos-in-source-buf 'display buf))
-               (> pos-in-source-buf 1)
-               (not (stringp (get-text-property (1- pos-in-source-buf) 'display buf))))))
-    (when minibuffer-hack
-      (cl-decf pos-in-source-buf))
-    (cond
-     ((null pos-in-source-buf) nil)
-     ((and range (<= pos-in-source-buf (window-start win)))
-      (point-min))
-     ((and range (>= pos-in-source-buf (window-end win)))
-      (point-max))
-     (t (pcase-let ((`(,left ,top _ _) (window-body-edges win))
-                    (`(,x . ,y) (window-absolute-pixel-position
-                                 pos-in-source-buf win)))
-          (when (and x y)
-            (save-excursion
-              (when minibuffer-hack
-                  (cl-incf x))
-              (goto-char (point-min))
-              (forward-line (- y top))
-              (move-to-column (+ (- x left) turtles--left-margin-width))
-              (point))))))))
+    (turtles--clip left top right bottom)))
 
 (defun turtles--clip-in-frame-grab (win margins)
   "Clip the frame grab in the current buffer to the body of WIN.
@@ -566,31 +491,6 @@ strings"
   "Add a mark on the current point, so `buffer-string' shows it."
   (insert mark))
 
-(defun turtles-mark-region (marker &optional closing-marker)
-  "Surround the active region with markers.
-
-This function does nothing if the region is inactive.
-
-If only MARKER is specified, it must be a string composed of two
-strings of the same size that will be used as opening and closing
-marker, such as \"[]\" or \"/**/\".
-
-If both MARKER and CLOSING-MARKER are specified, MARKER is used
-as opening marker and CLOSING-MARKER as closing."
-  (when (region-active-p)
-    (pcase-let ((`(,opening . ,closing)
-                 (turtles--split-markers
-                  (if closing-marker
-                      (list marker closing-marker)
-                    marker))))
-      (let ((beg (min (point-marker) (mark-marker)))
-            (end (max (point-marker) (mark-marker))))
-        (save-excursion
-          (goto-char end)
-          (insert closing)
-          (goto-char beg)
-          (insert opening))))))
-
 (defun turtles-trim-buffer ()
   "Remove trailing spaces and final newlines.
 
@@ -749,7 +649,7 @@ them into the local `ert-test' instance."
 
 (cl-defun turtles-to-string (&key (name "grab")
                                    frame win buf minibuffer mode-line header-line
-                                   margins faces region point (trim t))
+                                   margins faces point (trim t))
   "Grab a section of the terminal and return the result as a string.
 
 With no arguments, this function renders the current buffer in
@@ -794,14 +694,6 @@ The following keyword arguments post-process what was grabbed:
   - Pass a string to the key argument POINT to insert at point,
     so that position is visible in the returned string.
 
-  - The key argument REGION makes the active region visible in
-    the returned string. Pass a string composed of opening and
-    closing strings of the same length, such as \"[]\" or
-    \"/**/\", to mark the beginning and end of the region.
-    Alternatively, you can also pass a list made up of two
-    strings, the opening and closing string, which then don't
-    need to be of the same size. See also `turtles-mark-region'.
-
   - The key argument FACES makes a specific set of faces visible
     in the returned string. Pass an alist with the symbols of the
     faces you want to highlight as key and either one string
@@ -815,12 +707,12 @@ The following keyword arguments post-process what was grabbed:
     (ert-with-test-buffer (:name name)
       (turtles--internal-grab
        frame win buf calling-buf minibuffer mode-line header-line faces margins)
-      (turtles--internal-postprocess region point (turtles--filter-faces-for-mark faces) trim)
+      (turtles--internal-postprocess point (turtles--filter-faces-for-mark faces) trim)
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
                                               frame win buf minibuffer mode-line header-line
-                                              margins faces region point (trim t))
+                                              margins faces point (trim t))
                                         &rest body)
   "Grab a section of the terminal and store it into a test buffer.
 
@@ -834,10 +726,10 @@ name of the test buffer.
 
 The garbbed buffer contains a textual representation of the frame
 or window captured on the turtles frame. When grabbing a buffer
-or window, the point and region will be grabbed as well.
-Additionally, unless FACES is specified, captured colors are
-available as overlay colors, within the limits of the turtles
-terminal, usually limited to 256 colors.
+or window, the point will be grabbed as well. Additionally,
+unless FACES is specified, captured colors are available as
+overlay colors, within the limits of the turtles terminal,
+usually limited to 256 colors.
 
 The following keyword arguments can be specified in parentheses,
 before BODY, to modify what is grabbed:
@@ -880,41 +772,28 @@ before BODY, to customize how what is grabbed is post-processed:
   - Pass a string to the key argument POINT to insert at point,
     so that position is visible in the returned string.
 
-  - The key argument REGION makes the active region visible in
-    the returned string. Pass a string composed of opening and
-    closing strings of the same length, such as \"[]\" or
-    \"/**/\", to mark the beginning and end of the region.
-    Alternatively, you can also pass a list made up of two
-    strings, the opening and closing string, which then don't
-    need to be of the same size. See also `turtles-mark-region'.
-
   - Set the key argument TRIM to nil to *not* trim the newlines
     at the end of the grabbed string. Without trimming, there is
     one newline per line of the grabbed window, even if the
     buffer content is shorter."
   (declare (indent 1))
   (let ((calling-buf (make-symbol "calling-buf"))
-        (faces-var (make-symbol "faces"))
-        (region-var (make-symbol "region")))
+        (faces-var (make-symbol "faces")))
     `(let ((,calling-buf (current-buffer))
-           (,faces-var ,faces)
-           (,region-var ,region))
+           (,faces-var ,faces))
        (ert-with-test-buffer (:name ,name)
          (turtles--internal-grab
           ,frame ,win ,buf ,calling-buf ,minibuffer
           ,mode-line ,header-line ,faces-var ,margins)
          (turtles--internal-postprocess
-          ,region ,point (turtles--filter-faces-for-mark ,faces-var) ,trim)
+          ,point (turtles--filter-faces-for-mark ,faces-var) ,trim)
          ,@body))))
 
-(defun turtles--internal-postprocess (region point faces trim)
+(defun turtles--internal-postprocess (point faces trim)
   "Post-process a grabbed buffer.
 
 This is a helper for macros in this file. Don't use it outside of
 it; call the functions directly."
-  (when region
-    (turtles-mark-region (if (consp region) (car region) region)
-                         (if (consp region) (nth 1 region))))
   (when point
     (insert point))
   (when faces

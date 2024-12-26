@@ -31,13 +31,44 @@
 (ert-deftest turtles-grab-frame ()
   (turtles-ert-test)
 
-  (with-current-buffer (get-scratch-buffer-create)
+  (ert-with-test-buffer ()
     (turtles-display-buffer-full-frame (current-buffer))
     (insert "De Chelonian Mobile")
     (ert-with-test-buffer ()
       (turtles-grab-frame)
       (goto-char (point-min))
       (should (search-forward "De Chelonian Mobile")))))
+
+(ert-deftest turtles-grab-frame-with-window ()
+  (turtles-ert-test)
+
+  (let (bufa bufb)
+    (ert-with-test-buffer (:name "a")
+      (setq bufa (current-buffer))
+      (insert "This is buffer A")
+
+      (ert-with-test-buffer (:name "b")
+        (setq bufb (current-buffer))
+        (insert "This is buffer B")
+        (goto-char (point-min))
+        (search-forward "buffer")
+
+        (turtles-display-buffer-full-frame bufa)
+        (select-window (frame-root-window))
+        (set-window-buffer (split-window-below) bufb)
+        (select-window (get-buffer-window bufa))
+
+        (ert-with-test-buffer (:name "grab")
+          ;; The window of buffer B must be the one selected during
+          ;; the grab, so that's where the pointer will be.
+          (turtles-grab-frame nil (get-buffer-window bufb))
+          (should (eq (get-buffer-window bufa) (selected-window)))
+          (insert "<>")
+          (should (equal "This is buffer<> B"
+                         (buffer-substring (line-beginning-position)
+                                           (line-end-position))))
+          (goto-char (point-min))
+          (should (search-forward "This is buffer A")))))))
 
 (ert-deftest turtles-grab-frame-from-server ()
   (should-error (with-temp-buffer
@@ -370,329 +401,6 @@
            (turtles-mark-point "<>")
            (buffer-string))))))))
 
-(ert-deftest turtles-grab-active-mark ()
-  (turtles-ert-test)
-
-  (let ((test-buffer))
-    (ert-with-test-buffer ()
-      (setq test-buffer (current-buffer))
-      (turtles-test-init-buffer)
-      (dotimes (i 10)
-        (insert (format "line %d." i))
-        ;; Make sure position computation isn't confused by invisible
-        ;; text.
-        (insert (propertize "invisible text" 'invisible t))
-        (insert ".\n"))
-
-      (goto-char (point-min))
-      (search-forward "line 3")
-      (push-mark (match-beginning 0) 'nomsg)
-      (search-forward "line 6")
-      (activate-mark)
-      (should (and t (region-active-p)))
-
-      (should
-       (equal
-        (concat "line 0..\n"
-                "line 1..\n"
-                "line 2..\n"
-                "[line 3..\n"
-                "line 4..\n"
-                "line 5..\n"
-                "line 6]..\n"
-                "line 7..\n"
-                "line 8..\n"
-                "line 9..")
-        (string-trim
-         (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer test-buffer)
-           (insert "]")
-           (goto-char (mark))
-           (insert "[")
-           (should (region-active-p))
-           (delete-trailing-whitespace)
-
-           (buffer-string))))))))
-
-(ert-deftest turtles-grab-inactive-mark ()
-  (turtles-ert-test)
-
-  (let ((test-buffer))
-    (ert-with-test-buffer ()
-      (setq test-buffer (current-buffer))
-      (turtles-test-init-buffer)
-      (dotimes (i 10)
-        (insert (format "line %d." i))
-        ;; Make sure position computation isn't confused by invisible
-        ;; text.
-        (insert (propertize "invisible text" 'invisible t))
-        (insert ".\n"))
-
-      (goto-char (point-min))
-      (search-forward "line 3")
-      (push-mark (match-beginning 0) 'nomsg)
-      (search-forward "line 6")
-      (deactivate-mark)
-      (should (not (region-active-p)))
-
-      (should
-       (equal
-        (concat "line 0..\n"
-                "line 1..\n"
-                "line 2..\n"
-                "[line 3..\n"
-                "line 4..\n"
-                "line 5..\n"
-                "line 6]..\n"
-                "line 7..\n"
-                "line 8..\n"
-                "line 9..")
-        (string-trim
-         (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer test-buffer)
-           (insert "]")
-           (goto-char (mark))
-           (insert "[")
-           (should-not (region-active-p))
-
-           (buffer-string))))))))
-
-(ert-deftest turtles-grab-mark-before-window-start ()
-  (turtles-ert-test)
-
-  (let ((test-buffer))
-    (ert-with-test-buffer ()
-      (setq test-buffer (current-buffer))
-      (turtles-test-init-buffer)
-      (dotimes (i 100)
-        (insert (format "line %d.\n" i)))
-
-      (goto-char (point-min))
-      (search-forward "line 3")
-      (push-mark (match-beginning 0) 'nomsg)
-      (search-forward "line 90")
-
-      (should
-       (equal
-        (concat "[line 79.\n"
-                "line 80.\n"
-                "line 81.\n"
-                "line 82.\n"
-                "line 83.\n"
-                "line 84.\n"
-                "line 85.\n"
-                "line 86.\n"
-                "line 87.\n"
-                "line 88.\n"
-                "line 89.\n"
-                "line 90].\n"
-                "line 91.\n"
-                "line 92.\n"
-                "line 93.\n"
-                "line 94.\n"
-                "line 95.\n"
-                "line 96.\n"
-                "line 97.\n"
-                "line 98.\n"
-                "line 99.")
-        (string-trim
-         (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer test-buffer)
-           (insert "]")
-           (goto-char (mark))
-           (insert "[")
-
-           (buffer-string))))))))
-
-(ert-deftest turtles-grab-mark-after-window-start ()
-  (turtles-ert-test)
-
-  (let ((test-buffer))
-    (ert-with-test-buffer ()
-      (setq test-buffer (current-buffer))
-      (turtles-test-init-buffer)
-      (dotimes (i 100)
-        (insert (format "line %d.\n" i)))
-
-      (goto-char (point-min))
-      (search-forward "line 90")
-      (push-mark (point) 'nomsg)
-      (goto-char (point-min))
-      (search-forward "line 9")
-      (goto-char (match-beginning 0))
-
-      (should
-       (equal
-        (concat
-         "line 0.\n"
-         "line 1.\n"
-         "line 2.\n"
-         "line 3.\n"
-         "line 4.\n"
-         "line 5.\n"
-         "line 6.\n"
-         "line 7.\n"
-         "line 8.\n"
-         "[line 9.\n"
-         "line 10.\n"
-         "line 11.\n"
-         "line 12.\n"
-         "line 13.\n"
-         "line 14.\n"
-         "line 15.\n"
-         "line 16.\n"
-         "line 17.\n"
-         "line 18.\n"
-         "line 19.\n"
-         "line 20.\n"
-         "line 21.\n"
-         "]")
-        (string-trim
-         (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer test-buffer)
-           (insert "[")
-           (goto-char (mark))
-           (insert "]")
-
-           (buffer-string))))))))
-
-(ert-deftest turtles-grab-invisible-mark ()
-  (turtles-ert-test)
-
-  (let ((test-buffer))
-    (ert-with-test-buffer ()
-      (setq test-buffer (current-buffer))
-      (turtles-test-init-buffer)
-      (dotimes (i 10)
-        (insert (format "line %d." i))
-        ;; Make sure position computation isn't confused by invisible
-        ;; text.
-        (insert (propertize "invisible text" 'invisible t))
-        (insert ".\n"))
-
-      ;; Put the mark in the middle of an invisible section.
-      (goto-char (point-min))
-      (search-forward "line 3")
-      (search-forward "invisible")
-      (push-mark (point) 'nomsg)
-      (search-forward "line 6")
-
-      (should
-       (equal
-        (concat "line 0..\n"
-                "line 1..\n"
-                "line 2..\n"
-                "line 3.[.\n"
-                "line 4..\n"
-                "line 5..\n"
-                "line 6]..\n"
-                "line 7..\n"
-                "line 8..\n"
-                "line 9..")
-        (string-trim
-         (ert-with-test-buffer (:name "grab")
-           (turtles-grab-buffer test-buffer)
-           (insert "]")
-           (goto-char (mark))
-           (insert "[")
-
-           (buffer-string))))))))
-
-(ert-deftest turtles-grab-buffer-position ()
-  (turtles-ert-test)
-
-  (let (test-buffer pos)
-    (ert-with-test-buffer ()
-      (setq test-buffer (current-buffer))
-      (turtles-test-init-buffer)
-      (dotimes (i 10)
-        (insert (format "line %d." i))
-        ;; Make sure position computation isn't confused by invisible
-        ;; text.
-        (insert (propertize "invisible text" 'invisible t))
-        (insert ".\n"))
-      (goto-char (point-min))
-      (search-forward "line 6")
-      (setq pos (1- (match-end 0)))
-      (goto-char (point-min))
-      (ert-with-test-buffer (:name "grab")
-        (turtles-grab-buffer test-buffer)
-        (goto-char (turtles-pos-in-window-grab pos))
-        (turtles-mark-point "<>")
-        (delete-trailing-whitespace)
-        (should  (equal
-                  (concat
-                   "line 0..\n"
-                   "line 1..\n"
-                   "line 2..\n"
-                   "line 3..\n"
-                   "line 4..\n"
-                   "line 5..\n"
-                   "line <>6..\n"
-                   "line 7..\n"
-                   "line 8..\n"
-                   "line 9..\n")
-                  (buffer-string)))))))
-
-(ert-deftest turtles-grab-buffer-position-long-lines ()
-  (turtles-ert-test)
-
-  (let (test-buffer pos)
-    (ert-with-test-buffer ()
-      (setq test-buffer (current-buffer))
-      (turtles-test-init-buffer)
-      (setq-local truncate-lines nil)
-
-      (dotimes (i 10)
-        (insert "This is a ")
-        (dotimes (i 20)
-          (insert "long "))
-        (insert (format "line %d.\n" i)))
-      (goto-char (point-min))
-      (search-forward "line 6")
-      (setq pos (match-beginning 0))
-      (goto-char (point-min))
-      (ert-with-test-buffer (:name "grab")
-        (turtles-grab-buffer test-buffer)
-        (goto-char (turtles-pos-in-window-grab pos))
-        (should (equal "line 6."
-                       (buffer-substring
-                        (point) (line-end-position))))))))
-
-(ert-deftest turtles-pos-before-display-in-normal-buffer ()
-  (turtles-ert-test)
-
-  (ert-with-test-buffer ()
-    (let ((testbuf (current-buffer)))
-      (turtles-test-init-buffer)
-
-      (insert "hello")
-      (insert (propertize "HH" 'display " → "))
-      (insert "world")
-      (goto-char (minibuffer-prompt-end))
-      (search-forward "hello")
-      (ert-with-test-buffer ()
-        (turtles-grab-buffer testbuf)
-        (turtles-mark-point "<>")
-        (turtles-trim-buffer)
-        (should (equal "hello<> → world" (buffer-string)))))))
-
-(ert-deftest turtles-pos-before-display-in-minibuffer ()
-  (turtles-ert-test)
-
-  (turtles-read-from-minibuffer
-      (read-from-minibuffer "Prompt: ")
-    (insert "hello")
-    (insert (propertize "HH" 'display " → "))
-    (insert "world")
-    (goto-char (minibuffer-prompt-end))
-    (search-forward "hello")
-    (ert-with-test-buffer ()
-      (turtles-grab-window (minibuffer-window))
-      (turtles-mark-point "<>")
-      (turtles-trim-buffer)
-      (should (equal "Prompt: hello<> → world" (buffer-string))))))
-
 (ert-deftest turtles-grab-faces ()
   (turtles-ert-test)
 
@@ -875,72 +583,6 @@
    (turtles-mark-point "<>")
 
    (should (equal "Time is a drug. Too much of it kills<> you."
-                  (buffer-string)))))
-
-(ert-deftest turtles-mark-region ()
-  (ert-with-test-buffer ()
-   (insert "Time is a drug. Too much of it kills you.")
-
-   (goto-char (point-min))
-   (search-forward "Too")
-   (push-mark (match-beginning 0))
-   (search-forward "kills")
-   (activate-mark)
-
-   (turtles-mark-region "[]")
-
-   (should (equal "Time is a drug. [Too much of it kills] you."
-                  (buffer-string)))))
-
-(ert-deftest turtles-mark-region-swapped ()
-  (ert-with-test-buffer ()
-   (insert "Time is a drug. Too much of it kills you.")
-
-   (goto-char (point-min))
-   (search-forward "kills")
-   (push-mark (point) 'nomsg)
-   (goto-char (point-min))
-   (search-forward "Too")
-   (goto-char (match-beginning 0))
-   (activate-mark)
-
-   (turtles-mark-region "[]")
-
-   (should (equal "Time is a drug. [Too much of it kills] you."
-                  (buffer-string)))))
-
-(ert-deftest turtles-mark-region-twochars ()
-  (ert-with-test-buffer ()
-   (insert "Time is a drug. Too much of it kills you.")
-
-   (goto-char (point-min))
-   (search-forward "kills")
-   (push-mark (point) 'nomsg)
-   (goto-char (point-min))
-   (search-forward "Too")
-   (goto-char (match-beginning 0))
-   (activate-mark)
-
-   (turtles-mark-region "/**/")
-
-   (should (equal "Time is a drug. /*Too much of it kills*/ you."
-                  (buffer-string)))))
-
-(ert-deftest turtles-mark-region-opening-and-closing ()
-  (ert-with-test-buffer ()
-   (insert "Time is a drug. Too much of it kills you.")
-
-   (goto-char (point-min))
-   (search-forward "kills")
-   (push-mark (point) 'nomsg)
-   (goto-char (point-min))
-   (search-forward "Too")
-   (goto-char (match-beginning 0))
-   (activate-mark)
-
-   (turtles-mark-region ">>" "<")
-
-   (should (equal "Time is a drug. >>Too much of it kills< you."
                   (buffer-string)))))
 
 (ert-deftest turtles-colors ()
@@ -1129,22 +771,6 @@
                    (turtles-to-string :faces '((error "[]")
                                                 (success "{" "}")))))))
 
-(ert-deftest turtles-to-string-region ()
-  (turtles-ert-test)
-
-  (ert-with-test-buffer ()
-    (insert "baa, baa, black sheep, have you any wool?")
-    (goto-char (point-min))
-    (search-forward "baa, black")
-    (push-mark (match-beginning 0) 'nomsg)
-    (search-forward "sheep")
-    (activate-mark)
-
-    (should
-     (equal
-      "baa, [baa, black sheep], have you any wool?"
-      (turtles-to-string :region "[]")))))
-
 (ert-deftest turtles-to-string-point ()
   (turtles-ert-test)
 
@@ -1157,22 +783,6 @@
      (equal
       "baa, baa, black>< sheep, have you any wool?"
       (turtles-to-string :point "><")))))
-
-(ert-deftest turtles-to-string-point-and-region ()
-  (turtles-ert-test)
-
-  (ert-with-test-buffer ()
-    (insert "baa, baa, black sheep, have you any wool?")
-    (goto-char (point-min))
-    (search-forward "baa, black")
-    (push-mark (match-beginning 0) 'nomsg)
-    (search-forward "sheep")
-    (activate-mark)
-
-    (should
-     (equal
-      "baa, [baa, black sheep><], have you any wool?"
-      (turtles-to-string :point "><" :region "[]")))))
 
 (ert-deftest turtles-with-grab-buffer-noarg ()
   (turtles-ert-test)
@@ -1286,23 +896,6 @@
         "baa, baa, black>< sheep, have you any wool?"
         (buffer-string))))))
 
-(ert-deftest turtles-with-grab-buffer-point-and-region ()
-  (turtles-ert-test)
-
-  (ert-with-test-buffer ()
-    (insert "baa, baa, black sheep, have you any wool?")
-    (goto-char (point-min))
-    (search-forward "baa, black")
-    (push-mark (match-beginning 0) 'nomsg)
-    (search-forward "sheep")
-    (activate-mark)
-
-    (turtles-with-grab-buffer (:point "><" :region "[]")
-      (should
-       (equal
-        "baa, [baa, black sheep><], have you any wool?"
-        (buffer-string))))))
-
 (ert-deftest turtles-with-grab-mode-line ()
   (turtles-ert-test)
 
@@ -1388,8 +981,11 @@
                 (should (eq inst turtles--original-instance))
                 (should (string-prefix-p "[default] turtles-pop-to-buffer-copy" (buffer-name)))
                 (turtles-mark-point "<>")
-                (turtles-mark-region "[]")
-                (should (equal "This is my <>[buffer]." (buffer-string)))))
+                (when (region-active-p)
+                  (save-excursion
+                    (goto-char (mark))
+                    (insert "<m>")))
+                (should (equal "This is my <>buffer<m>." (buffer-string)))))
           (kill-buffer buf))))))
 
 (ert-deftest turtles-pop-to-buffer-embedded ()
