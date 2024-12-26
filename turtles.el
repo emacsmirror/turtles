@@ -110,12 +110,15 @@ rougher and available in Emacs 26."
 (advice-add 'ert-run-tests :around #'turtles--around-ert-run-tests)
 (advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)
 
-(defun turtles-grab-frame (&optional grab-faces win)
+(defun turtles-grab-frame (&optional win grab-faces)
   "Grab a snapshot current frame into the current buffer.
 
 This includes all windows and decorations. Unless that's what you
 want to test, it's usually better to call `turtles-grab-buffer'
-or `turtles-grab-win', which just return the window body.
+or `turtles-grab-win', which just returns the window body.
+
+If WIN is non-nil, this is the window that must be selected when
+grabbing the frame. The grabbed pointer will be in that window.
 
 If GRAB-FACES is empty, the colors are copied as
 \\='face text properties, with as much fidelity as the
@@ -124,10 +127,7 @@ terminal allows.
 If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
-so any other face not in GRAB-FACE are absent.
-
-If WIN is non-nil, this is the window that must be selected when
-grabbing the frame. The grabbed pointer will be in that window." 
+so any other face not in GRAB-FACE are absent." 
   (unless (turtles-io-conn-live-p (turtles-upstream))
     (error "No upstream connection"))
   (pcase-let ((`(,grab-face-alist . ,cookies)
@@ -198,7 +198,7 @@ the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
-    (turtles-grab-frame grab-faces)
+    (turtles-grab-frame win grab-faces)
     (pcase-let ((`(,left _ ,right ,bottom) (window-edges win nil))
                 (`(_ _ _ ,body-bottom) (window-edges win 'body)))
       (turtles--clip left body-bottom right bottom))))
@@ -215,7 +215,7 @@ the buffer content and the effect of GRAB-FACES."
   (let ((win (if (bufferp win-or-buf)
                  (turtles--setup-buffer win-or-buf)
                win-or-buf)))
-    (turtles-grab-frame grab-faces)
+    (turtles-grab-frame win grab-faces)
     (pcase-let ((`(,left ,top ,right _) (window-edges win nil))
                 (`(_ ,body-top _ _) (window-edges win 'body)))
       (turtles--clip left top right body-top))))
@@ -240,7 +240,7 @@ If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
 so any other face not in GRAB-FACE are absent."
-  (turtles-grab-frame grab-faces win)
+  (turtles-grab-frame win grab-faces)
   (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
               (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
     (setq-local turtles--left-margin-width (- left-body left))
@@ -935,7 +935,7 @@ Do not call this function outside of this file."
                  (if (eq t mode-line) calling-buf mode-line) grab-faces))
      (header-line (turtles-grab-header-line
                    (if (eq t header-line) calling-buf header-line) grab-faces))
-     (frame (turtles-grab-frame grab-faces))
+     (frame (turtles-grab-frame nil grab-faces))
      (t (turtles-grab-buffer calling-buf grab-faces margins)))))
 
 (defun turtles--filter-faces-for-grab (faces)

@@ -61,7 +61,7 @@
         (ert-with-test-buffer (:name "grab")
           ;; The window of buffer B must be the one selected during
           ;; the grab, so that's where the pointer will be.
-          (turtles-grab-frame nil (get-buffer-window bufb))
+          (turtles-grab-frame (get-buffer-window bufb))
           (should (eq (get-buffer-window bufa) (selected-window)))
           (insert "<>")
           (should (equal "This is buffer<> B"
