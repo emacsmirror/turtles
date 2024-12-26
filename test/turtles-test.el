@@ -514,6 +514,71 @@
 
            (buffer-string))))))))
 
+(ert-deftest turtles-grab-and-mark-faces-not-extend ()
+  ;; :extend became available in Emacs 27.1. Under Emacs 26, all faces
+  ;; are treated as having :extend t.
+  (skip-unless (>= emacs-major-version 27))
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+
+      (should-not (face-attribute 'error :extend nil 'default))
+
+      (insert "error: ")
+      (insert (propertize "line1  \nline2\nline3" 'face 'error))
+      (insert ".\n")
+
+      (should
+       (equal
+        (concat
+         "error: {line1   }\n"
+         "{line2 }\n"
+         "{line3}.")
+        (ert-with-test-buffer (:name "grab")
+          (turtles-grab-buffer test-buffer '(error))
+          (turtles-mark-text-with-face 'error "{}")
+          (turtles-trim-buffer)
+          (buffer-string)))))))
+
+(ert-deftest turtles-grab-and-mark-faces-extend ()
+  (turtles-ert-test)
+
+  (let ((test-buffer))
+    (ert-with-test-buffer ()
+      (setq test-buffer (current-buffer))
+      (turtles-test-init-buffer)
+
+      ;; Face with :extend t are treated differently both by Emacs
+      ;; when displaying and by Turtles when grabbing and marking.
+      (when (>= emacs-major-version 27)
+        (should (face-attribute 'region :extend nil 'default)))
+
+      (insert "region: ")
+      (insert (propertize "line1  \nline2\nline3" 'face 'region))
+      (insert ".\n")
+      (insert "region-end-with-nl: ")
+      (insert (propertize "line1  \nline2\nline3" 'face 'region))
+      (insert "\n")
+      (insert "region-end-at-eob: ")
+      (insert (propertize "line1  \nline2\nline3" 'face 'region))
+
+      (should
+       (equal
+        (concat
+         "region: [line1\n"
+         "line2\n"
+         "line3].\n"
+         "region-end-with-nl: [line1\nline2\nline3]\n"
+         "region-end-at-eob: [line1\nline2\nline3]")
+        (ert-with-test-buffer (:name "grab")
+          (turtles-grab-buffer test-buffer '(region))
+          (turtles-mark-text-with-face 'region "[]")
+          (turtles-trim-buffer)
+          (buffer-string)))))))
+
 (ert-deftest turtles-grab-margins ()
   (turtles-ert-test)
 

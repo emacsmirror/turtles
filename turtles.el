@@ -309,8 +309,11 @@ to `turtles--teardown-grab-faces'."
       (dolist (face grab-faces)
         (let* ((idx (length remapping))
                (bg (aref turtles-basic-colors (% idx color-count)))
-               (fg (aref turtles-basic-colors (/ idx color-count))))
-          (push (cons face `(:background ,bg :foreground ,fg)) remapping)))
+               (fg (aref turtles-basic-colors (/ idx color-count)))
+               (extend (when (eval-when-compile (>= emacs-major-version 27))
+                         `(:extend ,(turtles--extend-p face)))))
+          (push (cons face `(:background ,bg :foreground ,fg . ,extend))
+                remapping)))
 
       (setq grab-face-alist (cl-copy-list remapping))
 
@@ -374,6 +377,11 @@ set."
               (when (> next (point))
                 (remove-text-properties (point) next '(face nil)))
               (when current-face
+                (when (and (>= (- range-start 2) (point-min))
+                           (eq (char-before range-start) ?\n)
+                           (eq current-face (get-text-property (- range-start 2) 'face))
+                           (turtles--extend-p current-face))
+                  (cl-decf range-start))
                 (add-text-properties range-start next `(face ,current-face))
                 (setq range-start nil)
                 (setq current-face nil)))
@@ -447,11 +455,20 @@ markers should be, either:
   For example: (\"s[\" \"]\")
 
 This function is meant to highlight faces setup by turtles when
-asked to grab faces. It won't work in the general case."
+asked to grab faces. It won't work in the general case.
+
+If the region covered by the face spans newlines, you might get
+different results under Emacs 26 than under Emacs 27 and later.
+Under Emacs 26, faces always apply to the empty space between the
+end of the line and the edge of the window. Under Emacs 27 and
+later, only a few faces behave that way, such as region. This is
+controlled by the:extend face attribute, which this function
+checks and follows."
   (when face-marker-alist
     (save-excursion
       (let ((next (point-min))
-            (closing nil))
+            (closing nil)
+            (extend nil))
         (while
             (progn
               (goto-char next)
@@ -459,15 +476,21 @@ asked to grab faces. It won't work in the general case."
                           (markers (alist-get face face-marker-alist)))
                 (pcase-let ((`(,op . ,close) (turtles--split-markers markers)))
                   (insert op)
+                  (setq extend (turtles--extend-p face))
                   (setq closing close)))
-              (setq next (next-property-change (point)))
+              (setq next (or (next-property-change (point)) (point-max)))
 
               (when closing
-                (goto-char (or next (point-max)))
+                (goto-char next)
+                (when (and extend (or (= next (point-max))
+                                      (eq (char-after (point)) ?\n)))
+                  (while (eq (char-before (point)) ?\ )
+                    (goto-char (1- (point)))))
                 (insert closing)
+                (setq next (+ (length closing) next))
                 (setq closing nil))
 
-              next))))))
+              (< next (point-max))))))))
 
 (defun turtles--split-markers (markers)
   "Return an opening and closing marker.
@@ -1079,6 +1102,15 @@ This function is meant to be added to `turtles-pop-to-buffer-actions'"
           (set-window-buffer (frame-root-window) buf)
           (make-frame-visible))))
      (t (error "Unknown action %s" action)))))
+
+(defun turtles--extend-p (face)
+  (if (eval-when-compile (>= emacs-major-version 27))
+      (face-attribute face :extend nil 'default)
+    ;; Under Emacs 26, all faces are treated as if they had :extend t.
+    ;; Returning t here is consistent with Emacs 26, but will mean
+    ;; that some tests have to treat Emacs 26 differently to work
+    ;; properly.
+    t))
 
 (provide 'turtles)
 
