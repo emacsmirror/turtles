@@ -24,6 +24,12 @@
 (turtles-definstance turtles--restart ()
   "A private test instance to test restart.")
 
+(defvar turtles-test-var1 'default)
+(defvar turtles-test-var2 'default)
+(defvar turtles-test-var3 'default)
+(turtles-definstance turtles--forward (:forward '(turtles-test-var1 turtles-test-var2 turtles-test-var3))
+  "A private test instance to test variable value forwarding.")
+
 (ert-deftest turtles-instance-restart ()
   (turtles-start-server)
   (should turtles--server)
@@ -50,6 +56,22 @@
     (should-not (turtles-instance-live-p inst))
     (should-not (buffer-live-p buf))
     (should-not (process-live-p proc))))
+
+(ert-deftest turtles-instance-forward ()
+  ;; Only on the server: set values different from the default which
+  ;; will have to be forwarded.
+
+  (turtles-stop-instance 'turtles--forward)
+  (setq turtles-test-var1 505)
+  (setq turtles-test-var2 "barfoo")
+  (setq turtles-test-var3 '("hello" "world"))
+
+  (let ((inst (turtles-start-instance 'turtles--forward)))
+    (should
+     (equal
+      (list 505 "barfoo" '("hello" "world"))
+      (turtles-instance-eval
+       inst '(list turtles-test-var1 turtles-test-var2 turtles-test-var3))))))
 
 (ert-deftest turtles-instance-message ()
   (let ((inst (turtles-start-instance 'default)))

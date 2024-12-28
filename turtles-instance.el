@@ -112,6 +112,7 @@ Note that the keys are in the reverse order.")
   (conn nil :documentation "A turtles-io-conn connected with the instance, if live.")
   (width 80 :read-only t :documentation "Terminal width, in characters.")
   (height 24 :read-only t :documentation "Terminal height, in characters.")
+  (forward nil :documentation "List of variables to copy at instance launc")
   (setup nil :read-only t :documentation "Expression to execute before every test.")
   (term-buf nil :documentation "Buffer running this instance, if live.")
   (terminal 'term :documentation "Terminal type, \\='term or \\='eat."))
@@ -176,7 +177,8 @@ For example:
    'eval expr :timeout timeout))
 
 (cl-defmacro turtles-definstance
-    (id (&key (width 80) (height 24) (terminal 'term))
+    (id (&key (width 80) (height 24) (terminal 'term)
+              forward)
         doc &rest setup)
   "Define an instance with the given ID.
 
@@ -187,6 +189,10 @@ WIDTH and HEIGHT are the terminal dimensions.
 TERMINAL is the terminal type to use for this instance, term or
 eat, term by default.
 
+FORWARD is a list of variable symbols whose value are be
+copied into the instance when it is created. The value must be
+one that survives (read-from-string (prin1-to-string val)).
+
 SETUP is code to run on the instance before every test."
   (declare (indent 2) (doc-string 3))
   `(setf (alist-get ',id turtles-instance-alist)
@@ -196,6 +202,7 @@ SETUP is code to run on the instance before every test."
           :width ,width
           :height ,height
           :terminal ',terminal
+          :forward ,forward
           :setup '(progn ,@setup))))
 
 (defun turtles-default-terminal-setup ()
@@ -342,6 +349,9 @@ Does nothing if the instance is already running."
                                        (setq load-prefer-newer t)
                                        (load ,turtles--file-name nil 'nomessage)
                                        (setq turtles-send-messages-upstream ',turtles-send-messages-upstream)
+                                       (progn . ,(mapcar (lambda (var)
+                                                           `(setq ,var ',(symbol-value var)))
+                                                         (turtles-instance-forward inst)))
                                        (turtles--launch
                                         ,(turtles-io-server-socket turtles--server)
                                         ',(turtles-instance-id inst)
