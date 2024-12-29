@@ -271,7 +271,7 @@ Does nothing if the server is already live."
                                         (mapconcat #'identity
                                                    (make-list count turtles--magic-key) ""))))))
              (message . ,(lambda (_conn _id _method msg)
-                           (message msg))))))))
+                           (message "%s" msg))))))))
 
 (defun turtles--grab (inst)
   "Grab the terminal frame of INST and return it.
