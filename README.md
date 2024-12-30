@@ -13,16 +13,13 @@ It's especially suited to test:
 - text visibility
 - status line
 - colors changes
+- complex minibuffer interactions
 
 ## Status
 
-This project is still in early experimental phase. It is undocumented
-and shouldn't be used by anyone.
-
-> [!IMPORTANT]
-> Its API is highly unstable at this time. Serious refactoring are
-> planned. Please wait before the first release before depending on
-> this package.
+This project is in pre-1.0 phase; API changes are still possible, but
+not likely. To be safe, please wait until release 1.0 to depend on
+this project.
 
 ## Installation
 
