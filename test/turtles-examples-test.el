@@ -117,4 +117,8 @@
           (should (equal "Baa, [baa], black sheep, have you any wool?"
                          (buffer-string))))
 
-        (isearch-done)))))
+        (isearch-done))
+
+      (turtles-with-grab-buffer (:buf testbuf :name "final position" :point "<>")
+        (should (equal "Baa, baa<>, black sheep, have you any wool?"
+                       (buffer-string)))))))
