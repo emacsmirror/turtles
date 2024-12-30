@@ -224,10 +224,6 @@ This is the instance used by `ert-test' when no instance is
 given."
   (turtles-default-terminal-setup))
 
-(turtles-definstance eat (:terminal eat :width 80 :height 24)
-  "Emacs instance in an eat terminal."
-  (turtles-default-terminal-setup))
-
 (defun turtles-this-instance ()
   "ID of the instance for which the current Emacs process was started.
 
