@@ -73,6 +73,25 @@
                       "(defun test-3 ()...)")
                      (buffer-string))))))
 
+(ert-deftest turtles-examples-test-completing-read ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (turtles-read-from-minibuffer
+          (should
+           (equal "Choice B"
+                  (completing-read "Choose: " '("Choice A" "Choice B") nil t)))
+
+        (turtles-with-grab-buffer (:name "initial prompt")
+          (should (equal "Choose:" (buffer-string))))
+
+        (execute-kbd-macro (kbd "Ch TAB"))
+        (turtles-with-grab-buffer (:name "Complete 1" :point "<>")
+          (should (equal "Choose: Choice <>" (buffer-string))))
+
+        (execute-kbd-macro (kbd "B"))))))
+
 (ert-deftest turtles-examples-test-isearch ()
   (turtles-ert-test)
 
