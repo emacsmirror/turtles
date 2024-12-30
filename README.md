@@ -17,9 +17,9 @@ It's especially suited to test:
 
 ## Status
 
-This project is in pre-1.0 phase; API changes are still possible, but
-not likely. To be safe, please wait until release 1.0 to depend on
-this project.
+This project is getting close to stable, though API changes are still
+happening. To be safe, please wait until release 1.0 to depend on this
+project.
 
 ## Installation
 
