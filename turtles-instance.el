@@ -38,7 +38,7 @@
 (defvar turtles-instance-alist nil
   "Alist of symbol to `turtles-instance' definitions.")
 
-(defun turtles-set-instance-option (sym val)
+(defun turtles--set-instance-option (sym val)
   "Set SYM to VAL on all instances.
 
 This is meant to be passed to the :set option of customize
@@ -68,7 +68,7 @@ take effect after instances are restarted."
   :group 'turtles
   :type '(radio (const :tag "Always" t)
                 (const :tag "Never" nil))
-  :set #'turtles-set-instance-option)
+  :set #'turtles--set-instance-option)
 
 (defvar turtles--sending-messages-up 0
   "Set to > 0 while processing code to send messages to the server.
