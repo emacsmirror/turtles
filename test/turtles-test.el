@@ -1,4 +1,4 @@
-;; turtles.el --- Test turtles.el -*- lexical-binding: t -*-
+;; turtles-test.el --- Test turtles.el -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024 Stephane Zermatten
 
@@ -991,23 +991,7 @@
               (should (equal "Prompt: hello" (turtles-to-string)))
               (execute-kbd-macro (kbd "RET")))))))
 
-;; Snippet shown in README.md
-(ert-deftest turtles-hello-world ()
-  (turtles-ert-test)             ;; Start a secondary Emacs instance
-                                 ;; Everything below this point runs
-                                 ;; in the secondary instance.
-
-  (ert-with-test-buffer ()
-    (insert "hello, ")           ;; Fill in the buffer
-    (insert (propertize "the " 'invisible t))
-    (insert "world!\n")
-
-    (turtles-with-grab-buffer () ;; Grab the current buffer content
-      ;; Check the buffer content that was displayed
-      (should (equal "hello, world!"
-                     (buffer-string))))))
-
-(ert-deftest turtles-hello-world-larger ()
+(ert-deftest turtles-larger-terminal ()
   (turtles-ert-test :instance 'larger)
 
   ;; This makes sure that screen grabbing isn't confused by a larger
