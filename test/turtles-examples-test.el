@@ -77,8 +77,7 @@
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
-    (let ((testbuf (current-buffer))
-          (completing-read-function #'completing-read-default))
+    (let ((completing-read-function #'completing-read-default))
       (turtles-with-minibuffer
           (should
            (equal "Choice B"
