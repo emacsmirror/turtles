@@ -28,7 +28,12 @@
 (require 'pcase)
 (require 'server)
 (require 'subr-x) ;; when-let
+(require 'term)
 (require 'turtles-io)
+
+(defvar term-home-marker) ;; declared in term.el
+(defvar term-width) ;; declared in term.el
+(defvar term-height) ;; declared in term.el
 
 (defvar turtles-instance-alist nil
   "Alist of symbol to `turtles-instance' definitions.")
@@ -103,6 +108,18 @@ Note that the keys are in the reverse order.")
 (defvar turtles--processing-key-stack nil
   "Stack of keys to use to translate magic key presses.")
 
+(defconst turtles--term-face-remapping-alist
+  '((term :foreground "#ffffff" :background "#000000")
+    (term-color-black :foreground "#000000" :background "#000000")
+    (term-color-red :foreground "#ff0000" :background "#ff0000")
+    (term-color-green :foreground "#00ff00" :background "#00ff00")
+    (term-color-blue :foreground "#0000ff" :background "#0000ff")
+    (term-color-yellow :foreground "#ffff00" :background "#ffff0")
+    (term-color-magenta :foreground "#ff00ff" :background "#ff00ff")
+    (term-color-cyan :foreground "#00ffff" :background "#00ffff")
+    (term-color-white :foreground "#ffffff" :background "#fffff"))
+  "Hardcoded color faces for term-mode, for consistency.")
+
 (cl-defstruct (turtles-instance
                (:constructor turtles--make-instance)
                (:copier nil))
@@ -114,8 +131,7 @@ Note that the keys are in the reverse order.")
   (height 24 :read-only t :documentation "Terminal height, in characters.")
   (forward nil :documentation "List of variables to copy at instance launc")
   (setup nil :read-only t :documentation "Expression to execute before every test.")
-  (term-buf nil :documentation "Buffer running this instance, if live.")
-  (terminal 'term :documentation "Terminal type, \\='term or \\='eat."))
+  (term-buf nil :documentation "Buffer running this instance, if live."))
 
 (defun turtles-get-instance (id)
   "Get an instance from its ID.
@@ -177,17 +193,13 @@ For example:
    'eval expr :timeout timeout))
 
 (cl-defmacro turtles-definstance
-    (id (&key (width 80) (height 24) (terminal 'term)
-              forward)
+    (id (&key (width 80) (height 24) forward)
         doc &rest setup)
   "Define an instance with the given ID.
 
 DOC is a documentation string for that instance.
 
 WIDTH and HEIGHT are the terminal dimensions.
-
-TERMINAL is the terminal type to use for this instance, term or
-eat, term by default.
 
 FORWARD is a list of variable symbols whose value are be
 copied into the instance when it is created. The value must be
@@ -201,28 +213,20 @@ SETUP is code to run on the instance before every test."
           :doc ,doc
           :width ,width
           :height ,height
-          :terminal ',terminal
           :forward ,forward
           :setup '(progn ,@setup))))
-
-(defun turtles-default-terminal-setup ()
-  "Setup for terminals defined in this file."
-  (when (eval-when-compile (>= emacs-major-version 29))
-    (clear-minibuffer-message)))
 
 (turtles-definstance default (:width 80 :height 24)
   "Emacs instance to run tests on.
 
 This is the instance used by `ert-test' when no instance is
-given."
-  (turtles-default-terminal-setup))
+given.")
 
 (turtles-definstance larger (:width 132 :height 43)
   "Emacs instance with a larger frame.
 
 This is the instance used by `ert-test' when no instance is
-given."
-  (turtles-default-terminal-setup))
+given.")
 
 (defun turtles-this-instance ()
   "ID of the instance for which the current Emacs process was started.
@@ -281,12 +285,11 @@ nil if it is outside of the screen."
       ;; it's likely in the middle of a redisplay.
       (turtles--let-term-settle inst)
       (with-current-buffer (turtles-instance-term-buf inst)
-        (let ((range (turtles-terminal-screen-range
-                      (turtles-instance-terminal inst))))
+        (let ((range (turtles--term-screen-range)))
           (cons
            (turtles--substring-with-properties
             (car range) (cdr range)
-            '((font-lock-face . face) (face . face)))
+            '((font-lock-face . face)))
            (when (<= (car range) (point) (cdr range))
              (1+ (- (point) (car range))))))))))
 
@@ -362,19 +365,11 @@ Does nothing if the instance is already running."
                  "Instance to start: "
                  (lambda (inst)
                    (not (turtles-instance-live-p inst))))))
-  (let* ((inst (turtles-get-instance inst-or-id))
-         (terminal (turtles-instance-terminal inst)))
+  (let* ((inst (turtles-get-instance inst-or-id)))
     (turtles-start-server)
 
     (unless (turtles-instance-live-p inst)
       (turtles-stop-instance inst) ; cleanup
-
-      ;; Load turtles-term for interfacing with term.el, turtles-eat
-      ;; for interfacing with eat.el.
-      (let ((terminal-ext (intern (concat "turtles-" (symbol-name terminal)))))
-        (unless (require terminal-ext nil 'noerror)
-          (error "Extension %s failed to load. Did you install package %s properly?"
-                 terminal-ext terminal-ext)))
 
       (setf (turtles-instance-term-buf inst)
             (if (buffer-live-p (turtles-instance-term-buf inst))
@@ -399,13 +394,13 @@ Does nothing if the instance is already running."
                                         ,(turtles-io-server-socket turtles--server)
                                         ',(turtles-instance-id inst)
                                         (lambda () ,(turtles-instance-setup inst))))))))
-          (when (turtles-terminal-truecolor-p terminal)
+          (when (turtles--term-truecolor-p)
             ;; COLORTERM=truecolor tells Emacs to use 24bit terminal
             ;; colors even if the termcap entry doesn't define that.
-            ;; That works as long as the Emacs-side terminal supports 24bit colors,
-            ;; which is the case for eat and term.el in Emacs 29.1 and later.
+            ;; That works only as long as the Emacs-side terminal
+            ;; supports 24bit colors.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
-          (turtles-terminal-exec terminal cmdline))
+          (turtles--term-exec cmdline))
 
         (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
         (turtles-io-wait-until
@@ -421,9 +416,8 @@ Does nothing if the instance is already running."
                  (or (turtles-instance-shortdoc inst) ""))))
 
     (with-current-buffer (turtles-instance-term-buf inst)
-      (when (turtles-terminal-resize terminal
-                                  (turtles-instance-width inst)
-                                  (turtles-instance-height inst))
+      (when (turtles--term-resize (turtles-instance-width inst)
+                                     (turtles-instance-height inst))
         (turtles--let-term-settle inst)))
 
     inst))
@@ -556,6 +550,9 @@ return the result to CONN."
     ;; Setup as specified for the instance.
     (condition-case err
         (with-selected-frame frame
+          (if (eval-when-compile (>= emacs-major-version 29))
+              (clear-minibuffer-message)
+            (message nil))
           (when setup-func
             (funcall setup-func)))
       ((error t)
@@ -573,7 +570,8 @@ return the result to CONN."
 
 (defun turtles--send-message-upstream (msg &rest args)
   "Send a message to the server."
-  (when (and (not inhibit-message)
+  (when (and (stringp msg)
+             (not inhibit-message)
              turtles-send-messages-upstream
              (turtles-upstream)
              (not (> turtles--sending-messages-up 0)))
@@ -615,28 +613,39 @@ frame, which only makes sense for graphical displays."
     (when (accept-process-output p 0.05)
       (accept-process-output p 0))))
 
-(cl-defgeneric turtles-terminal-exec (type cmdline)
-  "Execute CMDLINE in a terminal of the TYPE in the current buffer.")
+(defun turtles--term-exec (cmdline)
+  "Execute CMDLINE in a terminal of the TYPE in the current buffer."
+  (term-mode)
+  (setq-local face-remapping-alist turtles--term-face-remapping-alist)
+  (term-exec (current-buffer) (buffer-name) (car cmdline) nil (cdr cmdline))
+  (term-char-mode))
 
-(cl-defgeneric turtles-terminal-truecolor-p (type)
-  "Return non-nil if the terminal supports 24bit colors.")
+(defun turtles--term-truecolor-p ()
+  "Return non-nil if the terminal supports 24bit colors."
+  (>= emacs-major-version 29))
 
-(cl-defgeneric turtles-terminal-resize (type width height)
+(defun turtles--term-resize (w h)
   "Set the size of the terminal in the current buffer.
 
 TYPE specifies the terminal type. It must be the same as what was
-passed to `turtles-terminal-exec'.
+passed to `turtles--term-exec'.
 
 This function resizes the terminal to WIDTH x HEIGHT, if needed and return
-non-nil. If the terminal size is already correct, return nil.")
+non-nil. If the terminal size is already correct, return nil."
+  (unless (and (= term-width w) (= term-height h))
+    (set-process-window-size (get-buffer-process (current-buffer)) h w)
+    (term-reset-size h w)
 
-(cl-defgeneric turtles-terminal-screen-range (type)
+    t))
+
+(defun turtles--term-screen-range ()
   "Return the start and end position of the terminal in the buffer.
 
 The return type should be a (cons start end).
 
 TYPE specifies the terminal type. It must be the same as what was
-passed to `turtles-terminal-exec'.")
+passed to `turtles--term-exec'."
+  (cons term-home-marker (point-max)))
 
 (defun turtles--substring-with-properties (start end prop-alist)
   "Take a string from a region of the current buffer.
