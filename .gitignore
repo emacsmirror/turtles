@@ -2,3 +2,6 @@
 .eldev
 /dist
 /Eldev-local
+/docs/build
+/turtles.info
+/venv
