@@ -876,10 +876,12 @@ Return whatever READ eventually evaluates to."
   (declare (indent 1))
   (let ((mb-result-var (make-symbol "mb-result"))
         (has-mb-result-var (make-symbol "has-mb-result"))
-        (timer-var (make-symbol "timer")))
+        (timer-var (make-symbol "timer"))
+        (initial-depth (make-symbol "initial-depth")))
     `(let ((,mb-result-var nil)
            (,has-mb-result-var nil)
-           (,timer-var nil))
+           (,timer-var nil)
+           (,initial-depth (recursion-depth)))
        (when noninteractive
          (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
        (run-with-timer
@@ -889,14 +891,22 @@ Return whatever READ eventually evaluates to."
           (setq ,has-mb-result-var t)))
        (turtles--run-with-minibuffer (lambda (newtimer)
                                        (setq ,timer-var newtimer)) .
-        ,(turtles--read-from-minibuffer-split-body body))
+        ,(turtles--read-from-minibuffer-split-body
+          body
+          `(turtles--exit-recursive-edit (- (recursion-depth) ,initial-depth))))
        (while (not ,has-mb-result-var)
          (sleep-for 0.01))
        (when ,timer-var
          (cancel-timer ,timer-var))
        ,mb-result-var)))
 
-(defun turtles--read-from-minibuffer-split-body (body)
+(defun turtles--exit-recursive-edit (levels)
+  "Exit all recursive edits to go back up LEVELS."
+  (while (> levels 0)
+    (throw 'exit (lambda ()
+                   (turtles--exit-recursive-edit (1- levels))))))
+
+(defun turtles--read-from-minibuffer-split-body (body end-sexp)
   "Interpret :keys and others in BODY.
 
 This is the core code-generation logic of `turtles-with-minibuffer'.
@@ -939,8 +949,7 @@ cmd, into a list of lambdas that can be fed to
        ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
         (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))
        (t (push (pop rest) current-lambda))))
-    (push '(when (active-minibuffer-window) (exit-minibuffer))
-          current-lambda)
+    (push end-sexp current-lambda)
     (funcall close-current-lambda)
     (nreverse lambdas)))
 
