@@ -320,6 +320,7 @@ It returns its result to CONN, identified by ID."
     nil))
 
 (defun turtles-shutdown ()
+  "Shutdown the server and all its instances."
   (interactive)
   (mapc (lambda (cell)
           (turtles-stop-instance (cdr cell)))
@@ -332,6 +333,25 @@ It returns its result to CONN, identified by ID."
     (when-let ((f (turtles-io-server-socket s)))
       (ignore-errors (delete-file f)))
     (setq turtles--server nil))))
+
+(defun turtles-restart ()
+  "Shutdown the server and all instances, then restart instances.
+
+Only the instances live before the shutdown are restarted. If
+there are no live instances, this is equivalent to
+`turtles-shutdown'."
+  (interactive)
+  (let ((ids (turtles-live-instances)))
+    (turtles-shutdown)
+    (dolist (id ids)
+      (turtles-start-instance id))))
+
+(defun turtles-live-instances ()
+  "Return the IDs of all live instances."
+  (delq nil (mapcar (lambda (cell)
+                      (when (turtles-instance-live-p (cdr cell))
+                        (car cell)))
+                    turtles-instance-alist)))
 
 (defun turtles-start-instance (inst-or-id)
   "Start instance INST-OR-ID.
