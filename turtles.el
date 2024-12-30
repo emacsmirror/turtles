@@ -953,7 +953,7 @@ Do not call this function outside of this file."
     (cond
      (buf (turtles-grab-buffer buf grab-faces margins))
      (win (turtles-grab-window win grab-faces margins))
-     (minibuffer (turtles-grab-window (active-minibuffer-window) grab-faces margins))
+     (minibuffer (turtles-grab-window (minibuffer-window) grab-faces margins))
      (mode-line (turtles-grab-mode-line
                  (if (eq t mode-line) calling-buf mode-line) grab-faces))
      (header-line (turtles-grab-header-line
