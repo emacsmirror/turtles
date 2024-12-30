@@ -1243,3 +1243,33 @@
    (turtles-read-from-minibuffer
        (read-from-minibuffer "Prompt: ")
      :keys "ok")))
+
+(ert-deftest turtles-term-truecolor ()
+  (skip-unless (>= emacs-major-version 29))
+  ;; Truecolor in term.el became available in Emacs 29.1. Before that,
+  ;; term was limited to just 16 (Emacs 28) and even 8 (Emacs 26)
+  ;; colors.
+
+  (turtles-ert-test)
+
+  (should (equal 16777216 (display-color-cells)))
+
+  (ert-with-test-buffer ()
+    (insert (propertize "yellow" 'face '(:foreground "#faf32c" :background "#3a3913")))
+    (insert " ")
+    (insert (propertize "submarine" 'face '(:foreground "#276ce2" :background "#0c1526")))
+    (insert "\n")
+
+    (turtles-with-grab-buffer ()
+      (turtles-trim-buffer)
+
+      (goto-char (point-min))
+      (search-forward "yellow")
+      (goto-char (match-beginning 0))
+      (should (string-equal-ignore-case "#faf32c" (foreground-color-at-point)))
+      (should (string-equal-ignore-case "#3a3913" (background-color-at-point)))
+
+      (search-forward "submarine")
+      (goto-char (match-beginning 0))
+      (should (string-equal-ignore-case "#276ce2" (foreground-color-at-point)))
+      (should (string-equal-ignore-case "#0c1526" (background-color-at-point))))))
