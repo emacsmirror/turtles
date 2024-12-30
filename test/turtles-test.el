@@ -1071,28 +1071,6 @@
   (should (eq (alist-get 'window-system (frame-parameters))
               (turtles-pop-to-buffer-new-frame 'check nil nil))))
 
-(ert-deftest turtles-with-minibuffer-split-body ()
-  (should
-   (equal
-    '((lambda ()
-        (should (equal "Prompt:" (turtles-to-string)))
-        (turtles--push-input (kbd "he"))
-        (turtles--press-magic-key))
-      (lambda nil
-        (should (equal "Prompt: he" (turtles-to-string)))
-        (turtles--push-input (kbd "llo"))
-        (turtles--press-magic-key))
-      (lambda nil
-        (should (equal "Prompt: hello" (turtles-to-string)))
-        (exit-minibuffer)))
-    (turtles--read-from-minibuffer-split-body
-     `((should (equal "Prompt:" (turtles-to-string)))
-       :keys "he"
-       (should (equal "Prompt: he" (turtles-to-string)))
-       :keys "llo"
-       (should (equal "Prompt: hello" (turtles-to-string))))
-     '(exit-minibuffer)))))
-
 (ert-deftest turtles-with-minibuffer-with-keys ()
   (turtles-ert-test)
 
@@ -1105,9 +1083,9 @@
           (read-from-minibuffer "Prompt: ")
 
         (should (equal "Prompt:" (turtles-to-string)))
-        :keys "hep"
+        (turtles-input-keys "hep")
         (should (equal "Prompt: hep" (turtles-to-string)))
-        :keys "DEL llo"
+        (turtles-input-keys "DEL llo")
         (should (equal "Prompt: hello" (turtles-to-string))))))))
 
 (ert-deftest turtles-with-minibuffer-with-command ()
@@ -1122,17 +1100,17 @@
           (read-from-minibuffer "Prompt: ")
 
         (should (equal "Prompt:" (turtles-to-string)))
-        :keys "foo, SPC bar, SPC foo, SPC foo"
+        (turtles-input-keys "foo, SPC bar, SPC foo, SPC foo")
         (should (equal "Prompt: foo, bar, foo, foo" (turtles-to-string)))
 
-        :command #'backward-kill-word
+        (turtles-input-command #'backward-kill-word)
         (should (equal "Prompt: foo, bar, foo," (turtles-to-string)))
 
         (set-transient-map (let ((map (make-sparse-keymap)))
                              (define-key map (kbd "<f62>") #'backward-kill-word)
                              map))
 
-        :command #'backward-kill-word
+        (turtles-input-command #'backward-kill-word)
         (should (equal "Prompt: foo, bar," (turtles-to-string))))))))
 
 (ert-deftest turtles-with-minibuffer-with-command-lambda ()
@@ -1146,9 +1124,10 @@
       (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
-        :command (lambda ()
-                   (interactive)
-                   (insert "hello world"))
+        (turtles-input-command
+         (lambda ()
+           (interactive)
+           (insert "hello world")))
         (should (equal "Prompt: hello world" (turtles-to-string))))))))
 
 (ert-deftest turtles-with-minibuffer-with-command-with-keybinding ()
@@ -1162,10 +1141,11 @@
       (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
-        :command-with-keybinding
-        "C-c t" (lambda ()
-                  (interactive)
-                  (insert (key-description (this-command-keys))))
+        (turtles-input-command
+         (lambda ()
+           (interactive)
+           (insert (key-description (this-command-keys))))
+         "C-c t")
         (should (equal "Prompt: C-c t" (turtles-to-string))))))))
 
 (ert-deftest turtles-with-minibuffer-with-events ()
@@ -1179,18 +1159,8 @@
       (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
-        :events (kbd "hello")
+        (turtles-input-events (kbd "hello"))
         (should (equal "Prompt: hello" (turtles-to-string))))))))
-
-(ert-deftest turtles-with-minibuffer-with-typo ()
-  (turtles-ert-test)
-
-  (ert-with-test-buffer ()
-    (select-window (display-buffer (current-buffer)))
-    (should-error
-     (turtles-with-minibuffer
-         (read-from-minibuffer "Prompt: ")
-       :typo (kbd "hello")))))
 
 (ert-deftest turtles-with-minibuffer-pile-up-errors ()
   (turtles-ert-test)
@@ -1207,7 +1177,7 @@
                   (progn
                     (read-from-minibuffer "Prompt: ")
                     (throw 'thrown "second"))
-                :keys "boo"
+                (turtles-input-keys "boo")
                 (turtles-with-grab-buffer ()
                   (throw 'thrown "first"))))))))
 
@@ -1219,13 +1189,26 @@
                      (read-from-minibuffer "Prompt: ")
                    (execute-kbd-macro "ok")))))
 
-(ert-deftest turtles-with-minibuffer-not-in-an-turtles-test ()
-  ;; In contrast to the previous test, using :keys outside of an
-  ;; instance cannot work.
-  (should-error
-   (turtles-with-minibuffer
-       (read-from-minibuffer "Prompt: ")
-     :keys "ok")))
+(ert-deftest turtles-input-keys-toplevel ()
+  (turtles-ert-test)
+  
+  (ert-with-test-buffer ()
+    (turtles-display-buffer-full-frame (current-buffer))
+    (select-window (frame-root-window))
+    (turtles-input-keys "hello")
+
+    (should (equal "hello" (buffer-string)))))
+
+(ert-deftest turtles-input-command-toplevel ()
+  (turtles-ert-test)
+  
+  (ert-with-test-buffer ()
+    (turtles-display-buffer-full-frame (current-buffer))
+    (select-window (frame-root-window))
+    (insert "hello world")
+    (turtles-input-command #'backward-kill-word)
+
+    (should (equal "hello " (buffer-string)))))
 
 (ert-deftest turtles-term-truecolor ()
   (skip-unless (>= emacs-major-version 29))

@@ -889,11 +889,12 @@ Return whatever READ eventually evaluates to."
         (lambda ()
           (setq ,mb-result-var (progn ,read))
           (setq ,has-mb-result-var t)))
-       (turtles--run-with-minibuffer (lambda (newtimer)
-                                       (setq ,timer-var newtimer)) .
-        ,(turtles--read-from-minibuffer-split-body
-          body
-          `(turtles--exit-recursive-edit (- (recursion-depth) ,initial-depth))))
+       (turtles--run-with-minibuffer
+        (lambda (newtimer)
+          (setq ,timer-var newtimer))
+        (lambda ()
+          (progn ,@body)
+          (turtles--exit-recursive-edit (- (recursion-depth) ,initial-depth))))
        (while (not ,has-mb-result-var)
          (sleep-for 0.01))
        (when ,timer-var
@@ -905,53 +906,6 @@ Return whatever READ eventually evaluates to."
   (while (> levels 0)
     (throw 'exit (lambda ()
                    (turtles--exit-recursive-edit (1- levels))))))
-
-(defun turtles--read-from-minibuffer-split-body (body end-sexp)
-  "Interpret :keys and others in BODY.
-
-This is the core code-generation logic of `turtles-with-minibuffer'.
-
-This function splits a BODY containing a mix of lisp expressions,
-:keys string, :command cmd, :command-with-keybinding keybinding
-cmd, into a list of lambdas that can be fed to
-`turtles--run-with-minibuffer'."
-  (let* ((rest body)
-         (lambdas nil)
-         (current-lambda nil)
-         (close-current-lambda
-          (lambda ()
-            (when current-lambda
-              (push `(lambda () . ,(nreverse current-lambda)) lambdas)
-              (setq current-lambda nil)))))
-    (while rest
-      (cond
-       ((eq :keys (car rest))
-        (pop rest)
-        (push `(turtles--push-input (kbd ,(pop rest))) current-lambda)
-        (push '(turtles--press-magic-key) current-lambda)
-        (funcall close-current-lambda))
-       ((eq :events (car rest))
-        (pop rest)
-        (push `(turtles--push-input ,(pop rest)) current-lambda)
-        (push '(turtles--press-magic-key) current-lambda)
-        (funcall close-current-lambda))
-       ((eq :command (car rest))
-        (pop rest)
-        (push `(turtles--send-command ,(pop rest)) current-lambda)
-        (funcall close-current-lambda))
-       ((eq :command-with-keybinding (car rest))
-        (pop rest)
-        (let ((keybinding (kbd (pop rest)))
-              (command (pop rest)))
-          (push `(turtles--send-command ,command ,keybinding)
-                current-lambda))
-        (funcall close-current-lambda))
-       ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
-        (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))
-       (t (push (pop rest) current-lambda))))
-    (push end-sexp current-lambda)
-    (funcall close-current-lambda)
-    (nreverse lambdas)))
 
 (defun turtles--internal-grab (frame win buf calling-buf minibuffer
                                      mode-line header-line grab-faces margins)

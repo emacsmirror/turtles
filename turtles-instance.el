@@ -100,11 +100,6 @@ Each such key is decoded into the head
 `turtles--processing-key-stack' and processed as such by the
 instance.")
 
-(defvar turtles--pending-key-stack nil
-  "Stack of keys to feed to the current instance using the magic key.
-
-Note that the keys are in the reverse order.")
-
 (defvar turtles--processing-key-stack nil
   "Stack of keys to use to translate magic key presses.")
 
@@ -685,41 +680,6 @@ SRC and DEST can be a string or a buffer."
            (+ pos-src diff) (+ next-pos-src diff) (list prop-dest val) dest))
         (setq pos-src next-pos-src)))))
 
-(defun turtles--push-input (keyvec)
-  "Push KEYVEC into the key stack to be sent by `turtles--press-magic-key'."
-  (mapc (lambda (key) (push (make-vector 1 key) turtles--pending-key-stack))
-        keyvec))
-
-(defun turtles--press-magic-key ()
-  "Feed the keys from the key stack to the current instance.
-
-Warning: Don't call this function again until the key stack has
-been fully emptied."
-  (unless (turtles-upstream)
-    (error "Not in a Turtles instance. Did you forget to add (turtles-ert-test)?"))
-  (when turtles--pending-key-stack
-    (let ((key-count (length turtles--pending-key-stack)))
-      (setq turtles--processing-key-stack
-            (append turtles--processing-key-stack
-                    (nreverse turtles--pending-key-stack)))
-      (setq turtles--pending-key-stack nil)
-      (turtles-io-call-method (turtles-upstream)
-                              'press-magic-key
-                              (list (turtles-this-instance) key-count)))))
-
-(defun turtles--send-command (command &optional keybinding)
-  "Feed COMMAND to the current instance.
-
-This function binds COMMAND to KEYBINDING in a transient map,
-then triggers that using the magic key."
-  (let ((keybinding (or keybinding (kbd "<f62>"))))
-    (set-transient-map (let ((map (make-sparse-keymap)))
-                         (define-key map keybinding command)
-                         map)
-                       (lambda () turtles--processing-key-stack))
-    (turtles--push-input keybinding)
-    (turtles--press-magic-key)))
-
 (defun turtles--run-once-input-processed (set-timer funclist)
   "Wait until Emacs has process the key stack then from FUNCLIST.
 
@@ -750,6 +710,54 @@ The elements of FUNCLIST are executed in order in a timer.
 Additionally, this function waits for the key stack to empty
 between the execution each element of FUNCLIST"
   (run-with-timer 0 nil #'turtles--run-once-input-processed set-timer funclist))
+
+(defun turtles-input-keys (keys)
+  "Feed KEYS to the current instance as input.
+
+KEYS is a string that represents a set of events, such that can
+be passed to `kbd'."
+  (turtles-input-events (kbd keys)))
+
+(defun turtles-input-events (events)
+  "Feed EVENTS to the current instance as input.
+
+EVENTS can contain any event, represented as a vector, including
+mouse events."
+  (unless (turtles-upstream)
+    (error "Not in a Turtles instance. Did you forget to add (turtles-ert-test)?"))
+  (let ((pending-key-stack nil))
+    (mapc (lambda (key)
+            (push (make-vector 1 key) pending-key-stack))
+          events)
+    (when pending-key-stack
+      (let ((key-count (length pending-key-stack)))
+        (setq turtles--processing-key-stack
+              (append turtles--processing-key-stack
+                      (nreverse pending-key-stack)))
+        (turtles-io-call-method (turtles-upstream)
+                                'press-magic-key
+                                (list (turtles-this-instance) key-count)))
+      (run-with-idle-timer 0 nil #'turtles--maybe-exit-recursive-edit)
+      (recursive-edit))))
+
+(defun turtles--maybe-exit-recursive-edit ()
+  "Check whether it's time to exit the current recursive edit."
+  (if turtles--processing-key-stack
+      (run-with-idle-timer 0.001 nil #'turtles--maybe-exit-recursive-edit)
+    (throw 'exit nil)))
+
+(defun turtles-input-command (command &optional keybinding)
+  "Feed COMMAND to the current instance as input.
+
+This function binds COMMAND to KEYBINDING in a transient map,
+then triggers that using `turtles-input-keys', so from the point
+of view of the command, it was called from that key."
+  (let ((keybinding (kbd (or keybinding "<f62>"))))
+    (set-transient-map (let ((map (make-sparse-keymap)))
+                         (define-key map keybinding command)
+                         map)
+                       (lambda () turtles--processing-key-stack))
+    (turtles-input-events keybinding)))
 
 (provide 'turtles-instance)
 
