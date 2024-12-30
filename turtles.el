@@ -75,7 +75,7 @@ BUFFER-NAME is the name of a buffer in INST."
 
 Set by `turtles-pop-to-buffer-copy'.")
 
-(defconst turtles-basic-colors
+(defconst turtles--basic-colors
   ["#ff0000" "#00ff00" "#0000ff" "#ffff00" "#00ffff" "#ff00ff"]
   "Color vector used to detect faces, excluding white and black.
 
@@ -297,7 +297,7 @@ Return a (cons grab-face-alist cookies) with grab-face-alist the
 alist to pass to `turtles--faces-from-color' and cookies to pass
 to `turtles--teardown-grab-faces'."
   (when grab-faces
-    (let ((color-count (length turtles-basic-colors))
+    (let ((color-count (length turtles--basic-colors))
           grab-face-alist cookies remapping)
 
       ;; That should be enough for any reasonable number of faces, but
@@ -308,8 +308,8 @@ to `turtles--teardown-grab-faces'."
 
       (dolist (face grab-faces)
         (let* ((idx (length remapping))
-               (bg (aref turtles-basic-colors (% idx color-count)))
-               (fg (aref turtles-basic-colors (/ idx color-count)))
+               (bg (aref turtles--basic-colors (% idx color-count)))
+               (fg (aref turtles--basic-colors (/ idx color-count)))
                (extend (when (eval-when-compile (>= emacs-major-version 27))
                          `(:extend ,(turtles--extend-p face)))))
           (push (cons face `(:background ,bg :foreground ,fg . ,extend))
