@@ -19,14 +19,15 @@
 (require 'compat)
 (require 'ert)
 (require 'ert-x)
+(require 'hideshow)
 
 (require 'turtles)
 
 ;; Snippet shown in README.md
-(ert-deftest turtles-hello-world ()
+(ert-deftest turtles-examples-hello-world ()
    ;; Start a secondary Emacs instance
   (turtles-ert-test)
-  
+
   ;; From this point, everything runs in the secondary instance.
   (ert-with-test-buffer ()
     (insert "hello, ") ; Fill in the buffer
@@ -36,4 +37,40 @@
     (turtles-with-grab-buffer () ; Grab current buffer content
       (should (equal "hello, world!"
                      (buffer-string))))))
+
+(ert-deftest turtles-examples-test-hideshow ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (insert "(defun test-1 ()\n")
+    (insert " (message \"test, the first\"))\n")
+    (insert "(defun test-2 ()\n")
+    (insert " (message \"test, the second\"))\n")
+    (insert "(defun test-3 ()\n")
+    (insert " (message \"test, the third\"))\n")
+
+    (emacs-lisp-mode)
+    (hs-minor-mode)
+
+    (goto-char (point-min))
+    (search-forward "test-2")
+    (hs-hide-block)
+    (turtles-with-grab-buffer (:name "hide test-2")
+      (should (equal (concat
+                      "(defun test-1 ()\n"
+                      " (message \"test, the first\"))\n"
+                      "(defun test-2 ()...)\n"
+                      "(defun test-3 ()\n"
+                      " (message \"test, the third\"))")
+                     (buffer-string))))
+
+    (hs-hide-all)
+    (turtles-with-grab-buffer (:name "hide all")
+      (should (equal (concat
+                      "(defun test-1 ()...)\n"
+                      "(defun test-2 ()...)\n"
+                      "(defun test-3 ()...)")
+                     (buffer-string))))))
+
+
 
