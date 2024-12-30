@@ -141,31 +141,28 @@ Return a `turtles-io-conn' instance."
 
     conn))
 
-(cl-defmacro turtles-io-method-handler ((var) &rest body)
-  "Build a method handler.
+(cl-defmacro turtles-io-handle-method ((conn id) &rest body)
+  "Execute BODY to handle the current method.
 
-This macro returns a method handler that'll call BODY with VAR
-bound to the method parameters and return BODY evaluation result
-to the caller.
+This macro evaluates BODY, then send the result to CONN. If BODY
+raises an error, send an error response to CONN.
 
-If BODY signals an error, that error is sent back to the caller
-as an error response."
+ID identifies the source of the response to the remote end. If it
+is empty, no result is sent."
   (declare (indent 1))
-  (let ((conn-var (make-symbol "conn"))
-        (id-var (make-symbol "id"))
-        (result-var (make-symbol "result"))
-        (method-var (make-symbol "_method")))
-    `(lambda (,conn-var ,id-var ,method-var ,var)
-       (let ((,result-var (condition-case err
-                              `(:result ,(progn ,@body))
-                            ;; Just t would be enough on Emacs 29, but
-                            ;; Emacs 26 doesn't support catching
-                            ;; everything with t.
-                            ((error t) `(:error ,err)))))
-         (when ,id-var
-           (turtles-io--send
-            ,conn-var
-            `(:id ,,id-var . ,,result-var)))))))
+  (let ((id-var (make-symbol "id"))
+        (result-var (make-symbol "result")))
+    `(let* ((,id-var ,id)
+            (,result-var (condition-case err
+                             `(:result ,(progn ,@body))
+                           ;; Just t would be enough on Emacs 29, but
+                           ;; Emacs 26 doesn't support catching
+                           ;; everything with t.
+                           ((error t) `(:error ,err)))))
+       (when ,id-var
+         (turtles-io--send
+          ,conn
+          `(:id ,,id-var . ,,result-var))))))
 
 (defun turtles-io-send-error (conn id error)
   "Send an error back to the caller.

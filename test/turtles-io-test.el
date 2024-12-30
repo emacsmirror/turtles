@@ -99,7 +99,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-method-handler ()
+(ert-deftest turtles-io-handle-method ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -108,8 +108,9 @@
             (setq server
                   (turtles-io-server
                    socket
-                   `((inc . ,(turtles-io-method-handler (index)
-                               (1+ index))))))
+                   `((inc . ,(lambda (conn id _method index)
+                               (turtles-io-handle-method (conn id)
+                                 (1+ index)))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
@@ -120,7 +121,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-method-handler-with-error ()
+(ert-deftest turtles-io-handle-method-with-error ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -129,8 +130,9 @@
             (setq server
                   (turtles-io-server
                    socket
-                   `((inc . ,(turtles-io-method-handler (index)
-                               (1+ index))))))
+                   `((inc . ,(lambda (conn id _method index)
+                               (turtles-io-handle-method (conn id)
+                                 (1+ index)))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
@@ -143,7 +145,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-method-handler-with-error-bad-symbol ()
+(ert-deftest turtles-io-handle-method-with-error-bad-symbol ()
   ;; Emacs 26 doesn't allow catching non-error symbols
   ;; using t as a condition, so this test just isn't possible.
   ;;
@@ -159,8 +161,9 @@
             (setq server
                   (turtles-io-server
                    socket
-                   `((inc . ,(turtles-io-method-handler (index)
-                               (signal 'fake-error "foobar"))))))
+                   `((inc . ,(lambda (conn id _method index)
+                               (turtles-io-handle-method (conn id)
+                                 (signal 'fake-error "foobar")))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
@@ -175,7 +178,7 @@
         (ignore-errors (when client (delete-process client)))
         (ignore-errors (when server (delete-process server)))))))
 
-(ert-deftest turtles-io-method-handler-with-error-not-a-symbol ()
+(ert-deftest turtles-io-handle-method-with-error-not-a-symbol ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
           server client collected-responses)
@@ -210,8 +213,9 @@
             (setq server
                   (turtles-io-server
                    socket
-                   `((ping . ,(turtles-io-method-handler (index)
-                                nil)))))
+                   `((ping . ,(lambda (conn id _method _params)
+                                (turtles-io-handle-method (conn id)
+                                  nil))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
@@ -231,8 +235,9 @@
             (setq server
                   (turtles-io-server
                    socket
-                   `((get-unreadable . ,(turtles-io-method-handler (index)
-                                          (current-buffer))))))
+                   `((get-unreadable . ,(lambda (conn id _method _params)
+                                          (turtles-io-handle-method (conn id)
+                                            (current-buffer)))))))
 
             (setq client (turtles-io-connect socket))
             (should (turtles-io-conn-p client))
@@ -256,8 +261,9 @@
           (progn
             (setq server (turtles-io-server
                           socket
-                          `((ping . ,(turtles-io-method-handler (_ignored)
-                                       (cl-incf ping-count))))))
+                          `((ping . ,(lambda (conn id _method _params)
+                                       (turtles-io-handle-method (conn id)
+                                         (cl-incf ping-count)))))))
             (setq client (turtles-io-connect socket))
 
             (turtles-io-notify client 'ping)

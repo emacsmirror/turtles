@@ -253,44 +253,71 @@ Does nothing if the server is already live."
           (turtles-io-server
            (expand-file-name (format "turtles-%s" (emacs-pid))
                              server-socket-dir)
-           `((register . ,(lambda (conn id _method instance-id)
-                            (let ((ret (when-let ((inst (turtles-get-instance instance-id)))
-                                         (setf (turtles-instance-conn inst) conn)
+           `((register . turtles--handle-register)
+             (grab . turtles--handle-grab)
+             (press-magic-key . turtles--handle-press-magic-key)
+             (message . turtles--handle-message))))))
 
-                                         t)))
-                            (when id
-                              (turtles-io--send conn `(:id ,id :result ,ret))))))
-             (grab . ,(turtles-io-method-handler (instance-id)
-                        (turtles--grab (turtles-get-instance instance-id))))
-             (press-magic-key . ,(turtles-io-method-handler (params)
-                                   (let ((instance-id (nth 0 params))
-                                         (count (nth 1 params)))
-                                     (let ((inst (turtles-get-instance instance-id)))
-                                       (process-send-string
-                                        (turtles-instance-term-proc inst)
-                                        (mapconcat #'identity
-                                                   (make-list count turtles--magic-key) ""))))))
-             (message . ,(lambda (_conn _id _method msg)
-                           (message "%s" msg))))))))
+(defun turtles--handle-register (conn id _method instance-id)
+  "Register an instance to the server.
 
-(defun turtles--grab (inst)
-  "Grab the terminal frame of INST and return it.
+This function implements the server method \\='register. It returns its
+result, successful or not, to CONN, identified by ID.
 
-Returns (cons buffer-string . point). The point can be nil if it
-is outside of the screen."
-  ;; Wait until all output from the other
-  ;; Emacs instance have been processed, as
-  ;; it's likely in the middle of a redisplay.
-  (turtles--let-term-settle inst)
-  (with-current-buffer (turtles-instance-term-buf inst)
-    (let ((range (turtles-terminal-screen-range
-                  (turtles-instance-terminal inst))))
-      (cons
-       (turtles--substring-with-properties
-        (car range) (cdr range)
-        '((font-lock-face . face) (face . face)))
-       (when (<= (car range) (point) (cdr range))
-         (1+ (- (point) (car range))))))))
+The result is either t or an error."
+  (turtles-io-handle-method (conn id)
+    (if-let ((inst (turtles-get-instance instance-id)))
+        (setf (turtles-instance-conn inst) conn)
+      (error "Unknown instance %s" instance-id))))
+
+(defun turtles--handle-grab (conn id _method instance-id)
+  "Grab to the terminal frame of INSTANCE-ID and return it.
+
+This function implements the server method \\='grab. It returns its
+result, successful or not, to CONN, identified by ID.
+
+The result is a (cons buffer-string . point). The point can be
+nil if it is outside of the screen."
+  (turtles-io-handle-method (conn id)
+    (let ((inst (turtles-get-instance instance-id)))
+      ;; Wait until all output from the other
+      ;; Emacs instance have been processed, as
+      ;; it's likely in the middle of a redisplay.
+      (turtles--let-term-settle inst)
+      (with-current-buffer (turtles-instance-term-buf inst)
+        (let ((range (turtles-terminal-screen-range
+                      (turtles-instance-terminal inst))))
+          (cons
+           (turtles--substring-with-properties
+            (car range) (cdr range)
+            '((font-lock-face . face) (face . face)))
+           (when (<= (car range) (point) (cdr range))
+             (1+ (- (point) (car range))))))))))
+
+(defun turtles--handle-press-magic-key (conn id _method params)
+  "Send a keypress of the magic key to INSTANCE-ID.
+
+This function implements the server method \\='press-magic-key.
+It returns its result to CONN, identified by ID."
+  (turtles-io-handle-method (conn id)
+    (let ((inst (turtles-get-instance (nth 0 params)))
+          (count (nth 1 params)))
+      (process-send-string
+       (turtles-instance-term-proc inst)
+       (mapconcat #'identity
+                  (make-list count turtles--magic-key) ""))))
+
+    nil)
+
+(defun turtles--handle-message (conn id _method msg)
+  "Accept a message from another instance.
+
+This function implements the server method \\='message.
+It returns its result to CONN, identified by ID."
+  (turtles-io-handle-method (conn id)
+    (message "%s" msg)
+
+    nil))
 
 (defun turtles-shutdown ()
   (interactive)
@@ -406,13 +433,13 @@ Does nothing if the instance is already running."
         (when (process-live-p p)
           (delete-process p)))
       (setf (turtles-instance-conn inst) nil))
-    (when-let ((b (turtles-instance-term-buf inst))
-               (p (get-buffer-process b)))
-      (when (process-live-p p)
-        (delete-process p))
-      (let ((kill-buffer-query-functions nil))
-        (kill-buffer b)))
-
+    (when-let ((b (turtles-instance-term-buf inst)))
+      (when (buffer-live-p b)
+        (when-let ((p (get-buffer-process b)))
+          (when (process-live-p p)
+            (delete-process p)))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer b))))
     inst))
 
 (defun turtles-read-instance (&optional prompt predicate)
@@ -476,28 +503,57 @@ special cases like reading from the minibuffer."
   (setq turtles--upstream
         (turtles-io-connect
          socket
-         `((eval
-            . ,(turtles-io-method-handler (expr) (eval expr)))
-           (ert-test
-            . ,(let ((initial-frame (selected-frame)))
-                 (lambda (conn id _method expr)
-                   (catch 'turtles-return
-                     (condition-case err
-                         (with-selected-frame initial-frame
-                           (when setup-func
-                             (funcall setup-func)))
-                       ((error t)
-                        (turtles-io--send conn `(:id ,id :error ,err))
-                        (throw 'turtles-return nil)))
-                     (condition-case-unless-debug err
-                         (turtles-io--send
-                          conn `(:id ,id :result ,(with-selected-frame initial-frame
-                                                    (eval expr))))
-                       ((error t) (turtles-io--send conn `(:id ,id :error ,err))))))))
-           (exit
-            . ,(lambda (_conn _id _method _params)
-                 (kill-emacs nil))))))
+         `((eval . turtles--handle-eval)
+           (ert-test . ,(let ((initial-frame (selected-frame)))
+                          (lambda (conn id method params)
+                            (turtles--handle-ert-test
+                             setup-func initial-frame conn id method params))))
+           (exit . turtles--handle-exit))))
   (turtles-io-notify turtles--upstream 'register instance-id))
+
+(defun turtles--handle-exit (_conn _id _method _params)
+  "Handle the server method \\='exit.
+
+This method never returns and sends nothing back to the caller."
+  (kill-emacs nil))
+
+(defun turtles--handle-eval (conn id _method expr)
+  "Evaluate EXPR.
+
+This function implements the server method \\='register. It returns its
+result, successful or not, to CONN, identified by ID.
+
+EXPR is the lisp expression to be evaluated. The result of that
+evaluation is sent back to CONN."
+  (turtles-io-handle-method (conn id)
+    (eval expr)))
+
+(defun turtles--handle-ert-test (setup-func frame conn id _method expr)
+  "Setup a test and evaluate EXPR.
+
+This function implements the server method \\='register. It returns its
+result, successful or not, to CONN, identified by ID.
+
+This function first calls SETUP-FUNC then evaluates EXPR and
+return the result to CONN."
+  (catch 'turtles-return
+    ;; Setup as specified for the instance.
+    (condition-case err
+        (with-selected-frame frame
+          (when setup-func
+            (funcall setup-func)))
+      ((error t)
+       (turtles-io--send conn `(:id ,id :error ,err))
+       (throw 'turtles-return nil)))
+
+    ;; This MUST be condition-case-unless-debug to allow ERT to catch
+    ;; errors and send them back properly, with backtrace. That's why
+    ;; turtles-io-handle-method cannot be used here.
+    (condition-case-unless-debug err
+        (turtles-io--send
+         conn `(:id ,id :result ,(with-selected-frame frame
+                                   (eval expr))))
+      ((error t) (turtles-io--send conn `(:id ,id :error ,err))))))
 
 (defun turtles--send-message-upstream (msg &rest args)
   "Send a message to the server."
