@@ -83,11 +83,11 @@
            (equal "Choice B"
                   (completing-read "Choose: " '("Choice A" "Choice B") nil t)))
 
-        (turtles-with-grab-buffer (:name "initial prompt")
-          (should (equal "Choose:" (buffer-string))))
+        (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
+          (should (equal "Choose: <>" (buffer-string))))
 
         (execute-kbd-macro (kbd "Ch TAB"))
-        (turtles-with-grab-buffer (:name "Complete 1" :point "<>")
+        (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
 
         (execute-kbd-macro (kbd "B"))))))
@@ -102,7 +102,7 @@
       (insert "Baa, baa, black sheep, have you any wool?")
       (goto-char (point-min))
 
-      (turtles-read-from-minibuffer
+      (turtles-with-minibuffer
           (isearch-forward)
 
         :keys "baa"

@@ -733,7 +733,7 @@ empty."
         ;; Waiting for a key to finish to be process, it seems that an
         ;; idle timer would be more appropriate. However, an idle
         ;; timer can be interrupted or escape the sit-for in
-        ;; turtles-read-from-minibuffer, so we use here a timer and
+        ;; turtles-with-minibuffer, so we use here a timer and
         ;; what is basically a busy loop.
         (funcall set-timer
                  (run-with-timer 0 nil #'turtles--run-once-input-processed

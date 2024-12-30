@@ -978,14 +978,14 @@
     (turtles-with-grab-buffer (:header-line t)
       (should (equal "My header line" (buffer-string))))))
 
-(ert-deftest turtles-read-from-minibuffer ()
+(ert-deftest turtles-with-minibuffer ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
     (select-window (display-buffer (current-buffer)))
     (should
      (equal "hello"
-            (turtles-read-from-minibuffer
+            (turtles-with-minibuffer
                 (read-from-minibuffer "Prompt: ")
               (execute-kbd-macro (kbd "hello"))
               (should (equal "Prompt: hello" (turtles-to-string)))
@@ -1071,7 +1071,7 @@
   (should (eq (alist-get 'window-system (frame-parameters))
               (turtles-pop-to-buffer-new-frame 'check nil nil))))
 
-(ert-deftest turtles-read-from-minibuffer-split-body ()
+(ert-deftest turtles-with-minibuffer-split-body ()
   (should
    (equal
     '((lambda ()
@@ -1094,7 +1094,7 @@
        :keys "llo"
        (should (equal "Prompt: hello" (turtles-to-string))))))))
 
-(ert-deftest turtles-read-from-minibuffer-with-keys ()
+(ert-deftest turtles-with-minibuffer-with-keys ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1102,7 +1102,7 @@
     (should
      (equal
       "hello"
-      (turtles-read-from-minibuffer
+      (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
         (should (equal "Prompt:" (turtles-to-string)))
@@ -1111,7 +1111,7 @@
         :keys "DEL llo"
         (should (equal "Prompt: hello" (turtles-to-string))))))))
 
-(ert-deftest turtles-read-from-minibuffer-with-command ()
+(ert-deftest turtles-with-minibuffer-with-command ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1119,7 +1119,7 @@
     (should
      (equal
       "foo, bar, "
-      (turtles-read-from-minibuffer
+      (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
         (should (equal "Prompt:" (turtles-to-string)))
@@ -1136,7 +1136,7 @@
         :command #'backward-kill-word
         (should (equal "Prompt: foo, bar," (turtles-to-string))))))))
 
-(ert-deftest turtles-read-from-minibuffer-with-command-lambda ()
+(ert-deftest turtles-with-minibuffer-with-command-lambda ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1144,7 +1144,7 @@
     (should
      (equal
       "hello world"
-      (turtles-read-from-minibuffer
+      (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
         :command (lambda ()
@@ -1152,7 +1152,7 @@
                    (insert "hello world"))
         (should (equal "Prompt: hello world" (turtles-to-string))))))))
 
-(ert-deftest turtles-read-from-minibuffer-with-command-with-keybinding ()
+(ert-deftest turtles-with-minibuffer-with-command-with-keybinding ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1160,7 +1160,7 @@
     (should
      (equal
       "C-c t"
-      (turtles-read-from-minibuffer
+      (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
         :command-with-keybinding
@@ -1169,7 +1169,7 @@
                   (insert (key-description (this-command-keys))))
         (should (equal "Prompt: C-c t" (turtles-to-string))))))))
 
-(ert-deftest turtles-read-from-minibuffer-with-events ()
+(ert-deftest turtles-with-minibuffer-with-events ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
@@ -1177,34 +1177,34 @@
     (should
      (equal
       "hello"
-      (turtles-read-from-minibuffer
+      (turtles-with-minibuffer
           (read-from-minibuffer "Prompt: ")
 
         :events (kbd "hello")
         (should (equal "Prompt: hello" (turtles-to-string))))))))
 
-(ert-deftest turtles-read-from-minibuffer-with-typo ()
+(ert-deftest turtles-with-minibuffer-with-typo ()
   (turtles-ert-test)
 
   (ert-with-test-buffer ()
     (select-window (display-buffer (current-buffer)))
     (should-error
-     (turtles-read-from-minibuffer
+     (turtles-with-minibuffer
          (read-from-minibuffer "Prompt: ")
        :typo (kbd "hello")))))
 
-(ert-deftest turtles-read-from-minibuffer-pile-up-errors ()
+(ert-deftest turtles-with-minibuffer-pile-up-errors ()
   (turtles-ert-test)
 
   ;; This test makes sure that a failures from the body of
-  ;; turtles-read-from-minibuffer is the one that's reported when both
+  ;; turtles-with-minibuffer is the one that's reported when both
   ;; body and read sections fail.
   (ert-with-test-buffer ()
     (select-window (display-buffer (current-buffer)))
     (should
      (equal "first"
             (catch 'thrown
-              (turtles-read-from-minibuffer
+              (turtles-with-minibuffer
                   (progn
                     (read-from-minibuffer "Prompt: ")
                     (throw 'thrown "second"))
@@ -1212,19 +1212,19 @@
                 (turtles-with-grab-buffer ()
                   (throw 'thrown "first"))))))))
 
-(ert-deftest turtles-read-from-minibuffer-not-in-an-instance ()
-  ;; turtles-read-from-minibuffer only works in interactive mode.
+(ert-deftest turtles-with-minibuffer-not-in-an-instance ()
+  ;; turtles-with-minibuffer only works in interactive mode.
   :expected-result (if noninteractive :failed :passed)
   (should (equal "ok"
-                 (turtles-read-from-minibuffer
+                 (turtles-with-minibuffer
                      (read-from-minibuffer "Prompt: ")
                    (execute-kbd-macro "ok")))))
 
-(ert-deftest turtles-read-from-minibuffer-not-in-an-turtles-test ()
+(ert-deftest turtles-with-minibuffer-not-in-an-turtles-test ()
   ;; In contrast to the previous test, using :keys outside of an
   ;; instance cannot work.
   (should-error
-   (turtles-read-from-minibuffer
+   (turtles-with-minibuffer
        (read-from-minibuffer "Prompt: ")
      :keys "ok")))
 

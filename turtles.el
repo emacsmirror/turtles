@@ -824,7 +824,7 @@ it; call the functions directly."
   (when trim
     (turtles-trim-buffer)))
 
-(defmacro turtles-read-from-minibuffer (read &rest body)
+(defmacro turtles-with-minibuffer (read &rest body)
   "Run BODY while executing READ.
 
 READ is a form that reads from the minibuffer and return the
@@ -899,7 +899,7 @@ Return whatever READ eventually evaluates to."
 (defun turtles--read-from-minibuffer-split-body (body)
   "Interpret :keys and others in BODY.
 
-This is the core code-generation logic of `turtles-read-from-minibuffer'.
+This is the core code-generation logic of `turtles-with-minibuffer'.
 
 This function splits a BODY containing a mix of lisp expressions,
 :keys string, :command cmd, :command-with-keybinding keybinding
