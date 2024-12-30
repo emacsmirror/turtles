@@ -20,6 +20,7 @@
 (require 'ert)
 (require 'ert-x)
 (require 'hideshow)
+(require 'isearch)
 
 (require 'turtles)
 
@@ -72,5 +73,30 @@
                       "(defun test-3 ()...)")
                      (buffer-string))))))
 
+(ert-deftest turtles-examples-test-isearch ()
+  (turtles-ert-test)
 
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (turtles-display-buffer-full-frame testbuf)
+
+      (insert "Baa, baa, black sheep, have you any wool?")
+      (goto-char (point-min))
+
+      (turtles-read-from-minibuffer
+          (isearch-forward)
+
+        :keys "baa"
+        (turtles-with-grab-buffer (:minibuffer t)
+          (should (equal "I-search: baa" (buffer-string))))
+        (turtles-with-grab-buffer (:buf testbuf :faces '((isearch . "[]")))
+          (should (equal "[Baa], baa, black sheep, have you any wool?"
+                         (buffer-string))))
+
+        :keys "\C-s"
+        (turtles-with-grab-buffer (:buf testbuf :faces '((isearch . "[]")))
+          (should (equal "Baa, [baa], black sheep, have you any wool?"
+                         (buffer-string))))
+
+        (isearch-done)))))
 
