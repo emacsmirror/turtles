@@ -17,8 +17,7 @@ Turtles runs ERT tests is a secondary Emacs instance, which is started
 and piloted by Turtles. This is what allows everything else in this
 section to work.
 
-:code:`(turtles-ert-test &key instance timeout)` : macro
-
+(turtles-ert-test &key instance timeout) : macro
       This macro marks the current test as a Turtles test. It connects
       to a secondary Emacs instance, starts it if necessary, then runs
       everything below (turtles-ert-test) in that secondary instance.
@@ -32,8 +31,7 @@ section to work.
       long to wait for an answer from the secondary instance. Increase
       this value if you're getting timeout errors.
 
-:code:`(turtles-this-instance)` : function
-
+(turtles-this-instance) : function
       When run in a secondary Emacs instance, this function returns
       the instance ID. It returns nil when not called from an
       instance.
@@ -42,8 +40,7 @@ section to work.
       whether the current code is running in the main Emacs process or
       a secondary instance started by Turtles.
 
-:code:`(turtles-upstream)` : function
-
+(turtles-upstream) : function
       When called from a secondary Emacs instance, this function
       returns the connection to the main Emacs process, a
       :code:`turtles-io-conn` struct, described in section :ref:`rpc`.
@@ -73,8 +70,7 @@ Two macros are provided that fully control how the terminal frame is
 grabbed and fully-processed: :code:`turtles-with-grab-buffer` and
 :code:`turtles-to-string`:
 
-:code:`(turtles-with-grab-buffer (&key ...) &rest body)` : macro
-
+(turtles-with-grab-buffer (&key ...) &rest body) : macro
       This macro creates an ERT test buffer, grab the specified
       portion of the frame, post-processes it, then evaluates BODY.
 
@@ -97,11 +93,9 @@ grabbed and fully-processed: :code:`turtles-with-grab-buffer` and
         have to be selected. However it will be selected when
         grabbing.
 
-        :mode-line WIN-OR-BUF grabs the mode-line of the specified
-         window or buffer.
+        :mode-line WIN-OR-BUF grabs the mode-line of the specified window or buffer.
 
-        :header-line WIN-OR-BUF grabs the header-line of the specified
-        window or buffer.
+        :header-line WIN-OR-BUF grabs the header-line of the specified window or buffer.
 
         :minibuffer t grabs the minibuffer window.
 
@@ -137,8 +131,7 @@ grabbed and fully-processed: :code:`turtles-with-grab-buffer` and
         :trim nil tells the macro not to remove trailing whitespaces
         and newlines.
 
-:code:`(turtles-to-string)` : macro
-
+(turtles-to-string) : macro
       This macro works just like :code:`turtle-with-grab-buffer` and
       takes the same arguments, described above. The only difference
       is that instead of opening an ERT test buffer, this function
@@ -168,8 +161,7 @@ provide the functionality offered by these frontends and are only
 useful if you choose to use neither :code:`turtles-with-grab-buffer`
 
 
-:code:`(turtles-grab-frame &optional win grab-faces)` : function
-
+(turtles-grab-frame &optional win grab-faces) : function
       This puts the content of the terminal frame into the current
       buffer and sets the point at the position where the cursor is.
 
@@ -179,8 +171,7 @@ useful if you choose to use neither :code:`turtles-with-grab-buffer`
       description of the :faces argument on
       :ref:`turtles-with-grab-buffer <grab>` for details.
 
-:code:`(turtles-grab-window win &optional grab-faces margin)` : function
-
+(turtles-grab-window win &optional grab-faces margin) : function
       This function puts the content of WIN into the current buffer
       and puts the point at the position where the cursor is.
 
@@ -191,8 +182,7 @@ useful if you choose to use neither :code:`turtles-with-grab-buffer`
       If MARGIN is non-nil, grab not only the body of the window, but
       also the left and right margins.
 
-:code:`(turtles-grab-buffer buf &optional grab-faces margins)` : function
-
+(turtles-grab-buffer buf &optional grab-faces margins) : function
       This function grabs BUF into the current buffer.
 
       If BUF is shown on a window already, that window is the one
@@ -202,8 +192,7 @@ useful if you choose to use neither :code:`turtles-with-grab-buffer`
       This function otherwise behaves as :code:`turtles-grab-window`.
       See that function for details.
 
-:code:`(turtles-grab-mode-line win-or-buf &optional grab-faces)` : function
-
+(turtles-grab-mode-line win-or-buf &optional grab-faces) : function
       This function grabs the mode line of the specified WIN-OR-BUF, a
       window or buffer.
 
@@ -211,8 +200,7 @@ useful if you choose to use neither :code:`turtles-with-grab-buffer`
       description of the :faces argument on
       :ref:`turtles-with-grab-buffer <grab>` for details.
 
-:code:`(turtles-grab-header-line win-or-buf &optional grab-faces)` : function
-
+(turtles-grab-header-line win-or-buf &optional grab-faces) : function
       This function grabs the header line of the specified WIN-OR-BUF,
       a window or buffer.
 
@@ -220,8 +208,7 @@ useful if you choose to use neither :code:`turtles-with-grab-buffer`
       description of the :faces argument on
       :ref:`turtles-with-grab-buffer <grab>` for details.
 
-:code:`(turtles-mark-text-with-faces alist)` : function
-
+(turtles-mark-text-with-faces alist) : function
       This function marks faces does the :face of
       :code:`turtles-with-grab-buffer`.
 
@@ -240,8 +227,7 @@ useful if you choose to use neither :code:`turtles-with-grab-buffer`
       Note that for this function to work, the faces must have been
       grabbed by one of the grab functions.
 
-:code:`(turtles-mark-text-with-face face opening-or-pair &optional closing)` : function
-
+(turtles-mark-text-with-face face opening-or-pair &optional closing) : function
       This is a shortcut for :code:`turtles-mark-text-with-faces` for
       marking a single face in the current buffer.
 
@@ -250,12 +236,10 @@ useful if you choose to use neither :code:`turtles-with-grab-buffer`
       opening and closing, such as "()", CLOSING is the closing
       string.
 
-:code:`(turtles-mark-point STR)` : function
-
+(turtles-mark-point STR) : function
       This function just calls (insert STR).
 
-:code:`turtles-trim-buffer` : function
-
+(turtles-trim-buffer) : function
       This function delete trailing whitespaces on all lines and
       trailing newlines at the end of the current buffer.
 
