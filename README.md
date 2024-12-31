@@ -1,6 +1,7 @@
-# It's turtles all the way down
+# Turtles
 
 [![test](https://github.com/szermatt/turtles/workflows/test/badge.svg)](https://github.com/szermatt/turtles/actions)
+[![Documentation Status](https://readthedocs.org/projects/turtles/badge/?version=latest)](https://turtles.readthedocs.io/en/latest/?badge=latest)
 
 This package help write ERT-based tests to that check how Emacs
 renders buffers and windows. The ERT tests can be run interactively or
@@ -15,18 +16,31 @@ It's especially suited to test:
 - colors changes
 - complex minibuffer interactions
 
+Read the full documentation on
+[turtles-readthedocs.io](https://turtles.readthedocs.io/en/latest/index.html)
+or in the info manual that comes with the package.
+
 ## Status
 
-This project is getting close to stable, though API changes are still
-happening. To be safe, please wait until release 1.0 to depend on this
-project.
+This project is getting close to stable, though API changes are still possible.
 
 ## Installation
 
-Emacs 26.1 or later is required.
+Install Turtles:
 
-The easiest way to install this package is to do: `M-x
-package-vc-install https://www.github.com/szermatt/turtles`
+- on a recent version of Emacs (29 or later), from the
+  github repository by doing `M-x package-vc-install https://github.com/szermatt/turtles`
+
+- using [eldev](https://github.com/emacs-eldev/eldev) to run tests in
+  batch mode:
+
+  ```elisp
+
+    (eldev-add-extra-dependencies 'test 'turtles)
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles")
+  ```
+
+Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
 ## How it works
 
@@ -39,7 +53,10 @@ line are available to tests as text with font-lock-face properties
 specifying things like color.
 
 Here's a quick example of a test that checks a text with an invisible
-section:
+section.
+
+For more details, see the
+[Tutorial](https://turtles.readthedocs.io/en/latest/tutorial.html)
 
 ```elisp
 (require 'turtles)
@@ -60,4 +77,5 @@ section:
       ;; Check the buffer content that was displayed
       (should (equal "hello, world!"
                      (buffer-string))))))
+
 ```
