@@ -351,48 +351,150 @@ Instance Management
     pair: function; turtles-read-instance
     pair: variable; turtles-live-instances
 
+Turtles starts secondary Emacs instances from the main process. These
+instances run the same version of Emacs with the same
+:code:`load-path`, in vanilla mode, without configuration.
+
+The secondary Emacs instances are run within a hidden
+:code:`term-mode` buffer, which is grabbed upon request and sent to
+the instances.
+
+The main Emacs process communicates with the secondary instances using
+socket communication described in the :ref:`next section <rpc>`. On
+startup, the instances connect to the server, and, from then on,
+communicate with the server through RPCs.
+
+There can be multiple secondary instances, identified by a symbol,
+their ID. Instances with different ids have different characteristics,
+defined by :code:`turtles-definstance`, described below.
+
+Turtles defines one shared instance in a 80x25 terminal whose ID is
+'default. This is the instance used by ERT tests unless specified
+otherwise.
+
+Secondary instances can be started and stopped independently using
+:code:`turtles-start-instance` and :code:`turtles-stop-instance`, and
+communicated with using :code:`turtles-instance-eval`.
+
+When developing, the versions of elisp libraries might get out of sync
+between the main Emacs process and secondary instances. In such a
+case, the simplest thing to do is to restart the instances with
+:code:`turtles-restart`.
 
 (turtles-start-server) : function
-    TODO
+    This function starts a :ref:`turtles-io-server <rpc>` for instances
+    to connect to. It doesn't start any instances.
+
+    Calling this function is usually not necessary, the server is
+    started automatically before starting the first instance.
 
 (turtles-shutdown) : function
-    TODO
+    This function shuts down the current :ref:`turtles-io-server
+    <rpc>`, if any, as well as all instances connected to it.
 
 (turtles-restart) : function
-    TODO
+    This function shuts down the current server, then restarts any
+    live instances.
 
-(turtles-instance) : struct
-    TODO
+(cl-defstruct turtles-instance id doc conn width height forward setup term-buf): struct
+    This structure stores information about instances.
 
-(turtles-definstance) : macro
-    TODO
+    Use :code:`turtles-definstance` to create and register instances
+    of this struct and call :code:`turtles-get-instance` to find an
+    instance by its ID.
 
-(turtles-get-instance) : function
-    TODO
+    ID is the instance ID.
+
+    CONN is the :ref:`turtles-io-conn <rpc>` to use to communicate
+    with the instance.
+
+    WIDTH, WEIGHT, FORWARD and SETUP are as passed to
+    :code:`turtles-definstance`, see below for details.
+
+    TERM-BUF is the term-mode buffer within which the instance is
+    running, if it is running.
+
+(turtles-definstance id (&key ...) doc setup) : macro
+    Define a new instance with the given ID.
+
+    Turtles defines a shared instance with ID :code:`default`. This is
+    the instance used by :ref:`turtle-ert-test <ert>` unless a
+    specific one is given. The default instance starts a 80x24
+    terminal with no setup.
+
+    Define your own custom instance whenever you need a different
+    screen size, setup or to forward the value of variables at
+    startup.
+
+    Make sure you set at least a short documentation in DOC. This
+    documentation is displayed in the prompt of
+    :code:`turtles-start-instance`, :code:`turtles-stop-instance` and
+    in the message issued when an instance is started.
+
+    The code in SETUP is executed before every ERT test. This is a
+    convenient place to put Emacs instance setup that you want to
+    remain constant across tests.
+
+    This macro takes the following key arguments:
+
+    :width WIDTH and :height HEIGHT to set the dimensions of the
+    terminal.
+
+    :forward SYMBOL-LIST provides a list of variable symbols whose
+    value should be copied to the instance at launch. This is useful
+    if you have variables whose value influence the tests that you
+    want to remain consistent between the main Emacs process and the
+    secondary instance.
+
+(turtles-get-instance inst-or-id) : function
+    This function returns a :code:`turtles-instance`. Given an ID, it
+    returns the instance with that ID, or nil if it cannot be found.
+
+    Given a :code:`turtles-instance`, it returns that instance. This
+    is useful to setup functions that take either an ID or an
+    instance. Such function just need to call
+    :code:`turtles-get-instance` at startup.
 
 (turtles-instance-alist) : variable
-    TODO
+    This alist maps :code:`turtles-instance` IDs to their value.
 
-(turtles-instance-shortdoc) : function
-    TODO
+    This alist is normally only filled by :code:`turtles-definstance`.
 
-(turtles-instance-live-p) : function
-    TODO
+(turtles-instance-shortdoc inst-or-id) : function
+    Return a short description for the given :code:`turtles-instance`
+    or ID.
 
-(turtles-instance-eval) : function
-    TODO
+    The short description is built by taking the first line of the
+    documentation set in :code:`turtles-definstance`.
 
-(turtles-start-instance) : function
-    TODO
+(turtles-instance-live-p inst) : function
+    Return non-nil if the given instance is live.
 
-(turtles-stop-instance) : function
-    TODO
+(turtles-instance-eval inst-or-id expr &key timeout) : function
+    Evaluate EXPR on the given instance, identified by its ID or
+    :code:`turtle-instance`.
 
-(turtles-read-instance) : function
-    TODO
+    This function waits for the evaluation to finish and returns the
+    result of that evaluation. If that evaluation is likely to take
+    time, set TIMEOUT to a value longer than the default 10s.
 
-(turtles-live-instances) : variable
-    TODO
+(turtles-start-instance inst-or-id) : function
+    Start the given instance, unless it is already started.
+
+(turtles-stop-instance inst-or-id) : function
+    Stop the given instance, if it is running.
+
+(turtles-read-instance &optional prompt predicate) : function
+    Ask the use to choose an instance among those for which PREDICATE
+    evaluates to t.
+
+    PROMPT is displayed in the minibuffer.
+
+    PREDICATE takes a :code:`turtles-instance` and should return
+    non-nil to accept that instance.
+
+(turtles-live-instances) : function
+    Return the IDs of all live instances.
 
 .. _visit:
 
