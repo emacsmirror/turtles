@@ -108,9 +108,38 @@ Contributing
 @section Installation
 
 
-TODO
+Install Turtles:
 
-Turtles requires Emacs 26.1 or later.
+
+@itemize -
+
+@item 
+on a recent version of Emacs (29 or later), from the
+github repository by doing @code{M-x package-vc-install
+https://github.com/szermatt/turtles}
+
+@item 
+from source, using an alternative package managers, such as straight@footnote{https://github.com/radian-software/straight.el}, shown here:
+
+@example
+(use-package turtles
+  :straight (:type git :repo "https://github.com/szermatt/turtles.git"))
+@end example
+
+@item 
+the old-fashioned way, copying the .el files from into your
+@code{.emacs.d} directory.
+
+@item 
+using eldev@footnote{https://github.com/emacs-eldev/eldev} to run tests in batch mode:
+
+@example
+(eldev-add-extra-dependencies 'test 'turtles)
+(eldev-use-vc-repository 'turtles :github "szermatt/turtles")
+@end example
+@end itemize
+
+Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
 @node Tutorial,Reference,Installation,Contents
 @anchor{tutorial doc}@anchor{6}@anchor{tutorial tut}@anchor{7}@anchor{tutorial tutorial}@anchor{8}
