@@ -478,11 +478,17 @@ case, the simplest thing to do is to restart the instances with
     result of that evaluation. If that evaluation is likely to take
     time, set TIMEOUT to a value longer than the default 10s.
 
-(turtles-start-instance inst-or-id) : function
+(turtles-start-instance inst-or-id) : command
     Start the given instance, unless it is already started.
 
-(turtles-stop-instance inst-or-id) : function
+    If called interactively, ask for the instance to start among the
+    registered instances that aren't live yet.
+
+(turtles-stop-instance inst-or-id) : command
     Stop the given instance, if it is running.
+
+    If called interactively, ask for the instance to stop among the
+    registered instances that are currently live.
 
 (turtles-read-instance &optional prompt predicate) : function
     Ask the use to choose an instance among those for which PREDICATE
@@ -498,8 +504,16 @@ case, the simplest thing to do is to restart the instances with
 
 .. _visit:
 
-Visiting Instances
-------------------
+Visiting Instance Buffers
+-------------------------
+
+When a ERT tests is run inside a secondary Emacs instance, buffers
+referenced in the test result should be looked up in the instance that
+ran the test, and not the main Emacs process.
+
+Such remote processes can be found in the test result or backtrace as
+:code:`'(turtles-buffer :name "..." :instance id)`. To visit such a
+buffer, call :code:`turtles-pop-to-buffer`
 
 .. index::
     pair: function; turtles-new-frame-in-instance
@@ -511,26 +525,40 @@ Visiting Instances
     pair: function; turtles-pop-to-buffer-action-history
 
 
-(turtles-new-frame-in-instance) : function
-    TODO
+(turtles-new-frame-in-instance inst-or-id) : command
+    When the main Emacs instance is run in a windowing environment,
+    you can ask the secondary Emacs instance to open a new frame and
+    inspect its state with this function.
 
-(turtles-pop-to-buffer) : function
-    TODO
+    When called interactively, it lets the use choose an instance
+    among those currently live.
 
-(turtles-pop-to-buffer-embedded) : function
-    TODO
+(turtles-pop-to-buffer buffer) : function
+    This function displays buffers of the form :code:`'(turtles-buffer :name "..." :instance id)`
 
-(turtles-pop-to-buffer-copy) : function
-    TODO
+    To do so, it looks in :code:`turtles-pop-to-buffer-actions` for
+    available actions and ask the user to choose one if there are more
+    than one. To skip this step, make sure that there's only one
+    action on that list.
 
-(turtles-pop-to-buffer-new-frame) : function
-    TODO
+(turtles-pop-to-buffer-embedded ...) : function
+    This function displays a buffer from another instance in the
+    terminal buffer of the main Emacs process. It is meant to be called
+    by :code:`turtles-pop-buffer`.
 
-(turtles-pop-to-buffer-actions) : function
-    TODO
+(turtles-pop-to-buffer-copy ...) : function
+    This function makes a copy of a buffer in another instance and
+    displays it in the main Emacs process. It is meant to be called by
+    :code:`turtles-pop-buffer`.
 
-(turtles-pop-to-buffer-action-history) : function
-    TODO
+(turtles-pop-to-buffer-new-frame ...) : function
+    This function tells the secondary instance owning the buffer to
+    display to open a new frame showing that buffer. Only works if the
+    main Emacs process is running in a windowing environment. It is
+    meant to be called by :code:`turtles-pop-buffer`.
+
+(turtles-pop-to-buffer-actions) : variable
+    List of actions that :code:`turtles-pop-to-buffer` should consider.
 
 .. _rpc:
 
