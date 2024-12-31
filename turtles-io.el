@@ -74,6 +74,12 @@ process to the objects it retruns.")
 (defvar-local turtles-io--marker nil
   "Marker used in `turtles-io--connection-filter' for reading object.")
 
+(defvar turtles-io--servers nil
+  "Set of live servers.
+
+This is used solely to remove the socket file of any remaining
+server when Emacs is killed.")
+
 (defun turtles-io-conn-live-p (conn)
   "Return non-nil if CONN is a connnection with a live process."
   (and conn
@@ -98,6 +104,7 @@ METHOD-ALIST is an alist method handlers to pass to client
 connections. See `turtles-io-conn-method-alist' for details.
 
 Return an instance of type `turtles-io-server'."
+  (add-hook 'kill-emacs-hook #'turtles-io--delete-socket-files-on-exit)
   (when (file-exists-p socket)
     (delete-file socket))
   (let* ((server (turtles-io--make-server
@@ -114,9 +121,20 @@ Return an instance of type `turtles-io-server'."
                             (turtles-io--server-sentinel server proc))
                 :filter nil)))
     (setf (turtles-io-server-proc server) proc)
+    (push server turtles-io--servers)
     (continue-process proc)
 
     server))
+
+(defun turtles-io--delete-socket-files-on-exit ()
+  "Delete the socket files at shutdown.
+
+By default, Emacs will kill the processes, but will leave the
+socket files behind."
+  (dolist (server turtles-io--servers)
+    (let ((socketfile (turtles-io-server-socket server)))
+      (when (file-exists-p socketfile)
+        (delete-file socketfile)))))
 
 (defun turtles-io-connect (socket &optional method-alist)
   "Connect to a remote server listening at SOCKET.
@@ -518,8 +536,10 @@ any unreadable object."
   (when (eq (process-status proc) 'closed)
     (if (process-contact proc :server)
         ;; Server stopped
-        (ignore-errors
-          (delete-file (turtles-io-server-socket server)))
+        (progn
+          (ignore-errors
+            (delete-file (turtles-io-server-socket server)))
+          (setq turtles-io--servers (delete server turtles-io--servers)))
       ;; Client connection closed
       (setf (turtles-io-server-connections server)
             (delq (process-get proc 'turtles-io-conn)
