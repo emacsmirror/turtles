@@ -97,7 +97,8 @@
 
   (ert-with-test-buffer ()
     (let ((testbuf (current-buffer)))
-      (turtles-display-buffer-full-frame testbuf)
+      (select-window (display-buffer testbuf))
+      (delete-other-windows)
 
       (insert "Baa, baa, black sheep, have you any wool?")
       (goto-char (point-min))
