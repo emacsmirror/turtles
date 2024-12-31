@@ -51,6 +51,7 @@ TODO
 
 @menu
 * Contents:: 
+* Index:: 
 
 @detailmenu
  --- The Detailed Node Listing ---
@@ -58,8 +59,27 @@ TODO
 Contents
 
 * Installation:: 
-* Usage:: 
+* Tutorial:: 
+* Reference:: 
 * Contributing:: 
+
+Tutorial
+
+* Screen Grab:: 
+* Debugging:: 
+* Minibuffer:: 
+* Faces:: 
+* Colors:: 
+
+Reference
+
+* ERT Integration:: 
+* Screen Grab: Screen Grab<2>. 
+* Minibuffer: Minibuffer<2>. 
+* Input Events:: 
+* Instance Management:: 
+* Visiting Instances:: 
+* RPC (turtles-io): RPC turtles-io. 
 
 Contributing
 
@@ -72,19 +92,20 @@ Contributing
 @end detailmenu
 @end menu
 
-@node Contents,,Top,Top
+@node Contents,Index,Top,Top
 @anchor{index contents}@anchor{1}@anchor{index turtles}@anchor{2}
 @chapter Contents
 
 
 @menu
 * Installation:: 
-* Usage:: 
+* Tutorial:: 
+* Reference:: 
 * Contributing:: 
 
 @end menu
 
-@node Installation,Usage,,Contents
+@node Installation,Tutorial,,Contents
 @anchor{install doc}@anchor{3}@anchor{install installation}@anchor{4}
 @section Installation
 
@@ -93,15 +114,374 @@ TODO
 
 Turtles requires Emacs 26.1 or later.
 
-@node Usage,Contributing,Installation,Contents
-@anchor{usage doc}@anchor{5}@anchor{usage usage}@anchor{6}
-@section Usage
+@node Tutorial,Reference,Installation,Contents
+@anchor{tutorial doc}@anchor{5}@anchor{tutorial tut}@anchor{6}@anchor{tutorial tutorial}@anchor{7}
+@section Tutorial
 
 
-TODO
+@example
+(require 'ert)
+(require 'ert-x)
+(require 'turtles)
+@end example
 
-@node Contributing,,Usage,Contents
-@anchor{contrib doc}@anchor{7}@anchor{contrib contributing}@anchor{8}
+@menu
+* Screen Grab:: 
+* Debugging:: 
+* Minibuffer:: 
+* Faces:: 
+* Colors:: 
+
+@end menu
+
+@node Screen Grab,Debugging,,Tutorial
+@anchor{tutorial screen-grab}@anchor{8}@anchor{tutorial tut-grab}@anchor{9}
+@subsection Screen Grab
+
+
+@example
+(ert-deftest turtles-examples-hello-world ()
+   ;; Start a secondary Emacs instance
+  (turtles-ert-test)
+
+  ;; From this point, everything runs in the secondary instance.
+  (ert-with-test-buffer ()
+    (insert "hello, ") ; Fill in the buffer
+    (insert (propertize "the " 'invisible t))
+    (insert "world!\n")
+
+    (turtles-with-grab-buffer () ; Grab current buffer content
+      (should (equal "hello, world!"
+                     (buffer-string))))))
+@end example
+
+@example
+(ert-deftest turtles-examples-test-hideshow ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (insert "(defun test-1 ()\n")
+    (insert " (message \"test, the first\"))\n")
+    (insert "(defun test-2 ()\n")
+    (insert " (message \"test, the second\"))\n")
+    (insert "(defun test-3 ()\n")
+    (insert " (message \"test, the third\"))\n")
+
+    (emacs-lisp-mode)
+    (hs-minor-mode)
+
+    (goto-char (point-min))
+    (search-forward "test-2")
+    (hs-hide-block)
+    (turtles-with-grab-buffer (:name "hide test-2")
+      (should (equal (concat
+                      "(defun test-1 ()\n"
+                      " (message \"test, the first\"))\n"
+                      "(defun test-2 ()...)\n"
+                      "(defun test-3 ()\n"
+                      " (message \"test, the third\"))")
+                     (buffer-string))))
+
+    (hs-hide-all)
+    (turtles-with-grab-buffer (:name "hide all")
+      (should (equal (concat
+                      "(defun test-1 ()...)\n"
+                      "(defun test-2 ()...)\n"
+                      "(defun test-3 ()...)")
+                     (buffer-string))))))
+@end example
+
+@node Debugging,Minibuffer,Screen Grab,Tutorial
+@anchor{tutorial debugging}@anchor{a}@anchor{tutorial tut-debug}@anchor{b}
+@subsection Debugging
+
+
+@node Minibuffer,Faces,Debugging,Tutorial
+@anchor{tutorial minibuffer}@anchor{c}@anchor{tutorial tut-minibuffer}@anchor{d}
+@subsection Minibuffer
+
+
+@example
+(ert-deftest turtles-examples-test-completing-read ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (let ((completing-read-function #'completing-read-default))
+      (turtles-with-minibuffer
+          (should
+           (equal "Choice B"
+                  (completing-read "Choose: " '("Choice A" "Choice B") nil t)))
+
+        (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
+          (should (equal "Choose: <>" (buffer-string))))
+
+        (execute-kbd-macro (kbd "Ch TAB"))
+        (turtles-with-grab-buffer (:name "completion" :point "<>")
+          (should (equal "Choose: Choice <>" (buffer-string))))
+
+        (execute-kbd-macro (kbd "B"))))))
+@end example
+
+@node Faces,Colors,Minibuffer,Tutorial
+@anchor{tutorial faces}@anchor{e}@anchor{tutorial tut-faces}@anchor{f}
+@subsection Faces
+
+
+@example
+(ert-deftest turtles-examples-test-isearch ()
+  (turtles-ert-test)
+
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (select-window (display-buffer testbuf))
+      (delete-other-windows)
+
+      (insert "Baa, baa, black sheep, have you any wool?")
+      (goto-char (point-min))
+
+      (turtles-with-minibuffer
+          (isearch-forward nil 'no-recursive-edit)
+
+        (turtles-input-keys "baa")
+        (turtles-with-grab-buffer (:minibuffer t)
+          (should (equal "I-search: baa" (buffer-string))))
+        (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch . "[]")))
+          (should (equal "[Baa], baa, black sheep, have you any wool?"
+                         (buffer-string))))
+
+        (turtles-input-keys "\C-s")
+        (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch . "[]")))
+          (should (equal "Baa, [baa], black sheep, have you any wool?"
+                         (buffer-string))))
+
+        (isearch-done))
+
+      (turtles-with-grab-buffer (:name "final position" :point "<>")
+        (should (equal "Baa, baa<>, black sheep, have you any wool?"
+                       (buffer-string)))))))
+@end example
+
+@node Colors,,Faces,Tutorial
+@anchor{tutorial colors}@anchor{10}@anchor{tutorial tut-colors}@anchor{11}
+@subsection Colors
+
+
+@node Reference,Contributing,Tutorial,Contents
+@anchor{reference doc}@anchor{12}@anchor{reference ref}@anchor{13}@anchor{reference reference}@anchor{14}
+@section Reference
+
+
+@menu
+* ERT Integration:: 
+* Screen Grab: Screen Grab<2>. 
+* Minibuffer: Minibuffer<2>. 
+* Input Events:: 
+* Instance Management:: 
+* Visiting Instances:: 
+* RPC (turtles-io): RPC turtles-io. 
+
+@end menu
+
+@node ERT Integration,Screen Grab<2>,,Reference
+@anchor{reference ert}@anchor{15}@anchor{reference ert-integration}@anchor{16}
+@subsection ERT Integration
+
+
+@geindex function; turtles-ert-test
+@geindex function; turtles-upstream
+@geindex function; turtles-this-instance
+
+@code{turtles-ert-test} : macro
+
+@code{turtles-upstream} : function
+
+@code{turtles-this-instance} : function
+
+@node Screen Grab<2>,Minibuffer<2>,ERT Integration,Reference
+@anchor{reference grab}@anchor{17}@anchor{reference screen-grab}@anchor{18}
+@subsection Screen Grab
+
+
+@geindex function; turtles-with-grab-buffer
+@geindex function; turtles-to-string
+@geindex function; turtles-mark-text-with-face
+@geindex function; turtles-mark-text-with-faces
+@geindex function; turtles-mark-point
+@geindex function; turtles-trim-buffer
+@geindex function; turtles-grab-frame
+@geindex function; turtles-grab-buffer
+@geindex function; turtles-grab-mode-line
+@geindex function; turtles-grab-header-line
+@geindex function; turtles-grab-window
+
+@code{turtles-with-grab-buffer} : macro
+
+@code{turtles-to-string} : macro
+
+@code{turtles-mark-text-with-face} : function
+
+@code{turtles-mark-text-with-faces} : function
+
+@code{turtles-mark-point} : function
+
+@code{turtles-trim-buffer} : function
+
+@code{turtles-grab-frame} : function
+
+@code{turtles-grab-buffer} : function
+
+@code{turtles-grab-mode-line} : function
+
+@code{turtles-grab-header-line} : function
+
+@code{turtles-grab-window} : function
+
+@node Minibuffer<2>,Input Events,Screen Grab<2>,Reference
+@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{1a}
+@subsection Minibuffer
+
+
+@geindex function; turtles-with-minibuffer
+
+@code{turtles-with-minibuffer} : macro
+
+@node Input Events,Instance Management,Minibuffer<2>,Reference
+@anchor{reference input}@anchor{1b}@anchor{reference input-events}@anchor{1c}
+@subsection Input Events
+
+
+@geindex function; turtles-input-keys
+@geindex function; turtles-input-events
+@geindex function; turtles-input-command
+
+@code{turtles-input-keys} : function
+
+@code{turtles-input-events} : function
+
+@code{turtles-input-command} : function
+
+@node Instance Management,Visiting Instances,Input Events,Reference
+@anchor{reference instance-management}@anchor{1d}@anchor{reference instances}@anchor{1e}
+@subsection Instance Management
+
+
+@geindex function; turtles-start-server
+@geindex function; turtles-shutdown
+@geindex function; turtles-restart
+@geindex struct; turtles-instance
+@geindex function; turtles-definstance
+@geindex function; turtles-get-instance
+@geindex variable; turtles-instance-alist
+@geindex function; turtles-instance-shortdoc
+@geindex function; turtles-instance-live-p
+@geindex function; turtles-instance-eval
+@geindex function; turtles-start-instance
+@geindex function; turtles-stop-instance
+@geindex function; turtles-read-instance
+@geindex variable; turtles-live-instances
+
+@code{turtles-start-server} : function
+
+@code{turtles-shutdown} : function
+
+@code{turtles-restart} : function
+
+@code{turtles-instance} : struct
+
+@code{turtles-definstance} : macro
+
+@code{turtles-get-instance} : function
+
+@code{turtles-instance-alist} : variable
+
+@code{turtles-instance-shortdoc} : function
+
+@code{turtles-instance-live-p} : function
+
+@code{turtles-instance-eval} : function
+
+@code{turtles-start-instance} : function
+
+@code{turtles-stop-instance} : function
+
+@code{turtles-read-instance} : function
+
+@code{turtles-live-instances} : variable
+
+@node Visiting Instances,RPC turtles-io,Instance Management,Reference
+@anchor{reference visit}@anchor{1f}@anchor{reference visiting-instances}@anchor{20}
+@subsection Visiting Instances
+
+
+@geindex function; turtles-new-frame-in-instance
+@geindex function; turtles-pop-to-buffer
+@geindex function; turtles-pop-to-buffer-embedded
+@geindex function; turtles-pop-to-buffer-copy
+@geindex function; turtles-pop-to-buffer-new-frame
+@geindex function; turtles-pop-to-buffer-actions
+@geindex function; turtles-pop-to-buffer-action-history
+
+@code{turtles-new-frame-in-instance} : function
+
+@code{turtles-pop-to-buffer} : function
+
+@code{turtles-pop-to-buffer-embedded} : function
+
+@code{turtles-pop-to-buffer-copy} : function
+
+@code{turtles-pop-to-buffer-new-frame} : function
+
+@code{turtles-pop-to-buffer-actions} : function
+
+@code{turtles-pop-to-buffer-action-history} : function
+
+@node RPC turtles-io,,Visiting Instances,Reference
+@anchor{reference rpc}@anchor{21}@anchor{reference rpc-turtles-io}@anchor{22}
+@subsection RPC (turtles-io)
+
+
+@geindex function; turtles-io-server
+@geindex struct; turtles-io-server
+@geindex function; turtles-io-server-live-p
+@geindex function; turtles-io-connect
+@geindex struct; turtles-io-conn
+@geindex function; turtles-io-conn-live-p
+@geindex variable; turtles-io-unreadable-obj-props
+@geindex function; turtles-io-handle-method
+@geindex function; turtles-io-send-error
+@geindex function; turtles-io-send-result
+@geindex function; turtles-io-call-method
+@geindex function; turtles-io-notify
+@geindex function; turtles-io-call-method-async
+
+@code{turtles-io-server} : function
+
+@code{turtles-io-server} : struct
+
+@code{turtles-io-server-live-p} : function
+
+@code{turtles-io-connect} : function
+
+@code{turtles-io-conn} : struct
+
+@code{turtles-io-conn-live-p} : function
+
+@code{turtles-io-unreadable-obj-props} : variable
+
+@code{turtles-io-handle-method} : function
+
+@code{turtles-io-send-error} : function
+
+@code{turtles-io-send-result} : function
+
+@code{turtles-io-call-method} : function
+
+@code{turtles-io-notify} : function
+
+@code{turtles-io-call-method-async} : function
+
+@node Contributing,,Reference,Contents
+@anchor{contrib doc}@anchor{23}@anchor{contrib contributing}@anchor{24}
 @section Contributing
 
 
@@ -115,7 +495,7 @@ TODO
 @end menu
 
 @node Reporting issues,Suggesting features,,Contributing
-@anchor{contrib reporting}@anchor{9}@anchor{contrib reporting-issues}@anchor{a}
+@anchor{contrib reporting}@anchor{25}@anchor{contrib reporting-issues}@anchor{26}
 @subsection Reporting issues
 
 
@@ -140,21 +520,21 @@ whether you’re running Emacs in a window environment or a terminal
 @end itemize
 
 @node Suggesting features,Asking questions,Reporting issues,Contributing
-@anchor{contrib suggesting-features}@anchor{b}
+@anchor{contrib suggesting-features}@anchor{27}
 @subsection Suggesting features
 
 
 Please add feature suggestions to the Issue Tracker@footnote{https://github.com/szermatt/turtles/issues}.
 
 @node Asking questions,Code contributions,Suggesting features,Contributing
-@anchor{contrib asking-questions}@anchor{c}
+@anchor{contrib asking-questions}@anchor{28}
 @subsection Asking questions
 
 
 Start a discussion@footnote{https://github.com/szermatt/turtles/discussions} with your question.
 
 @node Code contributions,Documentation contributions,Asking questions,Contributing
-@anchor{contrib code-contributions}@anchor{d}
+@anchor{contrib code-contributions}@anchor{29}
 @subsection Code contributions
 
 
@@ -174,7 +554,7 @@ matters.
 Please also make sure your commit message follows Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}.
 
 @node Documentation contributions,,Code contributions,Contributing
-@anchor{contrib documentation-contributions}@anchor{e}@anchor{contrib eldev}@anchor{f}
+@anchor{contrib documentation-contributions}@anchor{2a}@anchor{contrib eldev}@anchor{2b}
 @subsection Documentation contributions
 
 
@@ -191,6 +571,13 @@ pip3 install -r docs/requirements.txt
 @end example
 
 Then run @code{eldev html} to build the documentation.
+
+@node Index,,Contents,Top
+@unnumbered Index
+
+
+@printindex ge
+
 
 @c %**end of body
 @bye
