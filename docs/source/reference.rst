@@ -352,33 +352,47 @@ Instance Management
     pair: variable; turtles-live-instances
 
 
-:code:`turtles-start-server` : function
+(turtles-start-server) : function
+    TODO
 
-:code:`turtles-shutdown` : function
+(turtles-shutdown) : function
+    TODO
 
-:code:`turtles-restart` : function
+(turtles-restart) : function
+    TODO
 
-:code:`turtles-instance` : struct
+(turtles-instance) : struct
+    TODO
 
-:code:`turtles-definstance` : macro
+(turtles-definstance) : macro
+    TODO
 
-:code:`turtles-get-instance` : function
+(turtles-get-instance) : function
+    TODO
 
-:code:`turtles-instance-alist` : variable
+(turtles-instance-alist) : variable
+    TODO
 
-:code:`turtles-instance-shortdoc` : function
+(turtles-instance-shortdoc) : function
+    TODO
 
-:code:`turtles-instance-live-p` : function
+(turtles-instance-live-p) : function
+    TODO
 
-:code:`turtles-instance-eval` : function
+(turtles-instance-eval) : function
+    TODO
 
-:code:`turtles-start-instance` : function
+(turtles-start-instance) : function
+    TODO
 
-:code:`turtles-stop-instance` : function
+(turtles-stop-instance) : function
+    TODO
 
-:code:`turtles-read-instance` : function
+(turtles-read-instance) : function
+    TODO
 
-:code:`turtles-live-instances` : variable
+(turtles-live-instances) : variable
+    TODO
 
 .. _visit:
 
@@ -395,19 +409,26 @@ Visiting Instances
     pair: function; turtles-pop-to-buffer-action-history
 
 
-:code:`turtles-new-frame-in-instance` : function
+(turtles-new-frame-in-instance) : function
+    TODO
 
-:code:`turtles-pop-to-buffer` : function
+(turtles-pop-to-buffer) : function
+    TODO
 
-:code:`turtles-pop-to-buffer-embedded` : function
+(turtles-pop-to-buffer-embedded) : function
+    TODO
 
-:code:`turtles-pop-to-buffer-copy` : function
+(turtles-pop-to-buffer-copy) : function
+    TODO
 
-:code:`turtles-pop-to-buffer-new-frame` : function
+(turtles-pop-to-buffer-new-frame) : function
+    TODO
 
-:code:`turtles-pop-to-buffer-actions` : function
+(turtles-pop-to-buffer-actions) : function
+    TODO
 
-:code:`turtles-pop-to-buffer-action-history` : function
+(turtles-pop-to-buffer-action-history) : function
+    TODO
 
 .. _rpc:
 
@@ -430,28 +451,41 @@ RPC (turtles-io)
     pair: function; turtles-io-call-method-async
 
 
-:code:`turtles-io-server` : function
+(turtles-io-server) : function
+    TODO
 
-:code:`turtles-io-server` : struct
+(turtles-io-server) : struct
+    TODO
 
-:code:`turtles-io-server-live-p` : function
+(turtles-io-server-live-p) : function
+    TODO
 
-:code:`turtles-io-connect` : function
+(turtles-io-connect) : function
+    TODO
 
-:code:`turtles-io-conn` : struct
+(turtles-io-conn) : struct
+    TODO
 
-:code:`turtles-io-conn-live-p` : function
+(turtles-io-conn-live-p) : function
+    TODO
 
-:code:`turtles-io-unreadable-obj-props` : variable
+(turtles-io-unreadable-obj-props) : variable
+    TODO
 
-:code:`turtles-io-handle-method` : function
+(turtles-io-handle-method) : function
+    TODO
 
-:code:`turtles-io-send-error` : function
+(turtles-io-send-error) : function
+    TODO
 
-:code:`turtles-io-send-result` : function
+(turtles-io-send-result) : function
+    TODO
 
-:code:`turtles-io-call-method` : function
+(turtles-io-call-method) : function
+    TODO
 
-:code:`turtles-io-notify` : function
+(turtles-io-notify) : function
+    TODO
 
-:code:`turtles-io-call-method-async` : function
+(turtles-io-call-method-async) : function
+    TODO
