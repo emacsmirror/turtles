@@ -1162,6 +1162,16 @@
         (turtles-input-events (kbd "hello"))
         (should (equal "Prompt: hello" (turtles-to-string))))))))
 
+(ert-deftest turtles-with-minibuffer-early-return ()
+  :expected-result :failed
+  (turtles-ert-test)
+
+  ;; This should fail, as the read section of turtles-with-minibuffer
+  ;; is not supposed to just return right away.
+  (turtles-with-minibuffer
+      nil
+    t))
+
 (ert-deftest turtles-with-minibuffer-pile-up-errors ()
   (turtles-ert-test)
 

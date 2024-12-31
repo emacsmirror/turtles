@@ -874,33 +874,34 @@ there's pending input.
 
 Return whatever READ eventually evaluates to."
   (declare (indent 1))
-  (let ((mb-result-var (make-symbol "mb-result"))
-        (has-mb-result-var (make-symbol "has-mb-result"))
-        (timer-var (make-symbol "timer"))
-        (initial-depth (make-symbol "initial-depth")))
-    `(let ((,mb-result-var nil)
-           (,has-mb-result-var nil)
-           (,timer-var nil)
-           (,initial-depth (recursion-depth)))
-       (when noninteractive
-         (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
-       (run-with-timer
-        0 nil
-        (lambda ()
-          (setq ,mb-result-var (progn ,read))
-          (setq ,has-mb-result-var t)))
-       (setq ,timer-var
-             (run-with-timer
-              0 nil
-              (lambda ()
-                (progn ,@body)
-                (turtles--exit-recursive-edit
-                 (- (recursion-depth) ,initial-depth)))))
-       (while (not ,has-mb-result-var)
-         (sleep-for 0.01))
-       (when ,timer-var
-         (cancel-timer ,timer-var))
-       ,mb-result-var)))
+  `(turtles--run-with-minibuffer
+    (lambda () ,read)   (lambda () ,@body)))
+
+(defun turtles--run-with-minibuffer (readfunc bodyfunc)
+  "Internal implementation of `turtles-run-with-minibuffer'.
+
+READFUNC runs the read section. BODYFUNC runs the body section."
+  (when noninteractive
+    (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
+  (let ((mb-result nil)
+        (has-mb-result nil)
+        (initial-depth (recursion-depth)))
+    (run-with-timer
+     0 nil
+     (lambda ()
+       (setq mb-result (funcall readfunc)
+             has-mb-result t)))
+    (run-with-timer
+     0 nil
+     (lambda ()
+       (when has-mb-result
+         (error "READ section of turtles-with-grab-buffer returned too early"))
+       (funcall bodyfunc)
+       (turtles--exit-recursive-edit
+        (- (recursion-depth) initial-depth))))
+    (while (not has-mb-result)
+      (sleep-for 0.01))
+    mb-result))
 
 (defun turtles--exit-recursive-edit (levels)
   "Exit all recursive edits to go back up LEVELS."
