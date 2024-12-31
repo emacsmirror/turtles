@@ -221,8 +221,8 @@ Within that example BODY first checks the minibuffer content with:
             (should (equal "Choose: <>" (buffer-string))))
 
 The argument :point tells :code:`turtles-with-grab-buffer` to
-highlight the position of the cursor with "<>". You can also just
-check that manually; it's just convenient to see the content and the
+highlight the position of the cursor with "<>". You can also check
+that manually; it's just convenient to see the content and the
 position of the point in the same string.
 
 This test interacts with :code:`completing-read` by simulating the
@@ -302,7 +302,7 @@ The interesting bit here is:
 
 .. code-block:: elisp
 
-          (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch . "[]")))
+          (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
             (should (equal "[Baa], baa, black sheep, have you any wool?"
                            (buffer-string))))
 
