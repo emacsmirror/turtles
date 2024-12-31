@@ -47,7 +47,46 @@ Copyright @copyright{} 2024, Stephane Zermatten
 
 @c %**start of body
 @anchor{index doc}@anchor{0}
-TODO
+Turtles is an Emacs elisp package that helps write ERT-based tests
+that check how Emacs renders buffers and windows. The ERT tests can be
+run interactively or in batch mode. You’ll find the source code of
+this package on @indicateurl{https://github.com/szermatt/turtles}
+
+Go to @ref{1,,Tutorial} to get started.
+
+Turtles is especially suited to test:
+
+
+@itemize -
+
+@item 
+the effect of display, before-string, after-string text properties
+
+@item 
+the effect of overlays
+
+@item 
+text visibility
+
+@item 
+mode lines
+
+@item 
+complex minibuffer interactions
+@end itemize
+
+`This program is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 3 of the
+License, or (at your option) any later version.'
+
+`This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.'
+
+`You should have received a copy of the GNU General Public License
+along with this program.  If not, see' @indicateurl{http://www.gnu.org/licenses/}
 
 @menu
 * Contents:: 
@@ -67,7 +106,7 @@ Tutorial
 
 * Screen Grabbing:: 
 * Minibuffer:: 
-* Faces and Point:: 
+* Faces with Isearch:: 
 
 Reference
 
@@ -76,7 +115,7 @@ Reference
 * Minibuffer: Minibuffer<2>. 
 * Input Events:: 
 * Instance Management:: 
-* Visiting Instances:: 
+* Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
 
 Contributing
@@ -91,7 +130,7 @@ Contributing
 @end menu
 
 @node Contents,Index,Top,Top
-@anchor{index contents}@anchor{1}@anchor{index turtles}@anchor{2}
+@anchor{index contents}@anchor{2}@anchor{index turtles}@anchor{3}
 @chapter Contents
 
 
@@ -104,7 +143,7 @@ Contributing
 @end menu
 
 @node Installation,Tutorial,,Contents
-@anchor{install doc}@anchor{3}@anchor{install install}@anchor{4}@anchor{install installation}@anchor{5}
+@anchor{install doc}@anchor{4}@anchor{install install}@anchor{5}@anchor{install installation}@anchor{6}
 @section Installation
 
 
@@ -142,7 +181,7 @@ using eldev@footnote{https://github.com/emacs-eldev/eldev} to run tests in batch
 Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
 @node Tutorial,Reference,Installation,Contents
-@anchor{tutorial doc}@anchor{6}@anchor{tutorial tut}@anchor{7}@anchor{tutorial tutorial}@anchor{8}
+@anchor{tutorial doc}@anchor{7}@anchor{tutorial tut}@anchor{1}@anchor{tutorial tutorial}@anchor{8}
 @section Tutorial
 
 
@@ -151,7 +190,8 @@ the terminal showing an interactive Emacs instance from within that
 instance. That is, you can setup buffer content and windows and check
 how it looks like to a user running Emacs in a terminal.
 
-Such ERT tests can run in batch mode as well an in interactive mode.
+Such ERT tests can run in batch mode as well an in interactive mode,
+together with normal ERT tests.
 
 To make that work, Turtles starts a secondary Emacs instance from
 within a terminal buffer. Tests run in the secondary Emacs instance
@@ -160,7 +200,7 @@ needed, the primary instance grab the screen and provides the result,
 that is, a terminal screen with colors and cursor position, to the
 secondary instance.
 
-To get started, @ref{4,,install turtles}, create a new ERT
+To get started, @ref{5,,install turtles}, create a new ERT
 test file with:
 
 @example
@@ -180,7 +220,7 @@ test}.
 @menu
 * Screen Grabbing:: 
 * Minibuffer:: 
-* Faces and Point:: 
+* Faces with Isearch:: 
 
 @end menu
 
@@ -300,7 +340,7 @@ line and message area.
 Have a look at the @ref{c,,turtles-with-grab-buffer reference} to
 see how you can grab other sections of the screen.
 
-@node Minibuffer,Faces and Point,Screen Grabbing,Tutorial
+@node Minibuffer,Faces with Isearch,Screen Grabbing,Tutorial
 @anchor{tutorial minibuffer}@anchor{e}@anchor{tutorial tut-minibuffer}@anchor{f}
 @subsection Minibuffer
 
@@ -365,8 +405,8 @@ Within that example BODY first checks the minibuffer content with:
 @end example
 
 The argument :point tells @code{turtles-with-grab-buffer} to
-highlight the position of the cursor with “<>”. You can also just
-check that manually; it’s just convenient to see the content and the
+highlight the position of the cursor with “<>”. You can also check
+that manually; it’s just convenient to see the content and the
 position of the point in the same string.
 
 This test interacts with @code{completing-read} by simulating the
@@ -398,9 +438,9 @@ though it’s just overkill here:
   (should (equal "Choose: Choice <>" (buffer-string))))
 @end example
 
-@node Faces and Point,,Minibuffer,Tutorial
-@anchor{tutorial faces-and-point}@anchor{12}@anchor{tutorial tut-isearch}@anchor{13}
-@subsection Faces and Point
+@node Faces with Isearch,,Minibuffer,Tutorial
+@anchor{tutorial faces-with-isearch}@anchor{12}@anchor{tutorial tut-isearch}@anchor{13}
+@subsection Faces with Isearch
 
 
 This last example tests isearch. While not a minibuffer-based command,
@@ -424,12 +464,12 @@ isearch still works with @code{turtles-with-minibuffer}.
         (turtles-input-keys "baa")
         (turtles-with-grab-buffer (:minibuffer t)
           (should (equal "I-search: baa" (buffer-string))))
-        (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch . "[]")))
+        (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
           (should (equal "[Baa], baa, black sheep, have you any wool?"
                          (buffer-string))))
 
         (turtles-input-keys "\C-s")
-        (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch . "[]")))
+        (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch "[]")))
           (should (equal "Baa, [baa], black sheep, have you any wool?"
                          (buffer-string))))
 
@@ -443,7 +483,7 @@ isearch still works with @code{turtles-with-minibuffer}.
 The interesting bit here is:
 
 @example
-(turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch . "[]")))
+(turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
   (should (equal "[Baa], baa, black sheep, have you any wool?"
                  (buffer-string))))
 @end example
@@ -475,7 +515,7 @@ assigned.
 * Minibuffer: Minibuffer<2>. 
 * Input Events:: 
 * Instance Management:: 
-* Visiting Instances:: 
+* Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
 
 @end menu
@@ -489,14 +529,50 @@ assigned.
 @geindex function; turtles-upstream
 @geindex function; turtles-this-instance
 
-@code{turtles-ert-test} : macro
+Turtles runs ERT tests is a secondary Emacs instance, which is started
+and piloted by Turtles. This is what allows everything else in this
+section to work.
 
-@code{turtles-upstream} : function
 
-@code{turtles-this-instance} : function
+@table @asis
+
+@item (turtles-ert-test &key instance timeout) : macro
+
+This macro marks the current test as a Turtles test. It connects
+to a secondary Emacs instance, starts it if necessary, then runs
+everything below (turtles-ert-test) in that secondary instance.
+
+The ID of the instance to connect can be passed to the key
+argument :instance. That ID defaults to @code{default}, with a
+80x24 terminal. See the @ref{d,,Instance Management} section for details on
+how to define new instances.
+
+A :timeout value, in seconds, can be passed to tell Turtles how
+long to wait for an answer from the secondary instance. Increase
+this value if you’re getting timeout errors.
+
+@item (turtles-this-instance) : function
+
+When run in a secondary Emacs instance, this function returns
+the instance ID. It returns nil when not called from an
+instance.
+
+Calling this function provides a convenient way of knowing
+whether the current code is running in the main Emacs process or
+a secondary instance started by Turtles.
+
+@item (turtles-upstream) : function
+
+When called from a secondary Emacs instance, this function
+returns the connection to the main Emacs process, a
+@code{turtles-io-conn} struct, described in section @ref{18,,RPC (turtles-io)}.
+
+When called from the main Emacs process, this function returns
+nil.
+@end table
 
 @node Screen Grab,Minibuffer<2>,ERT Integration,Reference
-@anchor{reference grab}@anchor{c}@anchor{reference screen-grab}@anchor{18}
+@anchor{reference grab}@anchor{c}@anchor{reference screen-grab}@anchor{19}
 @subsection Screen Grab
 
 
@@ -512,39 +588,275 @@ assigned.
 @geindex function; turtles-grab-header-line
 @geindex function; turtles-grab-window
 
-@code{turtles-with-grab-buffer} : macro
+Two macros are provided that fully control how the terminal frame is
+grabbed and fully-processed: @code{turtles-with-grab-buffer} and
+@code{turtles-to-string}:
 
-@code{turtles-to-string} : macro
 
-@code{turtles-mark-text-with-face} : function
+@table @asis
 
-@code{turtles-mark-text-with-faces} : function
+@item (turtles-with-grab-buffer (&key …) &rest body) : macro
 
-@code{turtles-mark-point} : function
+This macro creates an ERT test buffer, grab the specified
+portion of the frame, post-processes it, then evaluates BODY.
 
-@code{turtles-trim-buffer} : function
+BODY then usually checks the buffer content @code{should}.
 
-@code{turtles-grab-frame} : function
+Key arguments:
 
-@code{turtles-grab-buffer} : function
+@quotation
 
-@code{turtles-grab-mode-line} : function
+`:name NAME' specifies the buffer name, “grab” by default. It is
+forwarded to @code{ert-with-test-buffer}.
+@end quotation
 
-@code{turtles-grab-header-line} : function
+Key arguments that control what to grab:
 
-@code{turtles-grab-window} : function
+@quotation
+
+By default, the macro grabs the current buffer. If the buffer
+is already shown in a window, it grabs that window, otherwise
+it shows the buffer in a single window and grabs that.
+
+:buf BUFFER-OR-NAME specifies another buffer to grab
+
+:win WINDOW specifies a window to grab. The window doesn’t
+have to be selected. However it will be selected when
+grabbing.
+
+:mode-line WIN-OR-BUF grabs the mode-line of the specified window or buffer.
+
+:header-line WIN-OR-BUF grabs the header-line of the specified window or buffer.
+
+:minibuffer t grabs the minibuffer window.
+
+:margins t grabs the left and right margin. This only has an
+effect when grabbing a buffer or a window.
+
+:frame t grabs the whole frame.
+@end quotation
+
+Key arguments that control how to post-process what is grabbed:
+
+@quotation
+
+:point STR marks the position of the cursor with STR.
+
+:faces FACE-LIST-OR-ALIST specifies a set of faces to grab. To
+do that, Turtles assigns specific color to each face, grabs the
+result, then detects faces in the gabbed data from colors. This
+means that color data isn’t available when this option is used.
+
+The face data can be recovered in the grabbed buffer in the text
+property ‘face.
+
+Additionally, it is possible to specify strings to use to mark
+regions of the buffer with a specific face, to make it easier
+to test using just (equals … (buffer-string)).
+
+FACE-LIST-OR-ALIST is a list of either:
+
+
+@itemize -
+
+@item 
+the face to grab, a symbol
+
+@item 
+( face pair ) with pair being a string that can be split into
+opening and closing strings, for example “()”, “[]” or even “<<>>”.
+
+@item 
+( face opening closing ) opening being
+opening and closing strings, for example “face1:(” “)”
+@end itemize
+
+:trim nil tells the macro not to remove trailing whitespaces
+and newlines.
+@end quotation
+
+@item (turtles-to-string) : macro
+
+This macro works just like @code{turtle-with-grab-buffer} and
+takes the same arguments, described above. The only difference
+is that instead of opening an ERT test buffer, this function
+returns the buffer content as a string.
+
+So, instead of:
+
+@example
+(turtles-with-grab-buffer (...)
+  ...
+  (should (equal "..." (buffer-string))))
+@end example
+
+you’d write:
+
+@example
+(should (equal "..." (turtles-to-string ...)))
+@end example
+
+This is shorter, but doesn’t make the buffer available for
+inspection when the test fails.
+@end table
+
+The two macros above form the frontend of the Turtles grabbing
+functionality. Usually, that’s all you need. The functions below
+provide the functionality offered by these frontends and are only
+useful if you choose to use neither @code{turtles-with-grab-buffer}
+
+
+@table @asis
+
+@item (turtles-grab-frame &optional win grab-faces) : function
+
+This puts the content of the terminal frame into the current
+buffer and sets the point at the position where the cursor is.
+
+WIN is a window that must be selected while grabbing.
+
+GRAB-FACES is a list of face symbols to grab. See the
+description of the :faces argument on
+@ref{c,,turtles-with-grab-buffer} for details.
+
+@item (turtles-grab-window win &optional grab-faces margin) : function
+
+This function puts the content of WIN into the current buffer
+and puts the point at the position where the cursor is.
+
+GRAB-FACES is a list of face symbols to grab. See the
+description of the :faces argument on
+@ref{c,,turtles-with-grab-buffer} for details.
+
+If MARGIN is non-nil, grab not only the body of the window, but
+also the left and right margins.
+
+@item (turtles-grab-buffer buf &optional grab-faces margins) : function
+
+This function grabs BUF into the current buffer.
+
+If BUF is shown on a window already, that window is the one
+that’s grabbed. Otherwise, BUF is installed in the root window
+of the frame before grabbing.
+
+This function otherwise behaves as @code{turtles-grab-window}.
+See that function for details.
+
+@item (turtles-grab-mode-line win-or-buf &optional grab-faces) : function
+
+This function grabs the mode line of the specified WIN-OR-BUF, a
+window or buffer.
+
+GRAB-FACES is a list of face symbols to grab. See the
+description of the :faces argument on
+@ref{c,,turtles-with-grab-buffer} for details.
+
+@item (turtles-grab-header-line win-or-buf &optional grab-faces) : function
+
+This function grabs the header line of the specified WIN-OR-BUF,
+a window or buffer.
+
+GRAB-FACES is a list of face symbols to grab. See the
+description of the :faces argument on
+@ref{c,,turtles-with-grab-buffer} for details.
+
+@item (turtles-mark-text-with-faces alist) : function
+
+This function marks faces does the :face of
+@code{turtles-with-grab-buffer}.
+
+It detects the regions with a specific face in the current
+buffer and marks them.
+
+It takes a list of, either:
+
+
+@itemize -
+
+@item 
+( face pair ) with pair being a string that can be split into
+opening and closing strings, for example “()”, “[]” or even
+“<<>>”.
+
+@item 
+( face opening closing ) opening being
+opening and closing strings, for example “face1:(” “)”
+@end itemize
+
+Note that for this function to work, the faces must have been
+grabbed by one of the grab functions.
+
+@item (turtles-mark-text-with-face face opening-or-pair &optional closing) : function
+
+This is a shortcut for @code{turtles-mark-text-with-faces} for
+marking a single face in the current buffer.
+
+FACE is the symbol of the face to mark, OPENING-OR-PAIR is
+either the opening string, or a string that can be split into
+opening and closing, such as “()”, CLOSING is the closing
+string.
+
+@item (turtles-mark-point STR) : function
+
+This function just calls (insert STR).
+
+@item (turtles-trim-buffer) : function
+
+This function delete trailing whitespaces on all lines and
+trailing newlines at the end of the current buffer.
+@end table
 
 @node Minibuffer<2>,Input Events,Screen Grab,Reference
-@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{10}
+@anchor{reference id1}@anchor{1a}@anchor{reference minibuffer}@anchor{10}
 @subsection Minibuffer
 
 
 @geindex function; turtles-with-minibuffer
 
-@code{turtles-with-minibuffer} : macro
+
+@table @asis
+
+@item (turtles-with-minibuffer READ &rest BODY) : macro
+
+This macro tests minibuffer or recursive-edit interactions.
+
+The READ section is a single sexp that calls a function that runs
+on the minibuffer or within a recursive-edit. When this function
+returns, the macro ends and returns the result of evaluating READ.
+
+The BODY section is a series of sexp that is executed
+interactively `while the READ section runs'. This isn’t
+multi-threading; @code{turtles-with-minibuffer} waits for the
+READ sections to call @code{recursive-edit}, usually indirectly
+through @code{read-from-minibuffer}, and runs BODY within that
+interactive session.
+
+BODY is usually a mix of:
+
+
+@itemize -
+
+@item 
+calls to @code{turtles-with-grab-buffer} to test the content of
+the minibuffer or any other window.
+
+@item 
+keys passed to the minibuffer, with @code{turtles-input-keys}
+
+@item 
+commands that manipulate the minibuffer, either called directly
+or using @code{turtles-input-command}
+@end itemize
+
+At the end of BODY, the minibuffer is closed, if needed, and
+control returns to READ, which checks the result of running BODY.
+
+See the @ref{f,,Minibuffer} and @ref{13,,Faces with Isearch} sections of
+the tutorial for usage examples.
+@end table
 
 @node Input Events,Instance Management,Minibuffer<2>,Reference
-@anchor{reference input}@anchor{11}@anchor{reference input-events}@anchor{1a}
+@anchor{reference input}@anchor{11}@anchor{reference input-events}@anchor{1b}
 @subsection Input Events
 
 
@@ -552,14 +864,53 @@ assigned.
 @geindex function; turtles-input-events
 @geindex function; turtles-input-command
 
-@code{turtles-input-keys} : function
+The following functions send events to the Emacs instance to be
+processed using the normal event loop.
 
-@code{turtles-input-events} : function
+In contrast to @code{execute-kbd-macro},
+@code{ert-simulate-commands} and @code{ert-simulate-keys}, these
+function use the real event loop, triggered by real, external events
+(terminal keys). This isn’t as simulation. In most cases, the
+difference doesn’t matter, of course.
 
-@code{turtles-input-command} : function
+These functions all use @code{recursive-edit} to make it possible to
+handle events directly from ERT tests.
 
-@node Instance Management,Visiting Instances,Input Events,Reference
-@anchor{reference instance-management}@anchor{1b}@anchor{reference instances}@anchor{d}
+
+@table @asis
+
+@item (turtles-input-keys keys) : function
+
+This function provides KEYS as user input to the current instance.
+
+KEYS is in the same format as passed to @code{kbd}.
+
+@item (turtles-input-events events) : function
+
+This function provides a vector of events as the user input to the
+current instance.
+
+This is more general than the previous function as the events can
+be any kind of UI events.
+
+@item (turtles-input-command command &optional keybinding) : function
+
+This function runs the given interactive command in the event
+loop, triggered by a key stroke.
+
+If provided, keybinding is what what the command will find in
+@code{(this-command-keys)}, if it asks.
+
+This is implemented using a transient map, so the key binding is
+only available for one call.
+
+Note that in the majority of cases, calling the command directly,
+outside of the event loop, works just fine in tests and is more
+convenient.
+@end table
+
+@node Instance Management,Visiting Instance Buffers,Input Events,Reference
+@anchor{reference instance-management}@anchor{1c}@anchor{reference instances}@anchor{d}
 @subsection Instance Management
 
 
@@ -578,38 +929,186 @@ assigned.
 @geindex function; turtles-read-instance
 @geindex variable; turtles-live-instances
 
-@code{turtles-start-server} : function
+Turtles starts secondary Emacs instances from the main process. These
+instances run the same version of Emacs with the same
+@code{load-path}, in vanilla mode, without configuration.
 
-@code{turtles-shutdown} : function
+The secondary Emacs instances are run within a hidden
+@code{term-mode} buffer, which is grabbed upon request and sent to
+the instances.
 
-@code{turtles-restart} : function
+The main Emacs process communicates with the secondary instances using
+socket communication described in the @ref{18,,next section}. On
+startup, the instances connect to the server, and, from then on,
+communicate with the server through RPCs.
 
-@code{turtles-instance} : struct
+There can be multiple secondary instances, identified by a symbol,
+their ID. Instances with different ids have different characteristics,
+defined by @code{turtles-definstance}, described below.
 
-@code{turtles-definstance} : macro
+Turtles defines one shared instance in a 80x25 terminal whose ID is
+‘default. This is the instance used by ERT tests unless specified
+otherwise.
 
-@code{turtles-get-instance} : function
+Secondary instances can be started and stopped independently using
+@code{turtles-start-instance} and @code{turtles-stop-instance}, and
+communicated with using @code{turtles-instance-eval}.
 
-@code{turtles-instance-alist} : variable
+When developing, the versions of elisp libraries might get out of sync
+between the main Emacs process and secondary instances. In such a
+case, the simplest thing to do is to restart the instances with
+@code{turtles-restart}.
 
-@code{turtles-instance-shortdoc} : function
 
-@code{turtles-instance-live-p} : function
+@table @asis
 
-@code{turtles-instance-eval} : function
+@item (turtles-start-server) : function
 
-@code{turtles-start-instance} : function
+This function starts a @ref{18,,turtles-io-server} for instances
+to connect to. It doesn’t start any instances.
 
-@code{turtles-stop-instance} : function
+Calling this function is usually not necessary, the server is
+started automatically before starting the first instance.
 
-@code{turtles-read-instance} : function
+@item (turtles-shutdown) : command
 
-@code{turtles-live-instances} : variable
+This function shuts down the current @ref{18,,turtles-io-server}, if any, as well as all instances connected to it.
 
-@node Visiting Instances,RPC turtles-io,Instance Management,Reference
-@anchor{reference visit}@anchor{1c}@anchor{reference visiting-instances}@anchor{1d}
-@subsection Visiting Instances
+@item (turtles-restart) : command
 
+This function shuts down the current server, then restarts any
+live instances.
+
+@item (cl-defstruct turtles-instance id doc conn width height forward setup term-buf): struct
+
+This structure stores information about instances.
+
+Use @code{turtles-definstance} to create and register instances
+of this struct and call @code{turtles-get-instance} to find an
+instance by its ID.
+
+ID is the instance ID.
+
+CONN is the @ref{18,,turtles-io-conn} to use to communicate
+with the instance.
+
+WIDTH, WEIGHT, FORWARD and SETUP are as passed to
+@code{turtles-definstance}, see below for details.
+
+TERM-BUF is the term-mode buffer within which the instance is
+running, if it is running.
+
+@item (turtles-definstance id (&key …) doc setup) : macro
+
+Define a new instance with the given ID.
+
+Turtles defines a shared instance with ID @code{default}. This is
+the instance used by @ref{b,,turtle-ert-test} unless a
+specific one is given. The default instance starts a 80x24
+terminal with no setup.
+
+Define your own custom instance whenever you need a different
+screen size, setup or to forward the value of variables at
+startup.
+
+Make sure you set at least a short documentation in DOC. This
+documentation is displayed in the prompt of
+@code{turtles-start-instance}, @code{turtles-stop-instance} and
+in the message issued when an instance is started.
+
+The code in SETUP is executed before every ERT test. This is a
+convenient place to put Emacs instance setup that you want to
+remain constant across tests.
+
+This macro takes the following key arguments:
+
+:width WIDTH and :height HEIGHT to set the dimensions of the
+terminal.
+
+:forward SYMBOL-LIST provides a list of variable symbols whose
+value should be copied to the instance at launch. This is useful
+if you have variables whose value influence the tests that you
+want to remain consistent between the main Emacs process and the
+secondary instance.
+
+@item (turtles-get-instance inst-or-id) : function
+
+This function returns a @code{turtles-instance}. Given an ID, it
+returns the instance with that ID, or nil if it cannot be found.
+
+Given a @code{turtles-instance}, it returns that instance. This
+is useful to setup functions that take either an ID or an
+instance. Such function just need to call
+@code{turtles-get-instance} at startup.
+
+@item (turtles-instance-alist) : variable
+
+This alist maps @code{turtles-instance} IDs to their value.
+
+This alist is normally only filled by @code{turtles-definstance}.
+
+@item (turtles-instance-shortdoc inst-or-id) : function
+
+Return a short description for the given @code{turtles-instance}
+or ID.
+
+The short description is built by taking the first line of the
+documentation set in @code{turtles-definstance}.
+
+@item (turtles-instance-live-p inst) : function
+
+Return non-nil if the given instance is live.
+
+@item (turtles-instance-eval inst-or-id expr &key timeout) : function
+
+Evaluate EXPR on the given instance, identified by its ID or
+@code{turtle-instance}.
+
+This function waits for the evaluation to finish and returns the
+result of that evaluation. If that evaluation is likely to take
+time, set TIMEOUT to a value longer than the default 10s.
+
+@item (turtles-start-instance inst-or-id) : command
+
+Start the given instance, unless it is already started.
+
+If called interactively, ask for the instance to start among the
+registered instances that aren’t live yet.
+
+@item (turtles-stop-instance inst-or-id) : command
+
+Stop the given instance, if it is running.
+
+If called interactively, ask for the instance to stop among the
+registered instances that are currently live.
+
+@item (turtles-read-instance &optional prompt predicate) : function
+
+Ask the use to choose an instance among those for which PREDICATE
+evaluates to t.
+
+PROMPT is displayed in the minibuffer.
+
+PREDICATE takes a @code{turtles-instance} and should return
+non-nil to accept that instance.
+
+@item (turtles-live-instances) : function
+
+Return the IDs of all live instances.
+@end table
+
+@node Visiting Instance Buffers,RPC turtles-io,Instance Management,Reference
+@anchor{reference visit}@anchor{1d}@anchor{reference visiting-instance-buffers}@anchor{1e}
+@subsection Visiting Instance Buffers
+
+
+When a ERT tests is run inside a secondary Emacs instance, buffers
+referenced in the test result should be looked up in the instance that
+ran the test, and not the main Emacs process.
+
+Such remote processes can be found in the test result or backtrace as
+@code{'(turtles-buffer :name "..." :instance id)}. To visit such a
+buffer, call @code{turtles-pop-to-buffer}
 
 @geindex function; turtles-new-frame-in-instance
 @geindex function; turtles-pop-to-buffer
@@ -619,22 +1118,53 @@ assigned.
 @geindex function; turtles-pop-to-buffer-actions
 @geindex function; turtles-pop-to-buffer-action-history
 
-@code{turtles-new-frame-in-instance} : function
 
-@code{turtles-pop-to-buffer} : function
+@table @asis
 
-@code{turtles-pop-to-buffer-embedded} : function
+@item (turtles-new-frame-in-instance inst-or-id) : command
 
-@code{turtles-pop-to-buffer-copy} : function
+When the main Emacs instance is run in a windowing environment,
+you can ask the secondary Emacs instance to open a new frame and
+inspect its state with this function.
 
-@code{turtles-pop-to-buffer-new-frame} : function
+When called interactively, it lets the use choose an instance
+among those currently live.
 
-@code{turtles-pop-to-buffer-actions} : function
+@item (turtles-pop-to-buffer buffer) : function
 
-@code{turtles-pop-to-buffer-action-history} : function
+This function displays buffers of the form @code{'(turtles-buffer :name "..." :instance id)}
 
-@node RPC turtles-io,,Visiting Instances,Reference
-@anchor{reference rpc}@anchor{1e}@anchor{reference rpc-turtles-io}@anchor{1f}
+To do so, it looks in @code{turtles-pop-to-buffer-actions} for
+available actions and ask the user to choose one if there are more
+than one. To skip this step, make sure that there’s only one
+action on that list.
+
+@item (turtles-pop-to-buffer-embedded …) : function
+
+This function displays a buffer from another instance in the
+terminal buffer of the main Emacs process. It is meant to be called
+by @code{turtles-pop-buffer}.
+
+@item (turtles-pop-to-buffer-copy …) : function
+
+This function makes a copy of a buffer in another instance and
+displays it in the main Emacs process. It is meant to be called by
+@code{turtles-pop-buffer}.
+
+@item (turtles-pop-to-buffer-new-frame …) : function
+
+This function tells the secondary instance owning the buffer to
+display to open a new frame showing that buffer. Only works if the
+main Emacs process is running in a windowing environment. It is
+meant to be called by @code{turtles-pop-buffer}.
+
+@item (turtles-pop-to-buffer-actions) : variable
+
+List of actions that @code{turtles-pop-to-buffer} should consider.
+@end table
+
+@node RPC turtles-io,,Visiting Instance Buffers,Reference
+@anchor{reference rpc}@anchor{18}@anchor{reference rpc-turtles-io}@anchor{1f}
 @subsection RPC (turtles-io)
 
 
@@ -652,31 +1182,167 @@ assigned.
 @geindex function; turtles-io-notify
 @geindex function; turtles-io-call-method-async
 
-@code{turtles-io-server} : function
+turtles-io defines a very simple communication protocol for Emacs
+instances to communicate with each other, inspired from JSON-RPC. It
+is used to allow the main Emacs process and the secondary instances to
+communicate.
 
-@code{turtles-io-server} : struct
+The protocol is based on a socket-based communication between the main
+Emacs process, the server, and the secondary Emacs instances, the
+client.
 
-@code{turtles-io-server-live-p} : function
+Each side communicate with the other by sending elisp expressions
+separated by @code{n"""n}. Each elisp expression is a message,
+which can be of the following types:
 
-@code{turtles-io-connect} : function
 
-@code{turtles-io-conn} : struct
+@itemize -
 
-@code{turtles-io-conn-live-p} : function
+@item 
+a method call of the form:
 
-@code{turtles-io-unreadable-obj-props} : variable
+@example
+(:id id :method method-name :params params)
+@end example
 
-@code{turtles-io-handle-method} : function
+METHOD is the method name to call.
 
-@code{turtles-io-send-error} : function
+ID is used to identify the response when it comes. If no ID is
+provided, the method is run, but no response is ever sent back. Such
+a method call without ID is called a notification.
 
-@code{turtles-io-send-result} : function
+PARAMS is a lisp type defined by the method as its parameter. It
+might be nil or missing.
 
-@code{turtles-io-call-method} : function
+@item 
+a result of the form:
 
-@code{turtles-io-notify} : function
+@example
+(:id id :result result)
+@end example
 
-@code{turtles-io-call-method-async} : function
+This is a response to a previous method call. ID echoes the ID that
+was passed to that call and RESULT is a lisp expression that the
+method returns. It might be nil, but it cannot be missing.
+
+@item 
+an error of the form:
+
+@example
+(:id id :error error)
+@end example
+
+This is a response to a previous method call. ID echoes the ID that
+was passed to that call and RESULT should be a list expression of the same
+type as those captured by @code{condition-case}. The CAR of that list is
+an error symbol and the CDR its argument. Note that different processes
+might not agree on the set of defined error symbols, so it is possible to
+receive an error whose CAR is not an error symbol.
+@end itemize
+
+The elisp expressions are serialized using @code{prn1} and read back
+using @code{read}. Many Emacs types cannot be serialized that way, so
+Turtles defines placeholders for them:
+
+@quotation
+
+
+@itemize -
+
+@item 
+buffers: (turtles-buffer :name NAME) or (turtles-buffer :live
+nil). Such placeholders can be opened from the main Emacs process
+with @ref{1d,,pop-to-buffer}
+
+@item 
+window: (turtles-buffer :buffer BUFFER-NAME)
+
+@item 
+overlay: (turtles-overlay :from POS :to POS :buffer BUFFER-NAME)
+
+@item 
+marker: (turtles-marker :pos POS :buffer BUFFER-NAME)
+
+@item 
+frame: (turtles-frame :name TITLE)
+
+@item 
+anything else: (turtle-obj :type TYPE)
+@end itemize
+@end quotation
+
+When running inside of a secondary Emacs instance, such placeholder
+type are extended to include :instance ID to identify the source
+instance.
+
+
+@table @asis
+
+@item (turtles-io-server socket &optional method-alist) : function
+
+Create a new server, listening to the given SOCKET file.
+
+METHOD-ALIST associates method ID to method handlers. A method
+handles takes 4 arguments: conn, id, method, params and should
+call one of @code{turtles-io-send-result} or
+@code{turtles-io-send-error} once it is finished.
+
+Return an instance of type @code{turtles-io-server}.
+
+@item (turtles-io-server-live-p server) : function
+
+Return non-nil if the given @code{turtles-io-server} instance is live.
+
+@item (turtles-io-connect socket &optional method-alist) : function
+
+Connect to a server running at the given SOCKET file.
+
+METHOD-ALIST associates method ID to method handlers. A method
+handles takes 4 arguments: conn, id, method, params and should
+call one of @code{turtles-io-send-result} or
+@code{turtles-io-send-error} once it is finished.
+
+Return an instance of type @code{turtles-io-conn}.
+
+@item turtles-io-conn : struct
+
+This type represents a connection to some other Emacs instance.
+
+@item (turtles-io-conn-live-p conn) : function
+
+Retrun non-nil if the given @code{turtles-io-conn} is live.
+
+@item (turtles-io-unreadable-obj-props) : variable
+
+Properties to add to any placeholder generated for unreadable
+(unserializable) objects such as buffers.
+
+@item (turtles-io-handle-method conn method params (&key timeout)) : function
+
+Call the given method on the connection with the given parameters.
+
+This function waits for the result and returns it. If the call
+returns an error, that error is sent as an signal.
+
+@item (turtles-io-call-method-async conn method params handler) : function
+
+Alternative to the above method that doesn’t wait for the result.
+The result or the error is instead passed to the given handler,
+which should take two arguments: result and error, only one of
+which is ever non-nil.
+
+@item (turtles-io-notify conn method &optional params) : function
+
+Alternative to the above methods that doesn’t expect a result.
+
+@item (turtles-io-send-error conn id error) : function
+
+Send an error back to the called. Does nothing if the id is nil.
+
+@item (turtles-io-send-result) : function
+
+Send a result back to the called. Does nothing if the id is nil.
+@end table
 
 @node Contributing,,Reference,Contents
 @anchor{contrib doc}@anchor{20}@anchor{contrib contributing}@anchor{21}
