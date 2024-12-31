@@ -252,7 +252,35 @@ Minibuffer
     pair: function; turtles-with-minibuffer
 
 
-:code:`turtles-with-minibuffer` : macro
+(turtles-with-minibuffer READ &rest BODY) : macro
+    This macro tests minibuffer or recursive-edit interactions.
+
+    The READ section is a single sexp that calls a function that runs
+    on the minibuffer or within a recursive-edit. When this function
+    returns, the macro ends and returns the result of evaluating READ.
+
+    The BODY section is a series of sexp that is executed
+    interactively *while the READ section runs*. This isn't
+    multi-threading; :code:`turtles-with-minibuffer` waits for the
+    READ sections to call :code:`recursive-edit`, usually indirectly
+    through :code:`read-from-minibuffer`, and runs BODY within that
+    interactive session.
+
+    BODY is usually a mix of:
+
+    - calls to :code:`turtles-with-grab-buffer` to test the content of
+      the minibuffer or any other window.
+
+    - keys passed to the minibuffer, with :code:`turtles-input-keys`
+
+    - commands that manipulate the minibuffer, either called directly
+      or using :code:`turtles-input-command`
+
+    At the end of BODY, the minibuffer is closed, if needed, and
+    control returns to READ, which checks the result of running BODY.
+
+    See the :ref:`tut_minibuffer` and :ref:`tut_isearch` sections of
+    the tutorial for usage examples.
 
 .. _input:
 

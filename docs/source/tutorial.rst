@@ -257,8 +257,8 @@ though it's just overkill here:
 
 .. _tut_isearch:
 
-Faces and Point
----------------
+Faces with Isearch
+------------------
 
 This last example tests isearch. While not a minibuffer-based command,
 isearch still works with :code:`turtles-with-minibuffer`.
