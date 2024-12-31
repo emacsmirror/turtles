@@ -20,11 +20,11 @@ Read the full documentation on
 [turtles-readthedocs.io](https://turtles.readthedocs.io/en/latest/index.html)
 or in the info manual that comes with the package.
 
-## Status
+## STATUS
 
 This project is getting close to stable, though API changes are still possible.
 
-## Installation
+## INSTALLATION
 
 Install Turtles:
 
@@ -42,7 +42,7 @@ Install Turtles:
 
 Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
-## How it works
+## HOW IT WORKS
 
 Turtles starts another Emacs process inside of a term buffer, runs ERT
 test in that instance and grab snapshot of the display whenever
@@ -79,3 +79,16 @@ For more details, see the
                      (buffer-string))))))
 
 ```
+
+## SOMETHING IS WRONG !
+
+Please check the [doc](https://turtles.readthedocs.io/en/latest/)
+and, if that doesn't help, take the time to [file a bug report](https://turtles.readthedocs.io/en/latest/contrib.html#reporting-issues).
+
+## CONTRIBUTING
+
+See the [Contributing](https://turtles.readthedocs.io/en/latest/contrib.html)
+section of the documentation.
+
+
+
