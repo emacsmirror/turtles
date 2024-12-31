@@ -65,16 +65,14 @@ Contents
 
 Tutorial
 
-* Screen Grab:: 
-* Debugging:: 
+* Screen Grabbing:: 
 * Minibuffer:: 
-* Faces:: 
-* Colors:: 
+* Faces and Point:: 
 
 Reference
 
 * ERT Integration:: 
-* Screen Grab: Screen Grab<2>. 
+* Screen Grab:: 
 * Minibuffer: Minibuffer<2>. 
 * Input Events:: 
 * Instance Management:: 
@@ -106,7 +104,7 @@ Contributing
 @end menu
 
 @node Installation,Tutorial,,Contents
-@anchor{install doc}@anchor{3}@anchor{install installation}@anchor{4}
+@anchor{install doc}@anchor{3}@anchor{install install}@anchor{4}@anchor{install installation}@anchor{5}
 @section Installation
 
 
@@ -115,29 +113,55 @@ TODO
 Turtles requires Emacs 26.1 or later.
 
 @node Tutorial,Reference,Installation,Contents
-@anchor{tutorial doc}@anchor{5}@anchor{tutorial tut}@anchor{6}@anchor{tutorial tutorial}@anchor{7}
+@anchor{tutorial doc}@anchor{6}@anchor{tutorial tut}@anchor{7}@anchor{tutorial tutorial}@anchor{8}
 @section Tutorial
 
 
+Turtles is a collection of tools for writing ERT tests that look at
+the terminal showing an interactive Emacs instance from within that
+instance. That is, you can setup buffer content and windows and check
+how it looks like to a user running Emacs in a terminal.
+
+Such ERT tests can run in batch mode as well an in interactive mode.
+
+To make that work, Turtles starts a secondary Emacs instance from
+within a terminal buffer. Tests run in the secondary Emacs instance
+and their result communicated to the primary Emacs instance. Whenever
+needed, the primary instance grab the screen and provides the result,
+that is, a terminal screen with colors and cursor position, to the
+secondary instance.
+
+To get started, @ref{4,,install turtles}, create a new ERT
+test file with:
+
 @example
+;; -*- lexical-binding: t -*-
+
 (require 'ert)
 (require 'ert-x)
 (require 'turtles)
 @end example
 
+If you checked out the source from
+@indicateurl{https://github.com/szermatt/turtles}, you’ll find the tests shown
+in this tutorial in the file test/turtles-example-test.el@footnote{https://github.com/szermatt/turtles/blob/master/test/turtles-examples-test.el}
+and you can run them interactively or in batch mode using @code{eldev
+test}.
+
 @menu
-* Screen Grab:: 
-* Debugging:: 
+* Screen Grabbing:: 
 * Minibuffer:: 
-* Faces:: 
-* Colors:: 
+* Faces and Point:: 
 
 @end menu
 
-@node Screen Grab,Debugging,,Tutorial
-@anchor{tutorial screen-grab}@anchor{8}@anchor{tutorial tut-grab}@anchor{9}
-@subsection Screen Grab
+@node Screen Grabbing,Minibuffer,,Tutorial
+@anchor{tutorial screen-grabbing}@anchor{9}@anchor{tutorial tut-hello-world}@anchor{a}
+@subsection Screen Grabbing
 
+
+To get started, let’s create a test that creates a buffer, renders it
+and check the result:
 
 @example
 (ert-deftest turtles-examples-hello-world ()
@@ -155,51 +179,106 @@ Turtles requires Emacs 26.1 or later.
                      (buffer-string))))))
 @end example
 
+The first call in the test is @ref{b,,(turtles-ert-test)}. This
+function creates a secondary Emacs instances, then runs the rest of
+the test within that instance.
+
+What Turtles calls instance is a separate Emacs process that
+@code{turtles-ert-test} started within a terminal window.
+
+Running within a secondary instance is only useful because it is
+needed by @ref{c,,(turtles-with-grab-buffer)}. This macro
+displays its containing buffer in a window, grabs the content of that
+window and puts than into an ERT test buffer.
+
+The body of @code{turtles-with-grab-buffer} runs within that grabbed
+buffer, just like the body of @code{ert-with-test-buffer}. Its content
+can be modified and checked with the usual tools.
+
+Obviously, the window that was grabbed didn’t have just two lines and
+was larger than just the two words that appear here. What was really
+grabbed contained spaces and newlines that
+@code{turtles-with-grabbed} trimmed automatically to make it easier
+to test.
+
+Try passing the option @code{:trim t} and running the test with
+@code{ert-run-tests-interactively}:
+
 @example
-(ert-deftest turtles-examples-test-hideshow ()
-  (turtles-ert-test)
-
-  (ert-with-test-buffer ()
-    (insert "(defun test-1 ()\n")
-    (insert " (message \"test, the first\"))\n")
-    (insert "(defun test-2 ()\n")
-    (insert " (message \"test, the second\"))\n")
-    (insert "(defun test-3 ()\n")
-    (insert " (message \"test, the third\"))\n")
-
-    (emacs-lisp-mode)
-    (hs-minor-mode)
-
-    (goto-char (point-min))
-    (search-forward "test-2")
-    (hs-hide-block)
-    (turtles-with-grab-buffer (:name "hide test-2")
-      (should (equal (concat
-                      "(defun test-1 ()\n"
-                      " (message \"test, the first\"))\n"
-                      "(defun test-2 ()...)\n"
-                      "(defun test-3 ()\n"
-                      " (message \"test, the third\"))")
-                     (buffer-string))))
-
-    (hs-hide-all)
-    (turtles-with-grab-buffer (:name "hide all")
-      (should (equal (concat
-                      "(defun test-1 ()...)\n"
-                      "(defun test-2 ()...)\n"
-                      "(defun test-3 ()...)")
-                     (buffer-string))))))
+(turtles-with-grab-buffer (:trim t)
+  (should (equal "hello, world!"
+                 (buffer-string))))))
 @end example
 
-@node Debugging,Minibuffer,Screen Grab,Tutorial
-@anchor{tutorial debugging}@anchor{a}@anchor{tutorial tut-debug}@anchor{b}
-@subsection Debugging
+You’ll then see something like the following:
 
+@example
+F turtles-examples-hello-world
+    Buffer: *Test buffer (turtles-examples-hello-world)*
+    Buffer: *Test buffer (turtles-examples-hello-world): grab*
+    (ert-test-failed
+     ((should
+       (equal "hello, world!"
+              (buffer-string)))
+      :form
+      (equal "hello, world!"
+             #("hello, world!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" 0 13
+               (face
+                (...))
+               13 35
+               (face default)))
+      :value nil :explanation
+      (arrays-of-different-length 13 35 "hello, world!"
+                                  #("hello, world!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" 0 13
+                                    (face
+                                     (...))
+                                    13 35
+                                    (face default))
+                                  first-mismatch-at 13)))
+@end example
 
-@node Minibuffer,Faces,Debugging,Tutorial
-@anchor{tutorial minibuffer}@anchor{c}@anchor{tutorial tut-minibuffer}@anchor{d}
+As you can see above, the window that was grabbed had a bit more than
+20 lines. This corresponds to a single window within a 80x24, the size
+of the default @ref{d,,instance}.
+
+The ERT test buffers listed above
+
+@example
+Buffer: *Test buffer (turtles-examples-hello-world)*
+Buffer: *Test buffer (turtles-examples-hello-world): grab*
+@end example
+
+are part of that instance. If you click on either one of these, you’ll
+be offered a choice of different ways of seeing these buffers. The
+most convenient one, if you’re running in a windowing environment, is
+to ask the instance to create a new frame to show the buffer.
+
+@code{turtles-with-grab-buffer} doesn’t just grab the window content,
+of course, but actually the whole frame, then strips out everything
+that’s outside the window. To better understand what this means, add
+the option @code{frame t}, as shown below, and run the tests again:
+
+@example
+(turtles-with-grab-buffer (:frame t)
+  (should (equal "hello, world!"
+                 (buffer-string))))))
+@end example
+
+They will fail, and in the error message, or the buffers listed there,
+you’ll see the entire Emacs frame that was grabbed, including the mode
+line and message area.
+
+Have a look at the @ref{c,,turtles-with-grab-buffer reference} to
+see how you can grab other sections of the screen.
+
+@node Minibuffer,Faces and Point,Screen Grabbing,Tutorial
+@anchor{tutorial minibuffer}@anchor{e}@anchor{tutorial tut-minibuffer}@anchor{f}
 @subsection Minibuffer
 
+
+This second example illustrates the use of
+@ref{10,,(turtles-with-minibuffer)} running
+@code{completing-read}:
 
 @example
 (ert-deftest turtles-examples-test-completing-read ()
@@ -215,17 +294,88 @@ Turtles requires Emacs 26.1 or later.
         (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
           (should (equal "Choose: <>" (buffer-string))))
 
-        (execute-kbd-macro (kbd "Ch TAB"))
+        (turtles-input-keys "Ch TAB")
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
 
-        (execute-kbd-macro (kbd "B"))))))
+        (turtles-input-keys "B")))))
 @end example
 
-@node Faces,Colors,Minibuffer,Tutorial
-@anchor{tutorial faces}@anchor{e}@anchor{tutorial tut-faces}@anchor{f}
-@subsection Faces
+@code{turtles-with-minibuffer} takes as argument two separate sections, as shown below:
 
+@example
+(turtles-with-minibuffer
+    READ
+  BODY)
+@end example
+
+The READ section is a single sexp that calls a function that runs on
+the minibuffer or within a recursive-edit. When this function returns,
+@code{turtles-with-minibuffer} ends and returns the result of
+evaluating READ.
+
+The example above doesn’t care about what READ evaluates to, because
+it checks the retrun value of @code{completing-read} directly within
+that section.
+
+The BODY section is a series of sexp that is executed interactively
+`while the READ section runs'. This isn’t multi-threading;
+@code{turtles-with-minibuffer} waits for the READ sections to call
+@code{recursive-edit}, usually indirectly through
+@code{read-from-minibuffer}, and runs BODY within that interactive
+session.
+
+At the end of BODY, the minibuffer is closed, if needed, and control
+returns to READ, which checks the result of running BODY.
+
+Within that example BODY first checks the minibuffer content with:
+
+@example
+(turtles-with-grab-buffer (:name "initial prompt" :point "<>")
+  (should (equal "Choose: <>" (buffer-string))))
+@end example
+
+The argument :point tells @code{turtles-with-grab-buffer} to
+highlight the position of the cursor with “<>”. You can also just
+check that manually; it’s just convenient to see the content and the
+position of the point in the same string.
+
+This test interacts with @code{completing-read} by simulating the
+user typing some text and pressing @code{TAB}. It uses
+@ref{11,,turtles-input-keys} for that, which simulates the user
+typing some keys.
+
+The test could have called the command @code{TAB} corresponds to directly:
+
+@example
+(turtles-input-keys "Ch")
+(minibuffer-complete)
+(turtles-with-grab-buffer (:name "completion" :point "<>")
+  (should (equal "Choose: Choice <>" (buffer-string))))
+@end example
+
+Calling interactive commands in such a way in a test is usually
+clearer than going through key bindings, and in most cases, it works well.
+
+Some commands that rely on the specific environment provided by the
+command loop won’t work if called directly.
+@ref{11,,turtles-input-command} can help with such commands,
+though it’s just overkill here:
+
+@example
+(turtles-input-keys "Ch")
+(turtles-input-command #'minibuffer-complete)
+(turtles-with-grab-buffer (:name "completion" :point "<>")
+  (should (equal "Choose: Choice <>" (buffer-string))))
+@end example
+
+@node Faces and Point,,Minibuffer,Tutorial
+@anchor{tutorial faces-and-point}@anchor{12}@anchor{tutorial tut-isearch}@anchor{13}
+@subsection Faces and Point
+
+
+This last example tests isearch. While not a minibuffer-based command,
+isearch still works with @code{turtles-with-minibuffer}.
 
 @example
 (ert-deftest turtles-examples-test-isearch ()
@@ -261,19 +411,38 @@ Turtles requires Emacs 26.1 or later.
                        (buffer-string)))))))
 @end example
 
-@node Colors,,Faces,Tutorial
-@anchor{tutorial colors}@anchor{10}@anchor{tutorial tut-colors}@anchor{11}
-@subsection Colors
+The interesting bit here is:
 
+@example
+(turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch . "[]")))
+  (should (equal "[Baa], baa, black sheep, have you any wool?"
+                 (buffer-string))))
+@end example
+
+This test is used to check which part of the buffer isearch
+highlighted.
+
+The argument :faces tells @code{turtles-with-grab-buffer} to grab a
+small set of faces and make them available in the buffer as the text
+property ‘face.
+
+This example additionally asks @code{turtles-with-grab-buffer} to
+detect portions of the buffer with such a face and surround them with
+brackets, to make it more convenient to test.
+
+Faces aren’t available in a terminal, of course. Turtles uses colors
+to highlight the faces it’s interested in, then processes the grabbed
+data to recognize the faces it wants from these colors it has
+assigned.
 
 @node Reference,Contributing,Tutorial,Contents
-@anchor{reference doc}@anchor{12}@anchor{reference ref}@anchor{13}@anchor{reference reference}@anchor{14}
+@anchor{reference doc}@anchor{14}@anchor{reference ref}@anchor{15}@anchor{reference reference}@anchor{16}
 @section Reference
 
 
 @menu
 * ERT Integration:: 
-* Screen Grab: Screen Grab<2>. 
+* Screen Grab:: 
 * Minibuffer: Minibuffer<2>. 
 * Input Events:: 
 * Instance Management:: 
@@ -282,8 +451,8 @@ Turtles requires Emacs 26.1 or later.
 
 @end menu
 
-@node ERT Integration,Screen Grab<2>,,Reference
-@anchor{reference ert}@anchor{15}@anchor{reference ert-integration}@anchor{16}
+@node ERT Integration,Screen Grab,,Reference
+@anchor{reference ert}@anchor{b}@anchor{reference ert-integration}@anchor{17}
 @subsection ERT Integration
 
 
@@ -297,8 +466,8 @@ Turtles requires Emacs 26.1 or later.
 
 @code{turtles-this-instance} : function
 
-@node Screen Grab<2>,Minibuffer<2>,ERT Integration,Reference
-@anchor{reference grab}@anchor{17}@anchor{reference screen-grab}@anchor{18}
+@node Screen Grab,Minibuffer<2>,ERT Integration,Reference
+@anchor{reference grab}@anchor{c}@anchor{reference screen-grab}@anchor{18}
 @subsection Screen Grab
 
 
@@ -336,8 +505,8 @@ Turtles requires Emacs 26.1 or later.
 
 @code{turtles-grab-window} : function
 
-@node Minibuffer<2>,Input Events,Screen Grab<2>,Reference
-@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{1a}
+@node Minibuffer<2>,Input Events,Screen Grab,Reference
+@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{10}
 @subsection Minibuffer
 
 
@@ -346,7 +515,7 @@ Turtles requires Emacs 26.1 or later.
 @code{turtles-with-minibuffer} : macro
 
 @node Input Events,Instance Management,Minibuffer<2>,Reference
-@anchor{reference input}@anchor{1b}@anchor{reference input-events}@anchor{1c}
+@anchor{reference input}@anchor{11}@anchor{reference input-events}@anchor{1a}
 @subsection Input Events
 
 
@@ -361,7 +530,7 @@ Turtles requires Emacs 26.1 or later.
 @code{turtles-input-command} : function
 
 @node Instance Management,Visiting Instances,Input Events,Reference
-@anchor{reference instance-management}@anchor{1d}@anchor{reference instances}@anchor{1e}
+@anchor{reference instance-management}@anchor{1b}@anchor{reference instances}@anchor{d}
 @subsection Instance Management
 
 
@@ -409,7 +578,7 @@ Turtles requires Emacs 26.1 or later.
 @code{turtles-live-instances} : variable
 
 @node Visiting Instances,RPC turtles-io,Instance Management,Reference
-@anchor{reference visit}@anchor{1f}@anchor{reference visiting-instances}@anchor{20}
+@anchor{reference visit}@anchor{1c}@anchor{reference visiting-instances}@anchor{1d}
 @subsection Visiting Instances
 
 
@@ -436,7 +605,7 @@ Turtles requires Emacs 26.1 or later.
 @code{turtles-pop-to-buffer-action-history} : function
 
 @node RPC turtles-io,,Visiting Instances,Reference
-@anchor{reference rpc}@anchor{21}@anchor{reference rpc-turtles-io}@anchor{22}
+@anchor{reference rpc}@anchor{1e}@anchor{reference rpc-turtles-io}@anchor{1f}
 @subsection RPC (turtles-io)
 
 
@@ -481,7 +650,7 @@ Turtles requires Emacs 26.1 or later.
 @code{turtles-io-call-method-async} : function
 
 @node Contributing,,Reference,Contents
-@anchor{contrib doc}@anchor{23}@anchor{contrib contributing}@anchor{24}
+@anchor{contrib doc}@anchor{20}@anchor{contrib contributing}@anchor{21}
 @section Contributing
 
 
@@ -495,7 +664,7 @@ Turtles requires Emacs 26.1 or later.
 @end menu
 
 @node Reporting issues,Suggesting features,,Contributing
-@anchor{contrib reporting}@anchor{25}@anchor{contrib reporting-issues}@anchor{26}
+@anchor{contrib reporting}@anchor{22}@anchor{contrib reporting-issues}@anchor{23}
 @subsection Reporting issues
 
 
@@ -520,21 +689,21 @@ whether you’re running Emacs in a window environment or a terminal
 @end itemize
 
 @node Suggesting features,Asking questions,Reporting issues,Contributing
-@anchor{contrib suggesting-features}@anchor{27}
+@anchor{contrib suggesting-features}@anchor{24}
 @subsection Suggesting features
 
 
 Please add feature suggestions to the Issue Tracker@footnote{https://github.com/szermatt/turtles/issues}.
 
 @node Asking questions,Code contributions,Suggesting features,Contributing
-@anchor{contrib asking-questions}@anchor{28}
+@anchor{contrib asking-questions}@anchor{25}
 @subsection Asking questions
 
 
 Start a discussion@footnote{https://github.com/szermatt/turtles/discussions} with your question.
 
 @node Code contributions,Documentation contributions,Asking questions,Contributing
-@anchor{contrib code-contributions}@anchor{29}
+@anchor{contrib code-contributions}@anchor{26}
 @subsection Code contributions
 
 
@@ -554,7 +723,7 @@ matters.
 Please also make sure your commit message follows Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}.
 
 @node Documentation contributions,,Code contributions,Contributing
-@anchor{contrib documentation-contributions}@anchor{2a}@anchor{contrib eldev}@anchor{2b}
+@anchor{contrib documentation-contributions}@anchor{27}@anchor{contrib eldev}@anchor{28}
 @subsection Documentation contributions
 
 
