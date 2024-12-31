@@ -8,7 +8,8 @@ the terminal showing an interactive Emacs instance from within that
 instance. That is, you can setup buffer content and windows and check
 how it looks like to a user running Emacs in a terminal.
 
-Such ERT tests can run in batch mode as well an in interactive mode.
+Such ERT tests can run in batch mode as well an in interactive mode,
+together with normal ERT tests.
 
 To make that work, Turtles starts a secondary Emacs instance from
 within a terminal buffer. Tests run in the secondary Emacs instance
@@ -281,12 +282,12 @@ isearch still works with :code:`turtles-with-minibuffer`.
           (turtles-input-keys "baa")
           (turtles-with-grab-buffer (:minibuffer t)
             (should (equal "I-search: baa" (buffer-string))))
-          (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch . "[]")))
+          (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
             (should (equal "[Baa], baa, black sheep, have you any wool?"
                            (buffer-string))))
 
           (turtles-input-keys "\C-s")
-          (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch . "[]")))
+          (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch "[]")))
             (should (equal "Baa, [baa], black sheep, have you any wool?"
                            (buffer-string))))
 
