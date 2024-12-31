@@ -292,13 +292,43 @@ Input Events
     pair: function; turtles-input-events
     pair: function; turtles-input-command
 
+The following functions send events to the Emacs instance to be
+processed using the normal event loop.
 
-:code:`turtles-input-keys` : function
+In contrast to :code:`execute-kbd-macro`,
+:code:`ert-simulate-commands` and :code:`ert-simulate-keys`, these
+function use the real event loop, triggered by real, external events
+(terminal keys). This isn't as simulation. In most cases, the
+difference doesn't matter, of course.
 
-:code:`turtles-input-events` : function
+These functions all use :code:`recursive-edit` to make it possible to
+handle events directly from ERT tests.
 
-:code:`turtles-input-command` : function
+(turtles-input-keys keys) : function
+    This function provides KEYS as user input to the current instance.
 
+    KEYS is in the same format as passed to :code:`kbd`.
+
+(turtles-input-events events) : function
+    This function provides a vector of events as the user input to the
+    current instance.
+
+    This is more general than the previous function as the events can
+    be any kind of UI events.
+
+(turtles-input-command command &optional keybinding) : function
+    This function runs the given interactive command in the event
+    loop, triggered by a key stroke.
+
+    If provided, keybinding is what what the command will find in
+    :code:`(this-command-keys)`, if it asks.
+
+    This is implemented using a transient map, so the key binding is
+    only available for one call.
+
+    Note that in the majority of cases, calling the command directly,
+    outside of the event loop, works just fine in tests and is more
+    convenient.
 
 .. _instances:
 
