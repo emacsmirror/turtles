@@ -388,11 +388,11 @@ case, the simplest thing to do is to restart the instances with
     Calling this function is usually not necessary, the server is
     started automatically before starting the first instance.
 
-(turtles-shutdown) : function
+(turtles-shutdown) : command
     This function shuts down the current :ref:`turtles-io-server
     <rpc>`, if any, as well as all instances connected to it.
 
-(turtles-restart) : function
+(turtles-restart) : command
     This function shuts down the current server, then restarts any
     live instances.
 
