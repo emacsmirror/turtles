@@ -830,49 +830,17 @@ it; call the functions directly."
 READ is a form that reads from the minibuffer and return the
 result.
 
-BODY is executed while READ is waiting for minibuffer input with
-the minibuffer active. The minibuffer exits at the end of BODY,
-and the whole macro returns with the result of READ.
-
-BODY can be a mix of:
- - lisp expressions
- - :keys \"...\"
- - :events [...]
- - :command #\\='mycommand
- - :command-with-keybinding keybinding #\\='mycommand
-
-:keys must be followed by a string in the same format as accepted
-by `kbd'. It tells Turtles to feed some input to Emacs to be
-executed in the normal command loop. This is the real thing,
-contrary to `execute-kbd-macro' or `ert-simulate-keys'.
-
-:events works as :keys but takes an event array. This alternative
-can be useful to feed non-keyboard events to the current
-instance.
-
-:command must be followed by a command. It tells turtle to make
-Emacs execute that command in the normal command loop.
-
-:command-with-keybinding must be followed by a keybinding and a
-command. The command is executed in the normal command loop, with
-`this-command-keys' reporting it to have been triggered by the
-given keybinding.
-
-It most cases, the difference between sending keys or launching a
-command directly or interactively doesn't matter and it's just
-more convenient to call commands directly as a lisp expression
-rather than use :keys or :command.
+BODY is executed while READ is is running, usually waiting for
+minibuffer input or, more generally, the end of a recursive-edit.
+Once BODY ends, the minibuffer or recursive-edit exits, and the
+whole macro returns with the result of READ.
 
 BODY usually contains calls to `should' to check the Emacs state,
-and `turtles-with-grab-buffer' or `turtles-to-string' to check
-its display.
+`turtles-with-grab-buffer' or `turtles-to-string' to check its
+display and `turtles-input-keys' and `turtles-input-commands' to
+simulate user input.
 
-This is provided here as a replacement to `ert-simulate-keys', as
-the approach taken by `ert-simulate-keys' doesn't allow grabbing
-intermediate states, because Emacs won't redisplay as long as
-there's pending input.
-
-Return whatever READ eventually evaluates to."
+Return the result of evaluating READ."
   (declare (indent 1))
   `(turtles--run-with-minibuffer
     (lambda () ,read)   (lambda () ,@body)))
