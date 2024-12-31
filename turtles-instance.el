@@ -138,11 +138,11 @@ either an instance or an instance id."
       id
     (alist-get id turtles-instance-alist)))
 
-(defun turtles-instance-shortdoc (inst)
+(defun turtles-instance-shortdoc (inst-or-id)
   "Return the first line of the documentation of INST.
 
 Return nil if there is no documentation."
-  (when-let ((doc (turtles-instance-doc inst)))
+  (when-let ((doc (turtles-instance-doc inst-or-id)))
       (car (string-split doc"\n"))))
 
 (defsubst turtles-instance-term-proc (inst)
