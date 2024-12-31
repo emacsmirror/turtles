@@ -580,42 +580,131 @@ RPC (turtles-io)
     pair: function; turtles-io-notify
     pair: function; turtles-io-call-method-async
 
+turtles-io defines a very simple communication protocol for Emacs
+instances to communicate with each other, inspired from JSON-RPC. It
+is used to allow the main Emacs process and the secondary instances to
+communicate.
 
-(turtles-io-server) : function
-    TODO
+The protocol is based on a socket-based communication between the main
+Emacs process, the server, and the secondary Emacs instances, the
+client.
 
-(turtles-io-server) : struct
-    TODO
+Each side communicate with the other by sending elisp expressions
+separated by :code:`\n"""\n`. Each elisp expression is a message,
+which can be of the following types:
 
-(turtles-io-server-live-p) : function
-    TODO
+- a method call of the form:
 
-(turtles-io-connect) : function
-    TODO
+  .. code-block:: elisp
 
-(turtles-io-conn) : struct
-    TODO
+    (:id id :method method-name :params params)
 
-(turtles-io-conn-live-p) : function
-    TODO
+  METHOD is the method name to call.
+
+  ID is used to identify the response when it comes. If no ID is
+  provided, the method is run, but no response is ever sent back. Such
+  a method call without ID is called a notification.
+
+  PARAMS is a lisp type defined by the method as its parameter. It
+  might be nil or missing.
+
+- a result of the form:
+
+  .. code-block:: elisp
+
+    (:id id :result result)
+
+  This is a response to a previous method call. ID echoes the ID that
+  was passed to that call and RESULT is a lisp expression that the
+  method returns. It might be nil, but it cannot be missing.
+
+- an error of the form:
+
+  .. code-block:: elisp
+
+    (:id id :error error)
+
+  This is a response to a previous method call. ID echoes the ID that
+  was passed to that call and RESULT should be a list expression of the same
+  type as those captured by :code:`condition-case`. The CAR of that list is
+  an error symbol and the CDR its argument. Note that different processes
+  might not agree on the set of defined error symbols, so it is possible to
+  receive an error whose CAR is not an error symbol.
+
+
+The elisp expressions are serialized using :code:`prn1` and read back
+using :code:`read`. Many Emacs types cannot be serialized that way, so
+Turtles defines placeholders for them:
+
+  - buffers: (turtles-buffer :name NAME) or (turtles-buffer :live
+    nil). Such placeholders can be opened from the main Emacs process
+    with :ref:`pop-to-buffer <visit>`
+
+  - window: (turtles-buffer :buffer BUFFER-NAME)
+
+  - overlay: (turtles-overlay :from POS :to POS :buffer BUFFER-NAME)
+
+  - marker: (turtles-marker :pos POS :buffer BUFFER-NAME)
+
+  - frame: (turtles-frame :name TITLE)
+
+  - anything else: (turtle-obj :type TYPE)
+
+When running inside of a secondary Emacs instance, such placeholder
+type are extended to include :instance ID to identify the source
+instance.
+
+
+(turtles-io-server socket &optional method-alist) : function
+    Create a new server, listening to the given SOCKET file.
+
+    METHOD-ALIST associates method ID to method handlers. A method
+    handles takes 4 arguments: conn, id, method, params and should
+    call one of :code:`turtles-io-send-result` or
+    :code:`turtles-io-send-error` once it is finished.
+
+    Return an instance of type :code:`turtles-io-server`.
+
+(turtles-io-server-live-p server) : function
+    Return non-nil if the given :code:`turtles-io-server` instance is live.
+
+(turtles-io-connect socket &optional method-alist) : function
+    Connect to a server running at the given SOCKET file.
+
+    METHOD-ALIST associates method ID to method handlers. A method
+    handles takes 4 arguments: conn, id, method, params and should
+    call one of :code:`turtles-io-send-result` or
+    :code:`turtles-io-send-error` once it is finished.
+
+    Return an instance of type :code:`turtles-io-conn`.
+
+turtles-io-conn : struct
+    This type represents a connection to some other Emacs instance.
+
+(turtles-io-conn-live-p conn) : function
+    Retrun non-nil if the given :code:`turtles-io-conn` is live.
 
 (turtles-io-unreadable-obj-props) : variable
-    TODO
+    Properties to add to any placeholder generated for unreadable
+    (unserializable) objects such as buffers.
 
-(turtles-io-handle-method) : function
-    TODO
+(turtles-io-handle-method conn method params (&key timeout)) : function
+    Call the given method on the connection with the given parameters.
 
-(turtles-io-send-error) : function
-    TODO
+    This function waits for the result and returns it. If the call
+    returns an error, that error is sent as an signal.
+
+(turtles-io-call-method-async conn method params handler) : function
+    Alternative to the above method that doesn't wait for the result.
+    The result or the error is instead passed to the given handler,
+    which should take two arguments: result and error, only one of
+    which is ever non-nil.
+
+(turtles-io-notify conn method &optional params) : function
+    Alternative to the above methods that doesn't expect a result.
+
+(turtles-io-send-error conn id error) : function
+    Send an error back to the called. Does nothing if the id is nil.
 
 (turtles-io-send-result) : function
-    TODO
-
-(turtles-io-call-method) : function
-    TODO
-
-(turtles-io-notify) : function
-    TODO
-
-(turtles-io-call-method-async) : function
-    TODO
+    Send a result back to the called. Does nothing if the id is nil.
