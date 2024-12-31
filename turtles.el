@@ -889,12 +889,13 @@ Return whatever READ eventually evaluates to."
         (lambda ()
           (setq ,mb-result-var (progn ,read))
           (setq ,has-mb-result-var t)))
-       (turtles--run-with-minibuffer
-        (lambda (newtimer)
-          (setq ,timer-var newtimer))
-        (lambda ()
-          (progn ,@body)
-          (turtles--exit-recursive-edit (- (recursion-depth) ,initial-depth))))
+       (setq ,timer-var
+             (run-with-timer
+              0 nil
+              (lambda ()
+                (progn ,@body)
+                (turtles--exit-recursive-edit
+                 (- (recursion-depth) ,initial-depth)))))
        (while (not ,has-mb-result-var)
          (sleep-for 0.01))
        (when ,timer-var
