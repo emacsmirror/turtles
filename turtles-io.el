@@ -98,6 +98,8 @@ METHOD-ALIST is an alist method handlers to pass to client
 connections. See `turtles-io-conn-method-alist' for details.
 
 Return an instance of type `turtles-io-server'."
+  (when (file-exists-p socket)
+    (delete-file socket))
   (let* ((server (turtles-io--make-server
                   :socket socket
                   :method-alist method-alist))
