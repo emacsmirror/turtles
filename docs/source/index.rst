@@ -9,5 +9,6 @@ Contents
 .. toctree::
 
    install
-   usage
+   tutorial
+   reference
    contrib
