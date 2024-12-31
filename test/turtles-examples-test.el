@@ -110,12 +110,12 @@
         (turtles-input-keys "baa")
         (turtles-with-grab-buffer (:minibuffer t)
           (should (equal "I-search: baa" (buffer-string))))
-        (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch . "[]")))
+        (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
           (should (equal "[Baa], baa, black sheep, have you any wool?"
                          (buffer-string))))
 
         (turtles-input-keys "\C-s")
-        (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch . "[]")))
+        (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch "[]")))
           (should (equal "Baa, [baa], black sheep, have you any wool?"
                          (buffer-string))))
 
