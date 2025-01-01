@@ -559,8 +559,8 @@ FRAME selected and return the result to CONN."
     ;; Setup as specified for the instance.
     (condition-case err
         (with-selected-frame frame
-          (if (>= emacs-major-version 27)
-              (clear-minibuffer-message)
+          (if (fboundp 'clear-minibuffer-message)
+              (funcall 'clear-minibuffer-message)
             (message nil))
           (when setup-func
             (funcall setup-func)))

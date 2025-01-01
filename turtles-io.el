@@ -27,7 +27,10 @@
 (require 'cl-lib)
 (require 'subr-x) ;; when-let
 
-(defvar print-unreadable-function nil) ;; Emacs 29.1
+;; Keep the compiler happy under Emacs 26-28.
+(eval-when-compile
+  (when (< emacs-major-version 29)
+    (defvar print-unreadable-function nil)))
 
 (cl-defstruct (turtles-io-server
                (:constructor turtles-io--make-server)
