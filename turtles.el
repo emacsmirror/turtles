@@ -43,7 +43,7 @@
 (defcustom turtles-pop-to-buffer-actions
   '(turtles-pop-to-buffer-copy
     turtles-pop-to-buffer-embedded
-    turtles-pop-to-buffer-new-frame)
+    turtles-pop-to-buffer-other-frame)
   "Set of possible handlers of instance buffers.
 
 This are actions called by `turtles-pop-to-buffer' to display
@@ -1098,8 +1098,8 @@ This function is meant to be added to
                 (activate-mark)))))))))
    (t (error "Unknown action %s" action))))
 
-(defun turtles-pop-to-buffer-new-frame (action inst buffer-name &rest _ignored)
-  "Ask instance to open the buffer in a new frame.
+(defun turtles-pop-to-buffer-other-frame (action inst buffer-name &rest _ignored)
+  "Open buffer on the instance, in another frame.
 
 When called with ACTION set to \\='display, display BUFFER-NAME
 in the Turtles instance INST, by asking the instance to create a
@@ -1110,15 +1110,29 @@ with action set to \\='check, answer nil when running in a
 terminal.
 
 This function is meant to be added to `turtles-pop-to-buffer-actions'"
-  (let ((params (frame-parameters)))
+  (let* ((params (frame-parameters))
+         (window-system (alist-get 'window-system params))
+         (display (alist-get 'display params)))
     (cond
      ((eq 'check action) (alist-get 'window-system params))
      ((eq 'display action)
       (turtles-instance-eval inst
        `(let ((buf (get-buffer ,buffer-name)))
-          (select-frame (make-frame
-                         '((window-system . ,(alist-get 'window-system params))
-                           (display . ,(alist-get 'display params)))))
+          (select-frame
+           (or
+            (car (delq nil
+                       (mapcar
+                        (lambda (f)
+                          (let ((params (frame-parameters f)))
+                            (when (and (eq ',window-system
+                                           (alist-get 'window-system params))
+                                       (eq ',display
+                                           (alist-get 'display params)))
+                              f)))
+                        (frame-list))))
+            (make-frame
+             '((window-system . ,(alist-get 'window-system params))
+               (display . ,(alist-get 'display params))))))
           (set-window-buffer (frame-root-window) buf)
           (make-frame-visible))))
      (t (error "Unknown action %s" action)))))

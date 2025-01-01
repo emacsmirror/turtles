@@ -1065,11 +1065,11 @@
           (should (equal (plist-get (cdr remote-buf) :name)
                          (plist-get (cdr win) :buffer))))))))
 
-(ert-deftest turtles-pop-to-buffer-new-frame ()
+(ert-deftest turtles-pop-to-buffer-other-frame ()
   ;; There isn't much that can be tested in batch mode; the action is
   ;; just not available.
   (should (eq (alist-get 'window-system (frame-parameters))
-              (turtles-pop-to-buffer-new-frame 'check nil nil))))
+              (turtles-pop-to-buffer-other-frame 'check nil nil))))
 
 (ert-deftest turtles--split-minibuffer-body ()
   (should
