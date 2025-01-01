@@ -378,7 +378,7 @@ Does nothing if the instance is already running."
       (setf (turtles-instance-term-buf inst)
             (if (buffer-live-p (turtles-instance-term-buf inst))
                 (turtles-instance-term-buf inst)
-              (generate-new-buffer (format " *term-%s*" (turtles-instance-id inst)))))
+              (generate-new-buffer (format " *turtles-term-%s*" (turtles-instance-id inst)))))
       (with-current-buffer (turtles-instance-term-buf inst)
         (let ((cmdline `(,(expand-file-name invocation-name invocation-directory)
                          "-nw" "-Q")))
