@@ -74,6 +74,16 @@ All function that grab the terminal frame must be called from within a
 secondary instance, that is, after below :code:`(turtles-ert-test)` in
 an ERT test.
 
+When grabbing the terminal frame, the content of the current buffer is
+replaced with a copy of the terminal data, with the point set at the
+position of the cursor.
+
+In that buffer, color and similar text attributes are available as a
+'face text property. Starting with Emacs 29.1, the terminal supports
+24bit colors, but older Emacs versions must do with 16 or even 8
+colors. This usually doesn't matter as it's more convenient to check
+for faces rather than colors, see the :faces key argument below.
+
 (turtles-with-grab-buffer (&key ...) &rest body) : macro
       This macro creates an ERT test buffer, grab the specified
       portion of the frame, post-processes it, then evaluates BODY.
@@ -354,8 +364,17 @@ instances run the same version of Emacs with the same
 :code:`load-path`, in vanilla mode, without configuration.
 
 The secondary Emacs instances are run within a hidden
-:code:`term-mode` buffer, which is grabbed upon request and sent to
-the instances.
+:code:`term-mode` buffer. Such buffers are called "
+*turtles-term-<instance-name>*" (note the space). You may switch to
+that buffer to interact directly with the Emacs instance. To see
+colors, rename it; Emacs doesn't bother processing 'font-lock-face in
+hidden buffers.
+
+While secondary instances can be interacted with from that buffer, it
+is awkward, as the two Emacs instances use the same keybindings. You
+might be happier calling :ref:`turtles-new-frame-in-instance <visit>`,
+if you're running in a windowing environment, or otherwise call
+:ref:`turtles-instance-eval <instances>`.
 
 The main Emacs process communicates with the secondary instances using
 socket communication described in the :ref:`next section <rpc>`. On
@@ -364,19 +383,17 @@ communicate with the server through RPCs.
 
 There can be multiple secondary instances, identified by a symbol,
 their ID. Instances with different ids have different characteristics,
-defined by :code:`turtles-definstance`, described below.
-
-Turtles defines one shared instance in a 80x25 terminal whose ID is
-'default. This is the instance used by ERT tests unless specified
-otherwise.
+defined by :code:`turtles-definstance`, described below. Turtles
+defines one shared instance in a 80x25 terminal whose ID is 'default.
+This is the instance used by ERT tests unless specified otherwise.
 
 Secondary instances can be started and stopped independently using
 :code:`turtles-start-instance` and :code:`turtles-stop-instance`, and
 communicated with using :code:`turtles-instance-eval`.
 
-When developing, the versions of elisp libraries might get out of sync
-between the main Emacs process and secondary instances. In such a
-case, the simplest thing to do is to restart the instances with
+During development, the versions of elisp libraries might get out of
+sync between the main Emacs process and secondary instances. In such a
+case, the simplest thing to do is to restart all live instances with
 :code:`turtles-restart`.
 
 (turtles-start-server) : function
@@ -475,6 +492,14 @@ case, the simplest thing to do is to restart the instances with
     This function waits for the evaluation to finish and returns the
     result of that evaluation. If that evaluation is likely to take
     time, set TIMEOUT to a value longer than the default 10s.
+
+    This function provides a convenient way to probe the internals of
+    an Emacs instance from the comfort of the main Emacs process.
+
+    For example, if you want to see what buffers are opened in the
+    secondary emacs instance, you can run :kbd:`M-x eval-expression`
+    and evaluate :code:`(turtles-instance-eval 'default
+    '(buffer-list))`.
 
 (turtles-start-instance inst-or-id) : command
     Start the given instance, unless it is already started.
