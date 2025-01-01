@@ -271,64 +271,42 @@ Minibuffer
     - calls to :code:`turtles-with-grab-buffer` to test the content of
       the minibuffer or any other window.
 
-    - keys passed to the minibuffer, with :code:`turtles-input-keys`
+    - keys passed to the minibuffer, with :keys, see below.
 
     - commands that manipulate the minibuffer, either called directly
-      or using :code:`turtles-input-command`
+      or using :command, see below.
 
     At the end of BODY, the minibuffer is closed, if needed, and
     control returns to READ, which checks the result of running BODY.
 
+    Special forms are available within BODY to simulate the user inputing
+    events using the command loop. In contrast to :code:`execute-kbd-macro`,
+    :code:`ert-simulate-commands` and :code:`ert-simulate-keys`, these
+    function use the real event loop, triggered by real, external events
+    (terminal keys). This isn't as simulation.
+
+    :keys keys
+        This expression provides KEYS as user input to the minibuffer.
+
+        KEYS is in the same format as passed to :code:`kbd`.
+
+    :events events
+        This expression provides a vector of events as the user input
+        to the minibuffer.
+
+        This is more general than the previous function as the events
+        can be any kind of UI events.
+
+    :command command
+        This expression runs the given interactive command in the event
+        loop, triggered by a key stroke.
+
+    :command-with-keybinding keybinding command
+        This expression works as above, but makes sure that the command
+        will find in :code:`(this-command-keys)`, if it asks.
+
     See the :ref:`tut_minibuffer` and :ref:`tut_isearch` sections of
     the tutorial for usage examples.
-
-.. _input:
-
-Input Events
-------------
-
-.. index::
-    pair: function; turtles-input-keys
-    pair: function; turtles-input-events
-    pair: function; turtles-input-command
-
-The following functions send events to the Emacs instance to be
-processed using the normal event loop.
-
-In contrast to :code:`execute-kbd-macro`,
-:code:`ert-simulate-commands` and :code:`ert-simulate-keys`, these
-function use the real event loop, triggered by real, external events
-(terminal keys). This isn't as simulation. In most cases, the
-difference doesn't matter, of course.
-
-These functions all use :code:`recursive-edit` to make it possible to
-handle events directly from ERT tests.
-
-(turtles-input-keys keys) : function
-    This function provides KEYS as user input to the current instance.
-
-    KEYS is in the same format as passed to :code:`kbd`.
-
-(turtles-input-events events) : function
-    This function provides a vector of events as the user input to the
-    current instance.
-
-    This is more general than the previous function as the events can
-    be any kind of UI events.
-
-(turtles-input-command command &optional keybinding) : function
-    This function runs the given interactive command in the event
-    loop, triggered by a key stroke.
-
-    If provided, keybinding is what what the command will find in
-    :code:`(this-command-keys)`, if it asks.
-
-    This is implemented using a transient map, so the key binding is
-    only available for one call.
-
-    Note that in the majority of cases, calling the command directly,
-    outside of the event loop, works just fine in tests and is more
-    convenient.
 
 .. _instances:
 

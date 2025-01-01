@@ -113,7 +113,6 @@ Reference
 * ERT Integration:: 
 * Screen Grab:: 
 * Minibuffer: Minibuffer<2>. 
-* Input Events:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -363,11 +362,11 @@ This second example illustrates the use of
         (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
           (should (equal "Choose: <>" (buffer-string))))
 
-        (turtles-input-keys "Ch TAB")
+        :keys "Ch TAB"
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
 
-        (turtles-input-keys "B")))))
+        :keys "B"))))
 @end example
 
 @code{turtles-with-minibuffer} takes as argument two separate sections, as shown below:
@@ -410,14 +409,14 @@ that manually; it’s just convenient to see the content and the
 position of the point in the same string.
 
 This test interacts with @code{completing-read} by simulating the
-user typing some text and pressing @code{TAB}. It uses
-@ref{11,,turtles-input-keys} for that, which simulates the user
-typing some keys.
+user typing some text and pressing @code{TAB}. It uses @ref{10,,;keys} for that, which instructs the macro
+@code{turtles-with-minibuffer} to simulates the user typing some
+keys.
 
 The test could have called the command @code{TAB} corresponds to directly:
 
 @example
-(turtles-input-keys "Ch")
+:keys "Ch"
 (minibuffer-complete)
 (turtles-with-grab-buffer (:name "completion" :point "<>")
   (should (equal "Choose: Choice <>" (buffer-string))))
@@ -428,18 +427,18 @@ clearer than going through key bindings, and in most cases, it works well.
 
 Some commands that rely on the specific environment provided by the
 command loop won’t work if called directly.
-@ref{11,,turtles-input-command} can help with such commands,
-though it’s just overkill here:
+@ref{10,,;command} can help with such commands,
+though it might be considered overkill here:
 
 @example
-(turtles-input-keys "Ch")
-(turtles-input-command #'minibuffer-complete)
+:keys "Ch"
+:command #'minibuffer-complete
 (turtles-with-grab-buffer (:name "completion" :point "<>")
   (should (equal "Choose: Choice <>" (buffer-string))))
 @end example
 
 @node Faces with Isearch,,Minibuffer,Tutorial
-@anchor{tutorial faces-with-isearch}@anchor{12}@anchor{tutorial tut-isearch}@anchor{13}
+@anchor{tutorial faces-with-isearch}@anchor{11}@anchor{tutorial tut-isearch}@anchor{12}
 @subsection Faces with Isearch
 
 
@@ -459,16 +458,16 @@ isearch still works with @code{turtles-with-minibuffer}.
       (goto-char (point-min))
 
       (turtles-with-minibuffer
-          (isearch-forward nil 'no-recursive-edit)
+          (isearch-forward)
 
-        (turtles-input-keys "baa")
+        :keys "baa"
         (turtles-with-grab-buffer (:minibuffer t)
           (should (equal "I-search: baa" (buffer-string))))
         (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
           (should (equal "[Baa], baa, black sheep, have you any wool?"
                          (buffer-string))))
 
-        (turtles-input-keys "\C-s")
+        :keys "\C-s"
         (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch "[]")))
           (should (equal "Baa, [baa], black sheep, have you any wool?"
                          (buffer-string))))
@@ -505,7 +504,7 @@ data to recognize the faces it wants from these colors it has
 assigned.
 
 @node Reference,Contributing,Tutorial,Contents
-@anchor{reference doc}@anchor{14}@anchor{reference ref}@anchor{15}@anchor{reference reference}@anchor{16}
+@anchor{reference doc}@anchor{13}@anchor{reference ref}@anchor{14}@anchor{reference reference}@anchor{15}
 @section Reference
 
 
@@ -513,7 +512,6 @@ assigned.
 * ERT Integration:: 
 * Screen Grab:: 
 * Minibuffer: Minibuffer<2>. 
-* Input Events:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -521,7 +519,7 @@ assigned.
 @end menu
 
 @node ERT Integration,Screen Grab,,Reference
-@anchor{reference ert}@anchor{b}@anchor{reference ert-integration}@anchor{17}
+@anchor{reference ert}@anchor{b}@anchor{reference ert-integration}@anchor{16}
 @subsection ERT Integration
 
 
@@ -565,14 +563,14 @@ a secondary instance started by Turtles.
 
 When called from a secondary Emacs instance, this function
 returns the connection to the main Emacs process, a
-@code{turtles-io-conn} struct, described in section @ref{18,,RPC (turtles-io)}.
+@code{turtles-io-conn} struct, described in section @ref{17,,RPC (turtles-io)}.
 
 When called from the main Emacs process, this function returns
 nil.
 @end table
 
 @node Screen Grab,Minibuffer<2>,ERT Integration,Reference
-@anchor{reference grab}@anchor{c}@anchor{reference screen-grab}@anchor{19}
+@anchor{reference grab}@anchor{c}@anchor{reference screen-grab}@anchor{18}
 @subsection Screen Grab
 
 
@@ -806,8 +804,8 @@ This function delete trailing whitespaces on all lines and
 trailing newlines at the end of the current buffer.
 @end table
 
-@node Minibuffer<2>,Input Events,Screen Grab,Reference
-@anchor{reference id1}@anchor{1a}@anchor{reference minibuffer}@anchor{10}
+@node Minibuffer<2>,Instance Management,Screen Grab,Reference
+@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{10}
 @subsection Minibuffer
 
 
@@ -841,76 +839,56 @@ calls to @code{turtles-with-grab-buffer} to test the content of
 the minibuffer or any other window.
 
 @item 
-keys passed to the minibuffer, with @code{turtles-input-keys}
+keys passed to the minibuffer, with :keys, see below.
 
 @item 
 commands that manipulate the minibuffer, either called directly
-or using @code{turtles-input-command}
+or using :command, see below.
 @end itemize
 
 At the end of BODY, the minibuffer is closed, if needed, and
 control returns to READ, which checks the result of running BODY.
 
-See the @ref{f,,Minibuffer} and @ref{13,,Faces with Isearch} sections of
-the tutorial for usage examples.
-@end table
-
-@node Input Events,Instance Management,Minibuffer<2>,Reference
-@anchor{reference input}@anchor{11}@anchor{reference input-events}@anchor{1b}
-@subsection Input Events
-
-
-@geindex function; turtles-input-keys
-@geindex function; turtles-input-events
-@geindex function; turtles-input-command
-
-The following functions send events to the Emacs instance to be
-processed using the normal event loop.
-
-In contrast to @code{execute-kbd-macro},
+Special forms are available within BODY to simulate the user inputing
+events using the command loop. In contrast to @code{execute-kbd-macro},
 @code{ert-simulate-commands} and @code{ert-simulate-keys}, these
 function use the real event loop, triggered by real, external events
-(terminal keys). This isn’t as simulation. In most cases, the
-difference doesn’t matter, of course.
-
-These functions all use @code{recursive-edit} to make it possible to
-handle events directly from ERT tests.
+(terminal keys). This isn’t as simulation.
 
 
 @table @asis
 
-@item (turtles-input-keys keys) : function
+@item :keys keys
 
-This function provides KEYS as user input to the current instance.
+This expression provides KEYS as user input to the minibuffer.
 
 KEYS is in the same format as passed to @code{kbd}.
 
-@item (turtles-input-events events) : function
+@item :events events
 
-This function provides a vector of events as the user input to the
-current instance.
+This expression provides a vector of events as the user input
+to the minibuffer.
 
-This is more general than the previous function as the events can
-be any kind of UI events.
+This is more general than the previous function as the events
+can be any kind of UI events.
 
-@item (turtles-input-command command &optional keybinding) : function
+@item :command command
 
-This function runs the given interactive command in the event
+This expression runs the given interactive command in the event
 loop, triggered by a key stroke.
 
-If provided, keybinding is what what the command will find in
-@code{(this-command-keys)}, if it asks.
+@item :command-with-keybinding keybinding command
 
-This is implemented using a transient map, so the key binding is
-only available for one call.
-
-Note that in the majority of cases, calling the command directly,
-outside of the event loop, works just fine in tests and is more
-convenient.
+This expression works as above, but makes sure that the command
+will find in @code{(this-command-keys)}, if it asks.
 @end table
 
-@node Instance Management,Visiting Instance Buffers,Input Events,Reference
-@anchor{reference instance-management}@anchor{1c}@anchor{reference instances}@anchor{d}
+See the @ref{f,,Minibuffer} and @ref{12,,Faces with Isearch} sections of
+the tutorial for usage examples.
+@end table
+
+@node Instance Management,Visiting Instance Buffers,Minibuffer<2>,Reference
+@anchor{reference instance-management}@anchor{1a}@anchor{reference instances}@anchor{d}
 @subsection Instance Management
 
 
@@ -938,7 +916,7 @@ The secondary Emacs instances are run within a hidden
 the instances.
 
 The main Emacs process communicates with the secondary instances using
-socket communication described in the @ref{18,,next section}. On
+socket communication described in the @ref{17,,next section}. On
 startup, the instances connect to the server, and, from then on,
 communicate with the server through RPCs.
 
@@ -964,7 +942,7 @@ case, the simplest thing to do is to restart the instances with
 
 @item (turtles-start-server) : function
 
-This function starts a @ref{18,,turtles-io-server} for instances
+This function starts a @ref{17,,turtles-io-server} for instances
 to connect to. It doesn’t start any instances.
 
 Calling this function is usually not necessary, the server is
@@ -972,7 +950,7 @@ started automatically before starting the first instance.
 
 @item (turtles-shutdown) : command
 
-This function shuts down the current @ref{18,,turtles-io-server}, if any, as well as all instances connected to it.
+This function shuts down the current @ref{17,,turtles-io-server}, if any, as well as all instances connected to it.
 
 @item (turtles-restart) : command
 
@@ -989,7 +967,7 @@ instance by its ID.
 
 ID is the instance ID.
 
-CONN is the @ref{18,,turtles-io-conn} to use to communicate
+CONN is the @ref{17,,turtles-io-conn} to use to communicate
 with the instance.
 
 WIDTH, WEIGHT, FORWARD and SETUP are as passed to
@@ -1098,7 +1076,7 @@ Return the IDs of all live instances.
 @end table
 
 @node Visiting Instance Buffers,RPC turtles-io,Instance Management,Reference
-@anchor{reference visit}@anchor{1d}@anchor{reference visiting-instance-buffers}@anchor{1e}
+@anchor{reference visit}@anchor{1b}@anchor{reference visiting-instance-buffers}@anchor{1c}
 @subsection Visiting Instance Buffers
 
 
@@ -1164,7 +1142,7 @@ List of actions that @code{turtles-pop-to-buffer} should consider.
 @end table
 
 @node RPC turtles-io,,Visiting Instance Buffers,Reference
-@anchor{reference rpc}@anchor{18}@anchor{reference rpc-turtles-io}@anchor{1f}
+@anchor{reference rpc}@anchor{17}@anchor{reference rpc-turtles-io}@anchor{1d}
 @subsection RPC (turtles-io)
 
 
@@ -1252,7 +1230,7 @@ Turtles defines placeholders for them:
 @item 
 buffers: (turtles-buffer :name NAME) or (turtles-buffer :live
 nil). Such placeholders can be opened from the main Emacs process
-with @ref{1d,,pop-to-buffer}
+with @ref{1b,,pop-to-buffer}
 
 @item 
 window: (turtles-buffer :buffer BUFFER-NAME)
@@ -1345,7 +1323,7 @@ Send a result back to the called. Does nothing if the id is nil.
 @end table
 
 @node Contributing,,Reference,Contents
-@anchor{contrib doc}@anchor{20}@anchor{contrib contributing}@anchor{21}
+@anchor{contrib doc}@anchor{1e}@anchor{contrib contributing}@anchor{1f}
 @section Contributing
 
 
@@ -1359,7 +1337,7 @@ Send a result back to the called. Does nothing if the id is nil.
 @end menu
 
 @node Reporting issues,Suggesting features,,Contributing
-@anchor{contrib reporting}@anchor{22}@anchor{contrib reporting-issues}@anchor{23}
+@anchor{contrib reporting}@anchor{20}@anchor{contrib reporting-issues}@anchor{21}
 @subsection Reporting issues
 
 
@@ -1384,21 +1362,21 @@ whether you’re running Emacs in a window environment or a terminal
 @end itemize
 
 @node Suggesting features,Asking questions,Reporting issues,Contributing
-@anchor{contrib suggesting-features}@anchor{24}
+@anchor{contrib suggesting-features}@anchor{22}
 @subsection Suggesting features
 
 
 Please add feature suggestions to the Issue Tracker@footnote{https://github.com/szermatt/turtles/issues}.
 
 @node Asking questions,Code contributions,Suggesting features,Contributing
-@anchor{contrib asking-questions}@anchor{25}
+@anchor{contrib asking-questions}@anchor{23}
 @subsection Asking questions
 
 
 Start a discussion@footnote{https://github.com/szermatt/turtles/discussions} with your question.
 
 @node Code contributions,Documentation contributions,Asking questions,Contributing
-@anchor{contrib code-contributions}@anchor{26}
+@anchor{contrib code-contributions}@anchor{24}
 @subsection Code contributions
 
 
@@ -1418,7 +1396,7 @@ matters.
 Please also make sure your commit message follows Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}.
 
 @node Documentation contributions,,Code contributions,Contributing
-@anchor{contrib documentation-contributions}@anchor{27}@anchor{contrib eldev}@anchor{28}
+@anchor{contrib documentation-contributions}@anchor{25}@anchor{contrib eldev}@anchor{26}
 @subsection Documentation contributions
 
 

@@ -178,11 +178,11 @@ This second example illustrates the use of
           (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
             (should (equal "Choose: <>" (buffer-string))))
 
-          (turtles-input-keys "Ch TAB")
+          :keys "Ch TAB"
           (turtles-with-grab-buffer (:name "completion" :point "<>")
             (should (equal "Choose: Choice <>" (buffer-string))))
 
-          (turtles-input-keys "B")))))
+          :keys "B"))))
 
 
 :code:`turtles-with-minibuffer` takes as argument two separate sections, as shown below:
@@ -226,15 +226,16 @@ that manually; it's just convenient to see the content and the
 position of the point in the same string.
 
 This test interacts with :code:`completing-read` by simulating the
-user typing some text and pressing :kbd:`TAB`. It uses
-:ref:`turtles-input-keys <input>` for that, which simulates the user
-typing some keys.
+user typing some text and pressing :kbd:`TAB`. It uses :ref:`:keys
+<minibuffer>` for that, which instructs the macro
+:code:`turtles-with-minibuffer` to simulates the user typing some
+keys.
 
 The test could have called the command :kbd:`TAB` corresponds to directly:
 
 .. code-block:: elisp
 
-        (turtles-input-keys "Ch")
+        :keys "Ch"
         (minibuffer-complete)
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
@@ -244,13 +245,13 @@ clearer than going through key bindings, and in most cases, it works well.
 
 Some commands that rely on the specific environment provided by the
 command loop won't work if called directly.
-:ref:`turtles-input-command <input>` can help with such commands,
-though it's just overkill here:
+:ref:`:command <minibuffer>` can help with such commands,
+though it might be considered overkill here:
 
 .. code-block:: elisp
 
-        (turtles-input-keys "Ch")
-        (turtles-input-command #'minibuffer-complete)
+        :keys "Ch"
+        :command #'minibuffer-complete
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
 
@@ -277,16 +278,16 @@ isearch still works with :code:`turtles-with-minibuffer`.
         (goto-char (point-min))
 
         (turtles-with-minibuffer
-            (isearch-forward nil 'no-recursive-edit)
+            (isearch-forward)
 
-          (turtles-input-keys "baa")
+          :keys "baa"
           (turtles-with-grab-buffer (:minibuffer t)
             (should (equal "I-search: baa" (buffer-string))))
           (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
             (should (equal "[Baa], baa, black sheep, have you any wool?"
                            (buffer-string))))
 
-          (turtles-input-keys "\C-s")
+          :keys "\C-s"
           (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch "[]")))
             (should (equal "Baa, [baa], black sheep, have you any wool?"
                            (buffer-string))))
