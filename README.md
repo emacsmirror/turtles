@@ -83,8 +83,6 @@ For more details, see the
     (insert "world!\n")
 
     (turtles-with-grab-buffer () ;; Grab the current buffer content
-      (turtles-trim-buffer)      ;; Remove any extra newlines
-
       ;; Check the buffer content that was displayed
       (should (equal "hello, world!"
                      (buffer-string))))))
