@@ -22,7 +22,7 @@ or in the info manual that comes with the package.
 
 ## Status
 
-This project is getting close to stable, though API changes are still possible.
+Version 1.0.0 was just released. Please depend on that tag.
 
 Since this is a library, versioning matters: This project follows
 [Semantic Versioning 2.0.0](https://semver.org/), that is, versions
