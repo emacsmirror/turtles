@@ -212,4 +212,31 @@
                                                            turtles--instance-test-id))))
     (turtles-shutdown)))
 
+(ert-deftest turtles-read-instance ()
+  (turtles-ert-test)
+
+  ;; We want only two instances for this test.
+  (let* ((default-inst (turtles-get-instance 'default))
+         (restart-inst (turtles-get-instance 'turtles--restart))
+         (turtles-instance-alist `((default . ,default-inst)
+                                   (turtles--restart . ,restart-inst))))
+    (turtles-with-minibuffer
+        (should (eq restart-inst (turtles-read-instance)))
+     (turtles-with-grab-buffer (:name "initial")
+       (should (equal "Instance:" (buffer-string))))
+
+     ;; Make sure that the short documentation are provided correctly as annotations.
+     (minibuffer-complete)
+     (turtles-with-grab-buffer (:buf "*Completions*")
+       (goto-char (point-min))
+       (search-forward "possible completions:\n")
+       (delete-region (point-min) (point))
+       (should (equal (concat "default Emacs instance to run tests on.\n"
+                              "turtles--restart A private test instance to test restart.")
+                      (buffer-string))))
+
+     ;; Select restart
+     (execute-kbd-macro "turtles--restart"))))
+
+
 (require 'turtles-instance)
