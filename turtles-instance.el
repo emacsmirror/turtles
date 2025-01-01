@@ -183,9 +183,12 @@ For example:
   (turtles-instance-eval
      (turtles-start-instance \\='default)
      \\='(do-something))"
-  (turtles-io-call-method
-   (turtles-instance-conn (turtles-get-instance inst-or-id))
-   'eval expr :timeout timeout))
+  (let* ((inst (turtles-get-instance inst-or-id))
+         (conn (turtles-instance-conn inst)))
+    (unless (turtles-io-conn-live-p conn)
+      (error "Instance '%s' is down. Call M-x turtles-instance-start to start it"
+             (turtles-instance-id inst)))
+    (turtles-io-call-method conn 'eval expr :timeout timeout)))
 
 (cl-defmacro turtles-definstance
     (id (&key (width 80) (height 24) forward)
