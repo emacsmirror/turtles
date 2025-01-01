@@ -1,6 +1,6 @@
 ;; turtles-examples-test.el --- Example tests using turtles. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024 Stephane Zermatten
+;; Copyright (C) 2024, 2025 Stephane Zermatten
 
 ;; This program is free software: you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as

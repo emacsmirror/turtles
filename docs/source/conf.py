@@ -3,7 +3,7 @@
 # -- Project information
 
 project = 'turtles'
-copyright = '2024, Stephane Zermatten'
+copyright = '2024, 2025, Stephane Zermatten'
 author = 'Stephane Zermatten'
 
 release = '0.1snapshot'

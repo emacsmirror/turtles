@@ -24,7 +24,7 @@ Turtles
 
 Stephane Zermatten
 
-Copyright @copyright{} 2024, Stephane Zermatten
+Copyright @copyright{} 2024, 2025, Stephane Zermatten
 @end quotation
 
 @end copying

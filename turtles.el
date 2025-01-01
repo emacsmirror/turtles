@@ -1,6 +1,6 @@
 ;;; turtles.el --- Screen-grabbing test utility -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024 Stephane Zermatten
+;; Copyright (C) 2024, 2025 Stephane Zermatten
 
 ;; Author: Stephane Zermatten <szermatt@gmx.net>
 ;; Maintainer: Stephane Zermatten <szermatt@gmail.com>
