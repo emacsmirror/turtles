@@ -52,7 +52,7 @@ available, `turtles-pop-to-buffer' show a list of possible
 actions, identified by the short documentation string of the
 function.
 
-The signature of these functions must be (action inst buffer-name
+The signature of these functions must be (action inst bufname
 &rest pop-to-buffer-args).
 
 When ACTION is \\='check, the function must
@@ -63,7 +63,7 @@ display BUFFER.
 
 INST is a live `turtles-instance' containing the buffer.
 
-BUFFER-NAME is the name of a buffer in INST."
+BUFNAME is the name of a buffer in INST."
   :type '(list function)
   :group 'turtles)
 
@@ -127,7 +127,7 @@ terminal allows.
 If GRAB-FACES is not empty, the faces on that list - and only
 these faces - are recovered into \\='face text properties. Note
 that in such case, no other face or color information is grabbed,
-so any other face not in GRAB-FACE are absent." 
+so any other face not in GRAB-FACE are absent."
   (unless (turtles-io-conn-live-p (turtles-upstream))
     (error "No upstream connection"))
   (pcase-let ((`(,grab-face-alist . ,cookies)
@@ -142,7 +142,7 @@ so any other face not in GRAB-FACE are absent."
           (with-selected-window (or win (selected-window))
             (redraw-frame)
             (unless (redisplay t)
-              (error "Emacs won't redisplay in this context, likely because of pending input."))
+              (error "Emacs won't redisplay in this context, likely because of pending input"))
             (setq grabbed (turtles-io-call-method
                            (turtles-upstream)
                            'grab (turtles-this-instance))))
@@ -179,7 +179,7 @@ When this function returns, the current buffer contains the textual
 representation of BUF as displayed in the root window of the
 grabbed frame.
 
-If MARGIN is non-nil, include the left and right margins.
+If MARGINS is non-nil, include the left and right margins.
 
 This function uses `turtles-grab-window' after setting up
 the buffer. See the documentation of that function for details on
@@ -230,7 +230,7 @@ textual representation of the content of that window. The point,
 is also set to corresponding positions in the current buffer, if
 possible.
 
-If MARGIN is non-nil, include the left and right margins.
+If MARGINS is non-nil, include the left and right margins.
 
 If GRAB-FACES is empty, the colors are copied as
 \\='face text properties, with as much fidelity as the
@@ -249,7 +249,7 @@ so any other face not in GRAB-FACE are absent."
 (defun turtles--clip-in-frame-grab (win margins)
   "Clip the frame grab in the current buffer to the body of WIN.
 
-If MARGIN is non-nil, include the margins and set
+If MARGINS is non-nil, include the margins and set
 `turtles--left-margin-width'."
   (pcase-let ((`(,left _ ,right _) (window-edges win (not margins)))
               (`(,left-body ,top _ ,bottom) (window-edges win 'body)))
@@ -511,7 +511,12 @@ strings"
    (t (error "Unsupported markers: %s" markers))))
 
 (defun turtles-mark-point (mark)
-  "Add a mark on the current point, so `buffer-string' shows it."
+  "Insert MARK on the current point.
+
+The idea is to make the current position of the point visible
+when looking at the `buffer-string'.
+
+Only useful over insert to clarify intend."
   (insert mark))
 
 (defun turtles-trim-buffer ()
@@ -537,7 +542,16 @@ for an answer from the instance."
 (defun turtles--ert-test (inst-id file-name timeout)
   "Run the current test in another Emacs instance.
 
-Expects the current test to be defined in FILE-NAME."
+This function implements `turtles-ert-test'. Always call the
+macro and not this function.
+
+INST-ID is the instance to start up. It default to \\='default.
+
+FILE-NAME the file the test is defined in, if any.
+
+TIMEOUT, if set, is the time, in seconds, to wait for an answer
+from the instance. Set it for slow tests when the default timeout
+just won't do."
   (unless (turtles-this-instance)
     (let* ((test (ert-running-test))
            (test-sym (when test (ert-test-name test)))
@@ -656,7 +670,12 @@ This function is meant to be used as around advice for
   "Collect test results sent by another Emacs instance.
 
 This function takes results set up by `turtles-ert-test' and puts
-them into the local `ert-test' instance."
+them into the local `ert-test' instance.
+
+This function is meant to be used as around advice for
+`ert-run-test'. FUNC is the original `ert-run-test' to call, TEST
+the ert-test instance to run and ARGS whatever other argument
+need to be forwarded to FUNC."
   (let ((turtles--ert-result nil))
     (apply func test args)
     (when turtles--ert-result
@@ -666,7 +685,11 @@ them into the local `ert-test' instance."
   "Collect test results sent by another Emacs instance.
 
 This function takes results set up by `turtles-ert-test' and puts
-them into the local `ert-test' instance."
+them into the local `ert-test' instance.
+
+This function is meant to be used as around advice for
+`ert-run-test'. FUNC is the original `ert-run-tests' to call ARGS
+whatever other argument need to be forwarded to FUNC."
   (let ((turtles--ert-load-cache (make-hash-table :test 'equal)))
     (apply func args)))
 
@@ -730,7 +753,7 @@ The following keyword arguments post-process what was grabbed:
     (ert-with-test-buffer (:name name)
       (turtles--internal-grab
        frame win buf calling-buf minibuffer mode-line header-line faces margins)
-      (turtles--internal-postprocess point (turtles--filter-faces-for-mark faces) trim)
+      (turtles--internal-postprocess point faces trim)
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
@@ -808,19 +831,26 @@ before BODY, to customize how what is grabbed is post-processed:
          (turtles--internal-grab
           ,frame ,win ,buf ,calling-buf ,minibuffer
           ,mode-line ,header-line ,faces-var ,margins)
-         (turtles--internal-postprocess
-          ,point (turtles--filter-faces-for-mark ,faces-var) ,trim)
+         (turtles--internal-postprocess ,point ,faces-var ,trim)
          ,@body))))
 
 (defun turtles--internal-postprocess (point faces trim)
   "Post-process a grabbed buffer.
 
 This is a helper for macros in this file. Don't use it outside of
-it; call the functions directly."
+it; call the functions directly.
+
+POINT marks the position of the cursor.
+
+Any alist cell that FACES contains are forwarded to
+`turtle-mark-text-with-faces'.
+
+TRIM controls whether `turtles-trim-buffer' should be called"
   (when point
     (insert point))
   (when faces
-    (turtles-mark-text-with-faces faces))
+    (turtles-mark-text-with-faces
+     (delq nil (mapcar (lambda (c) (if (consp c) c)) faces))))
   (when trim
     (turtles-trim-buffer)))
 
@@ -835,7 +865,7 @@ the minibuffer active. The minibuffer exits at the end of BODY,
 and the whole macro returns with the result of READ.
 
 BODY can be a mix of:
- - lisp expressions
+ - Lisp expressions
  - :keys \"...\"
  - :events [...]
  - :command #\\='mycommand
@@ -923,7 +953,7 @@ This closes the minibuffer, in case the body left it open."
 
 This is the core code-generation logic of `turtles-read-from-minibuffer'.
 
-This function splits a BODY containing a mix of lisp expressions,
+This function splits a BODY containing a mix of Lisp expressions,
 :keys string, :command cmd, :command-with-keybinding keybinding
 cmd, into a list of lambdas that can be fed to
 `turtles--run-with-minibuffer'."
@@ -968,8 +998,19 @@ cmd, into a list of lambdas that can be fed to
                                      mode-line header-line grab-faces margins)
   "Internal macro implementation for grabbing into the current buffer.
 
-Do not call this function outside of this file."
-  (let ((grab-faces (turtles--filter-faces-for-grab grab-faces)))
+Do not call this function outside of this file.
+
+If FRAME is non-nil, call `turtles-grab-frame'.
+If WIN is set, pass it to `turtles-grab-window'.
+if BUF is set, pass it to `turtles-grab-buffer'.
+If MINIBUFFER is non-nil, grab the minibuffer.
+If MODE-LINE is non nil, pass it to `turtles-grab-mode-line'.
+If HEADER-LINE is non nil, pass it to `turtles-grab-header-line'.
+Otherwise, pass CALLING-BUF to `turtles-grab-buffer'.
+
+Pass GRAB-FACES and MARGIN to whatever grab function is called,
+ if relevant."
+  (let ((grab-faces (mapcar (lambda (c) (if (consp c) (car c) c)) grab-faces)))
     (cond
      (buf (turtles-grab-buffer buf grab-faces margins))
      (win (turtles-grab-window win grab-faces margins))
@@ -981,11 +1022,8 @@ Do not call this function outside of this file."
      (frame (turtles-grab-frame nil grab-faces))
      (t (turtles-grab-buffer calling-buf grab-faces margins)))))
 
-(defun turtles--filter-faces-for-grab (faces)
-  "Filter FACES t pass to `turtles-grab-buffer'"
-  (mapcar (lambda (c) (if (consp c) (car c) c)) faces))
-
 (defun turtles--filter-faces-for-mark (faces)
+  "Filter FACES to pass to `turtles-mark-text-with-faces'."
   (delq nil (mapcar (lambda (c) (if (consp c) c)) faces)))
 
 (defun turtles-pop-to-buffer (buffer &rest pop-to-buffer-args)
@@ -1138,6 +1176,7 @@ This function is meant to be added to `turtles-pop-to-buffer-actions'"
      (t (error "Unknown action %s" action)))))
 
 (defun turtles--extend-p (face)
+  "Return non-nil if FACE has a non-nil :extend attribute."
   (if (eval-when-compile (>= emacs-major-version 27))
       (face-attribute face :extend nil 'default)
     ;; Under Emacs 26, all faces are treated as if they had :extend t.

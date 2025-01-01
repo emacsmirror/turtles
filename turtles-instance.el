@@ -139,14 +139,14 @@ either an instance or an instance id."
     (alist-get id turtles-instance-alist)))
 
 (defun turtles-instance-shortdoc (inst-or-id)
-  "Return the first line of the documentation of INST.
+  "Return the first line of the documentation of INST-OR-ID.
 
 Return nil if there is no documentation."
   (when-let ((doc (turtles-instance-doc inst-or-id)))
       (car (string-split doc"\n"))))
 
 (defsubst turtles-instance-term-proc (inst)
-  "Returns the process running in the term window.
+  "Return the process running in the term window of INST.
 
 This is the Emacs subprocess."
   (when-let ((b (turtles-instance-term-buf inst)))
@@ -254,7 +254,7 @@ Does nothing if the server is already live."
              (message . turtles--handle-message))))))
 
 (defun turtles--handle-register (conn id _method instance-id)
-  "Register an instance to the server.
+  "Register an instance with id INSTANCE-ID to the server.
 
 This function implements the server method \\='register. It returns its
 result, successful or not, to CONN, identified by ID.
@@ -289,7 +289,11 @@ nil if it is outside of the screen."
              (1+ (- (point) (car range))))))))))
 
 (defun turtles--handle-press-magic-key (conn id _method params)
-  "Send a keypress of the magic key to INSTANCE-ID.
+  "Send a keypress of the magic key to an instance.
+
+PARAMS must be a list with with two elements (INSTANCE-ID COUNT).
+INSTANCE-ID is the ID of the instance to send a keypress to.
+COUNT is the number of keypresses to send.
 
 This function implements the server method \\='press-magic-key.
 It returns its result to CONN, identified by ID."
@@ -304,7 +308,9 @@ It returns its result to CONN, identified by ID."
     nil)
 
 (defun turtles--handle-message (conn id _method msg)
-  "Accept a message from another instance.
+  "Accept the message MSG from another instance.
+
+MSG is the string to include.
 
 This function implements the server method \\='message.
 It returns its result to CONN, identified by ID."
@@ -476,6 +482,7 @@ argument of type `turtles-instance'."
         (alist-get (intern choice) turtles-instance-alist)))))
 
 (defun turtles--dirs-from-load-path ()
+  "Create an Emacs argument list for the current load path."
   (let ((args nil))
     (dolist (path load-path)
       (push "-L" args)
@@ -496,7 +503,14 @@ special cases like reading from the minibuffer."
        (cl-decf ,var))))
 
 (defun turtles--launch (socket instance-id setup-func)
-  (interactive "F")
+  "Launch the secondary instance INSTANCE-ID.
+
+This function is called on the new Emacs instance at startup. It
+sets up the instance and connect it to the remote server through
+SOCKET.
+
+SETUP-FUNC is a lambda to execute on the instance before every
+test."
   (setq turtles--this-instance instance-id)
   (advice-add 'message :after #'turtles--send-message-upstream)
   (setq turtles-io-unreadable-obj-props `(:instance ,instance-id))
@@ -528,7 +542,7 @@ This method never returns and sends nothing back to the caller."
 This function implements the server method \\='register. It returns its
 result, successful or not, to CONN, identified by ID.
 
-EXPR is the lisp expression to be evaluated. The result of that
+EXPR is the Lisp expression to be evaluated. The result of that
 evaluation is sent back to CONN."
   (turtles-io-handle-method (conn id)
     (eval expr)))
@@ -539,13 +553,13 @@ evaluation is sent back to CONN."
 This function implements the server method \\='register. It returns its
 result, successful or not, to CONN, identified by ID.
 
-This function first calls SETUP-FUNC then evaluates EXPR and
-return the result to CONN."
+This function first calls SETUP-FUNC then evaluates EXPR with
+FRAME selected and return the result to CONN."
   (catch 'turtles-return
     ;; Setup as specified for the instance.
     (condition-case err
         (with-selected-frame frame
-          (if (eval-when-compile (>= emacs-major-version 29))
+          (if (>= emacs-major-version 27)
               (clear-minibuffer-message)
             (message nil))
           (when setup-func
@@ -564,11 +578,15 @@ return the result to CONN."
       ((error t) (turtles-io--send conn `(:id ,id :error ,err))))))
 
 (defun turtles--send-message-upstream (msg &rest args)
-  "Send a message to the server."
+  "Send MSG to the server.
+
+This function formats MSG with ARGS, add a prefix that identifies
+the current instance then send it upstream."
   (when (and (stringp msg)
              (not inhibit-message)
              turtles-send-messages-upstream
              (turtles-upstream)
+             ;; Don't send message recursively
              (not (> turtles--sending-messages-up 0)))
     (turtles--with-incremented-var turtles--sending-messages-up
       (turtles-io-notify (turtles-upstream) 'message
@@ -619,7 +637,7 @@ frame, which only makes sense for graphical displays."
   "Return non-nil if the terminal supports 24bit colors."
   (>= emacs-major-version 29))
 
-(defun turtles--term-resize (w h)
+(defun turtles--term-resize (width height)
   "Set the size of the terminal in the current buffer.
 
 TYPE specifies the terminal type. It must be the same as what was
@@ -627,9 +645,9 @@ passed to `turtles--term-exec'.
 
 This function resizes the terminal to WIDTH x HEIGHT, if needed and return
 non-nil. If the terminal size is already correct, return nil."
-  (unless (and (= term-width w) (= term-height h))
-    (set-process-window-size (get-buffer-process (current-buffer)) h w)
-    (term-reset-size h w)
+  (unless (and (= term-width width) (= term-height height))
+    (set-process-window-size (get-buffer-process (current-buffer)) height width)
+    (term-reset-size height width)
 
     t))
 

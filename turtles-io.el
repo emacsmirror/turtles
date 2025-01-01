@@ -252,7 +252,7 @@ Only wait up to TIMEOUT seconds for the result."
 (defun turtles-io--send (conn msg)
   "Send MSG to CONN.
 
-MSG can be any lisp object that can be printed."
+MSG can be any Lisp object that can be printed."
   (with-temp-buffer
     (turtles-io--print-msg msg)
     ;;(message "send[%s/%s]: %s" (turtles-io-conn-proc conn) (emacs-pid) (buffer-substring-no-properties (point-min) (point-max)))
@@ -262,6 +262,10 @@ MSG can be any lisp object that can be printed."
     (process-send-string (turtles-io-conn-proc conn) (buffer-string))))
 
 (defun turtles-io--print-msg (msg)
+  "Print the MSG to the current buffer.
+
+Any unreadable object inside MSG are transformed into
+placeholders, so the result can always safely be read back."
   (let ((start-pos (point))
         ;; Hardcode most print settings, so we get consistent
         ;; behavior.
@@ -451,7 +455,7 @@ This is only useful before Emacs 29.1, as setting
                    :to ,(string-to-number (match-string 2))
                    :buffer ,(match-string 3)))
 
-                ((looking-at "\\(killed \\|dead \\)?\\([A-Za-z-_]+\\)\\( .*?\\)?>")
+                ((looking-at "\\(killed \\|dead \\)?\\([A-Za-z_-]+\\)\\( .*?\\)?>")
                  (goto-char (match-end 0))
                  `(turtles-obj :type ,(intern (match-string 2))))
                 (t (error "Cannot parse unreadable %s"
@@ -485,7 +489,7 @@ about what matched."
         (when (looking-at (concat name-regexp ">"))
           (goto-char (match-end 0))
           (throw 'turtles-return nil)))
-      (error "Failed to parse unreadable: #<%s..."
+      (error "Failed to parse unreadable: #<%s…"
              (buffer-substring-no-properties start-pos (min (point-max) (+ 30 (point))))))))
 
 (defun turtles-io--search-unreadable (limit)
@@ -518,7 +522,13 @@ any unreadable object."
     t))
 
 (defun turtles-io--server-sentinel (server proc)
-  "Process sentinel for server connections"
+  "Process sentinel for server connections.
+
+SERVER is the server this sentinel belongs to, a
+turtles-io-server instance.
+
+PROC is either the process of the new connection or the server
+process, depending on which connection status is being reported.."
   ;; New connection
   (when (and (eq (process-status proc) 'open)
              (not (process-contact proc :server)))
@@ -604,6 +614,10 @@ returned by ON-TIMEOUT if it times out.
 This function assumes that PREDICATE becomes non-nil as a result
 of processing some process output. If that's not always the case,
 set MAX-WAIT-TIME to some small, but reasonable value.
+
+If PROC is non nil, tell Emacs to only accept output from that
+process while waiting. This can dramatically speed up operations
+when waiting results from a specific process.
 
 On timeout, sends a signal of type `turtles-io-timeout'"
   (let ((start (current-time)) remaining)
