@@ -48,7 +48,7 @@ Install Turtles:
   ```elisp
 
     (eldev-add-extra-dependencies 'test 'turtles)
-    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "<version>")
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "1.0.0")
   ```
 
 Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.

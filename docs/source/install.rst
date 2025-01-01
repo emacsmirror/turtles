@@ -25,7 +25,7 @@ Install Turtles:
   .. code-block:: elisp
 
     (eldev-add-extra-dependencies 'test 'turtles)
-    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "<version>")
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "1.0.0")
 
 This latest way is very much recommended as it allows specifying a version. To
 avoid surprises, you should aim to depend on a specific, tagged
