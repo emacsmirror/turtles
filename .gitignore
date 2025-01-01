@@ -1,5 +1,6 @@
 *.elc
 .eldev
+/dir
 /dist
 /Eldev-local
 /docs/build
