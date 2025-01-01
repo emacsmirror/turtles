@@ -362,11 +362,12 @@ This second example illustrates the use of
         (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
           (should (equal "Choose: <>" (buffer-string))))
 
-        :keys "Ch TAB"
+        (execute-kbd-macro "Ch")
+        (minibuffer-complete)
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
 
-        :keys "B"))))
+        (execute-kbd-macro "B")))))
 @end example
 
 @code{turtles-with-minibuffer} takes as argument two separate sections, as shown below:
@@ -409,14 +410,12 @@ that manually; it’s just convenient to see the content and the
 position of the point in the same string.
 
 This test interacts with @code{completing-read} by simulating the
-user typing some text and pressing @code{TAB}. It uses @ref{10,,;keys} for that, which instructs the macro
-@code{turtles-with-minibuffer} to simulates the user typing some
-keys.
+user typing some text and pressing @code{TAB}.
 
 The test could have called the command @code{TAB} corresponds to directly:
 
 @example
-:keys "Ch"
+(execute-kbd-macro "Ch")
 (minibuffer-complete)
 (turtles-with-grab-buffer (:name "completion" :point "<>")
   (should (equal "Choose: Choice <>" (buffer-string))))
@@ -426,9 +425,10 @@ Calling interactive commands in such a way in a test is usually
 clearer than going through key bindings, and in most cases, it works well.
 
 Some commands that rely on the specific environment provided by the
-command loop won’t work if called directly.
-@ref{10,,;command} can help with such commands,
-though it might be considered overkill here:
+command loop won’t work if called directly or even through
+@code{execute-kbd-macro}. @ref{10,,;keys and ;command} can
+help with such tricky commands. Though it would be overkill here, you
+could do:
 
 @example
 :keys "Ch"
@@ -839,11 +839,12 @@ calls to @code{turtles-with-grab-buffer} to test the content of
 the minibuffer or any other window.
 
 @item 
-keys passed to the minibuffer, with :keys, see below.
+keys passed to the minibuffer, with (execute-kbd-macro) or :keys (see
+below for :keys).
 
 @item 
-commands that manipulate the minibuffer, either called directly
-or using :command, see below.
+commands that manipulate the minibuffer, called directly, using
+(ert-simulate-command) or using :command (see below for :command).
 @end itemize
 
 At the end of BODY, the minibuffer is closed, if needed, and
@@ -855,6 +856,9 @@ events using the command loop. In contrast to @code{execute-kbd-macro},
 function use the real event loop, triggered by real, external events
 (terminal keys). This isn’t as simulation.
 
+You can’t use these special form except directly in BODY. The
+following won’t work, for example: @code{(if cond :keys "abc")}
+
 
 @table @asis
 
@@ -863,6 +867,9 @@ function use the real event loop, triggered by real, external events
 This expression provides KEYS as user input to the minibuffer.
 
 KEYS is in the same format as passed to @code{kbd}.
+:command:
+
+Prefer @code{(execute-kbd-macro)}, when it works.
 
 @item :events events
 
@@ -872,10 +879,15 @@ to the minibuffer.
 This is more general than the previous function as the events
 can be any kind of UI events.
 
+Prefer @code{(execute-kbd-macro)}, when it works.
+
 @item :command command
 
 This expression runs the given interactive command in the event
 loop, triggered by a key stroke.
+
+Prefer calling the command directly or through
+@code{(ert-simulate-command)}, when it works.
 
 @item :command-with-keybinding keybinding command
 

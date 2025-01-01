@@ -178,11 +178,12 @@ This second example illustrates the use of
           (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
             (should (equal "Choose: <>" (buffer-string))))
 
-          :keys "Ch TAB"
+          (execute-kbd-macro "Ch")
+          (minibuffer-complete)
           (turtles-with-grab-buffer (:name "completion" :point "<>")
             (should (equal "Choose: Choice <>" (buffer-string))))
 
-          :keys "B"))))
+          (execute-kbd-macro "B")))))
 
 
 :code:`turtles-with-minibuffer` takes as argument two separate sections, as shown below:
@@ -226,16 +227,13 @@ that manually; it's just convenient to see the content and the
 position of the point in the same string.
 
 This test interacts with :code:`completing-read` by simulating the
-user typing some text and pressing :kbd:`TAB`. It uses :ref:`:keys
-<minibuffer>` for that, which instructs the macro
-:code:`turtles-with-minibuffer` to simulates the user typing some
-keys.
+user typing some text and pressing :kbd:`TAB`.
 
 The test could have called the command :kbd:`TAB` corresponds to directly:
 
 .. code-block:: elisp
 
-        :keys "Ch"
+        (execute-kbd-macro "Ch")
         (minibuffer-complete)
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
@@ -244,9 +242,10 @@ Calling interactive commands in such a way in a test is usually
 clearer than going through key bindings, and in most cases, it works well.
 
 Some commands that rely on the specific environment provided by the
-command loop won't work if called directly.
-:ref:`:command <minibuffer>` can help with such commands,
-though it might be considered overkill here:
+command loop won't work if called directly or even through
+:code:`execute-kbd-macro`. :ref:`:keys and :command <minibuffer>` can
+help with such tricky commands. Though it would be overkill here, you
+could do:
 
 .. code-block:: elisp
 

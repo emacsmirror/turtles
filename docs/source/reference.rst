@@ -271,10 +271,11 @@ Minibuffer
     - calls to :code:`turtles-with-grab-buffer` to test the content of
       the minibuffer or any other window.
 
-    - keys passed to the minibuffer, with :keys, see below.
+    - keys passed to the minibuffer, with (execute-kbd-macro) or :keys (see
+      below for :keys).
 
-    - commands that manipulate the minibuffer, either called directly
-      or using :command, see below.
+    - commands that manipulate the minibuffer, called directly, using
+      (ert-simulate-command) or using :command (see below for :command).
 
     At the end of BODY, the minibuffer is closed, if needed, and
     control returns to READ, which checks the result of running BODY.
@@ -285,10 +286,16 @@ Minibuffer
     function use the real event loop, triggered by real, external events
     (terminal keys). This isn't as simulation.
 
+    You can't use these special form except directly in BODY. The
+    following won't work, for example: :code:`(if cond :keys "abc")`
+
     :keys keys
         This expression provides KEYS as user input to the minibuffer.
 
         KEYS is in the same format as passed to :code:`kbd`.
+        :command:
+
+        Prefer :code:`(execute-kbd-macro)`, when it works.
 
     :events events
         This expression provides a vector of events as the user input
@@ -297,9 +304,14 @@ Minibuffer
         This is more general than the previous function as the events
         can be any kind of UI events.
 
+        Prefer :code:`(execute-kbd-macro)`, when it works.
+
     :command command
         This expression runs the given interactive command in the event
         loop, triggered by a key stroke.
+
+        Prefer calling the command directly or through
+        :code:`(ert-simulate-command)`, when it works.
 
     :command-with-keybinding keybinding command
         This expression works as above, but makes sure that the command

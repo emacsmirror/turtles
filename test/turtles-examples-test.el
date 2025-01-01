@@ -86,12 +86,12 @@
         (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
           (should (equal "Choose: <>" (buffer-string))))
 
-        :keys "Ch"
+        (execute-kbd-macro "Ch")
         (minibuffer-complete)
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
 
-        :keys "B"))))
+        (execute-kbd-macro "B")))))
 
 (ert-deftest turtles-examples-test-isearch ()
   (turtles-ert-test)
