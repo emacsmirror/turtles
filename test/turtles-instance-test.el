@@ -19,6 +19,7 @@
 (require 'compat)
 (require 'ert)
 (require 'ert-x)
+(require 'turtles)
 (require 'turtles-instance)
 
 (turtles-definstance turtles--restart ()
@@ -182,5 +183,33 @@
         (should (equal nil (get-text-property 12 'face str)))
         (should (equal '(:foreground "red") (get-text-property 13 'face str)))
         (should (equal '(:foreground "red") (get-text-property 16 'face str)))))))
+
+(ert-deftest turtles-restart ()
+  (turtles-ert-test)
+  (turtles-shutdown)
+  (should-not (turtles-live-instances))
+
+  (unwind-protect
+      (let ((restart-inst (turtles-get-instance 'turtles--restart))
+            (default-inst (turtles-get-instance 'default)))
+        (should-not (turtles-instance-live-p restart-inst))
+        (should-not (turtles-instance-live-p default-inst))
+
+        (turtles-start-instance restart-inst)
+        (should (turtles-instance-live-p restart-inst))
+        (should-not (turtles-instance-live-p default-inst))
+
+        (turtles-instance-eval restart-inst '(progn
+                                               (defvar turtles--instance-test-id nil)
+                                               (setq turtles--instance-test-id 1)))
+        (should (equal 1 (turtles-instance-eval restart-inst 'turtles--instance-test-id)))
+
+        (turtles-restart)
+        (should (turtles-instance-live-p restart-inst))
+        (should-not (turtles-instance-live-p default-inst))
+        (should-not (turtles-instance-eval restart-inst '(progn
+                                                           (defvar turtles--instance-test-id nil)
+                                                           turtles--instance-test-id))))
+    (turtles-shutdown)))
 
 (require 'turtles-instance)
