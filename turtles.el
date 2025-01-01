@@ -874,29 +874,43 @@ there's pending input.
 
 Return whatever READ eventually evaluates to."
   (declare (indent 1))
-  (let ((mb-result-var (make-symbol "mb-result"))
-        (has-mb-result-var (make-symbol "has-mb-result"))
-        (timer-var (make-symbol "timer")))
-    `(let ((,mb-result-var nil)
-           (,has-mb-result-var nil)
-           (,timer-var nil))
-       (when noninteractive
-         (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
-       (run-with-timer
-        0 nil
-        (lambda ()
-          (setq ,mb-result-var (progn ,read))
-          (setq ,has-mb-result-var t)))
-       (turtles--run-with-minibuffer (lambda (newtimer)
-                                       (setq ,timer-var newtimer)) .
-        ,(turtles--read-from-minibuffer-split-body body))
-       (while (not ,has-mb-result-var)
-         (sleep-for 0.01))
-       (when ,timer-var
-         (cancel-timer ,timer-var))
-       ,mb-result-var)))
+  `(turtles--with-minibuffer-internal
+    (lambda () ,read)
+    ,(turtles--split-with-minibuffer-body body)))
 
-(defun turtles--read-from-minibuffer-split-body (body)
+(defun turtles--with-minibuffer-internal (readfunc bodyfunclist)
+  "Implementation of `turtles-with-minibuffer'.
+
+READFUNC is a function created from the READ argument of the macro.
+
+BODYFUNCLIST is created from the BODY argument of the macro, by
+`turtles--split-with-minibuffer-body'."
+  (let ((mb-result-var nil)
+        (has-mb-result-var nil)
+        (timer-var nil))
+    (when noninteractive
+      (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
+    (run-with-timer
+     0 nil
+     (lambda ()
+       (setq mb-result-var (funcall readfunc))
+       (setq has-mb-result-var t)))
+    (run-with-timer
+     0 nil
+     (lambda ()
+       (when has-mb-result-var
+         (error "READ section of turtles-with-minibuffer returned too early"))
+       (turtles--run-once-input-processed
+        (lambda (newtimer)
+          (setq timer-var newtimer))
+        bodyfunclist)))
+    (while (not has-mb-result-var)
+      (sleep-for 0.01))
+    (when timer-var
+      (cancel-timer timer-var))
+    mb-result-var))
+
+(defun turtles--split-with-minibuffer-body (body)
   "Interpret :keys and others in BODY.
 
 This is the core code-generation logic of `turtles-read-from-minibuffer'.
@@ -942,7 +956,8 @@ cmd, into a list of lambdas that can be fed to
     (push '(when (active-minibuffer-window) (exit-minibuffer))
           current-lambda)
     (funcall close-current-lambda)
-    (nreverse lambdas)))
+
+    `(list . ,(nreverse lambdas))))
 
 (defun turtles--internal-grab (frame win buf calling-buf minibuffer
                                      mode-line header-line grab-faces margins)

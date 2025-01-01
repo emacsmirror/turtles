@@ -741,16 +741,6 @@ empty."
       (funcall (car funclist))
       (turtles--run-once-input-processed set-timer (cdr funclist)))))
 
-(defun turtles--run-with-minibuffer (set-timer &rest funclist)
-  "Run FUNCLIST while the minibuffer is active
-
-Any timer that's created should be passed to SET-TIMER.
-
-The elements of FUNCLIST are executed in order in a timer.
-Additionally, this function waits for the key stack to empty
-between the execution each element of FUNCLIST"
-  (run-with-timer 0 nil #'turtles--run-once-input-processed set-timer funclist))
-
 (provide 'turtles-instance)
 
 ;;; turtles-instance.el ends here

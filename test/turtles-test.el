@@ -1071,10 +1071,11 @@
   (should (eq (alist-get 'window-system (frame-parameters))
               (turtles-pop-to-buffer-new-frame 'check nil nil))))
 
-(ert-deftest turtles-read--minibuffer-split-body ()
+(ert-deftest turtles--split-minibuffer-body ()
   (should
    (equal
-    '((lambda ()
+    '(list
+      (lambda ()
         (should (equal "Prompt:" (turtles-to-string)))
         (turtles--push-input (kbd "he"))
         (turtles--press-magic-key))
@@ -1087,7 +1088,7 @@
         (when
             (active-minibuffer-window)
           (exit-minibuffer))))
-    (turtles--read-from-minibuffer-split-body
+    (turtles--split-with-minibuffer-body
      `((should (equal "Prompt:" (turtles-to-string)))
        :keys "he"
        (should (equal "Prompt: he" (turtles-to-string)))
@@ -1192,6 +1193,16 @@
      (turtles-with-minibuffer
          (read-from-minibuffer "Prompt: ")
        :typo (kbd "hello")))))
+
+(ert-deftest turtles-with-minibuffer-early-return ()
+  :expected-result :failed
+  (turtles-ert-test)
+
+  (should-error
+   (turtles-with-minibuffer
+       nil
+     (message "notreached"))))
+
 
 (ert-deftest turtles-with-minibuffer-pile-up-errors ()
   (turtles-ert-test)
