@@ -83,4 +83,4 @@ First install Sphinx with:
 
 (setq eldev-release-post-release-commit-message
       "Development version, following release @[version-string]@")
-(add-hook 'eldev-release-post-release-preparators #'termgrab-release-preparator)
+(add-hook 'eldev-release-post-release-preparators #'turtles-release-preparator)
