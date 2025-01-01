@@ -1096,8 +1096,8 @@
       (minibuffer-complete)
       (minibuffer-complete)
       (turtles-with-grab-buffer (:buf "*Completions*")
-        (goto-char (point-min))
-        (search-forward "possible completions:\n")
+        (goto-char (point-max))
+        (forward-line -1)
         (should (equal (concat "copy Display a copy of the instance buffer.\n"
                                "embedded Display buffer in the terminal buffer.")
                        (buffer-substring (point) (point-max))))
@@ -1145,8 +1145,8 @@
       (minibuffer-complete)
       (minibuffer-complete)
       (turtles-with-grab-buffer (:buf "*Completions*")
-        (goto-char (point-min))
-        (search-forward "possible completions:\n")
+        (goto-char (point-max))
+        (forward-line -1)
         (should (equal (concat "lambda-1 My Lambda 1.\n"
                                "lambda-2 My Lambda 2.")
                        (buffer-substring (point) (point-max)))))

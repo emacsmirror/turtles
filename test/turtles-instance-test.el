@@ -230,12 +230,11 @@
      ;; Make sure that the short documentation are provided correctly as annotations.
      (minibuffer-complete)
      (turtles-with-grab-buffer (:buf "*Completions*")
-       (goto-char (point-min))
-       (search-forward "possible completions:\n")
-       (delete-region (point-min) (point))
+       (goto-char (point-max))
+       (forward-line -1)
        (should (equal (concat "default Emacs instance to run tests on.\n"
                               "turtles--restart A private test instance to test restart.")
-                      (buffer-string))))
+                      (buffer-substring (point) (point-max)))))
 
      ;; Select restart
      (execute-kbd-macro "turtles--restart"))))
