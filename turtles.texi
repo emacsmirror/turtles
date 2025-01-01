@@ -173,9 +173,33 @@ using eldev@footnote{https://github.com/emacs-eldev/eldev} to run tests in batch
 
 @example
 (eldev-add-extra-dependencies 'test 'turtles)
-(eldev-use-vc-repository 'turtles :github "szermatt/turtles")
+(eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "1.0.0")
 @end example
 @end itemize
+
+This latest way is very much recommended as it allows specifying a version. To
+avoid surprises, you should aim to depend on a specific, tagged
+version and only increase that version when you need to.
+
+This project follows Semantic Versioning 2.0.0@footnote{https://semver.org/} that is, versions follow the format
+MAJOR.MINOR.PATCH with:
+
+
+@itemize -
+
+@item 
+MAJOR incremented for incompatible API changes
+
+@item 
+MINOR incremented when when functionality is added that is backward-compatible
+
+@item 
+PATCH for bugfixes
+@end itemize
+
+Versions with “snapshot” appended, such as “1.3.1snapshot” are
+development version and cannot be depended on. Please always work with
+tagged versions.
 
 Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
