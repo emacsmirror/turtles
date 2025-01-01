@@ -24,6 +24,17 @@ or in the info manual that comes with the package.
 
 This project is getting close to stable, though API changes are still possible.
 
+Since this is a library, versioning matters: This project follows
+[Semantic Versioning 2.0.0](https://semver.org/), that is, versions
+follow the format MAJOR.MINOR.PATCH with:
+
+- MAJOR incremented for incompatible API changes
+- MINOR when functionality is added that is backward-compatible
+- PATCH for bugfixes
+
+To avoid surprises, you should aim to depend on a specific, tagged
+version and only increase that version when you need to.
+
 ## Installation
 
 Install Turtles:
@@ -37,7 +48,7 @@ Install Turtles:
   ```elisp
 
     (eldev-add-extra-dependencies 'test 'turtles)
-    (eldev-use-vc-repository 'turtles :github "szermatt/turtles")
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "<version>")
   ```
 
 Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.

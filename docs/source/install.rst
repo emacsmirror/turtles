@@ -25,6 +25,22 @@ Install Turtles:
   .. code-block:: elisp
 
     (eldev-add-extra-dependencies 'test 'turtles)
-    (eldev-use-vc-repository 'turtles :github "szermatt/turtles")
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "<version>")
+
+This latest way is very much recommended as it allows specifying a version. To
+avoid surprises, you should aim to depend on a specific, tagged
+version and only increase that version when you need to.
+
+This project follows `Semantic Versioning 2.0.0
+<https://semver.org/>`_ that is, versions follow the format
+MAJOR.MINOR.PATCH with:
+
+- MAJOR incremented for incompatible API changes
+- MINOR incremented when when functionality is added that is backward-compatible
+- PATCH for bugfixes
+
+Versions with "snapshot" appended, such as "1.3.1snapshot" are
+development version and cannot be depended on. Please always work with
+tagged versions.
 
 Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
