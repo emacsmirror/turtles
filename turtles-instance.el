@@ -466,11 +466,11 @@ or nil.
 If specified, PREDICATE must be a function that takes a single
 argument of type `turtles-instance'."
   (let ((completion-extra-properties
-         '(:annotation-function
-           (lambda (id-as-str)
-             (when-let* ((inst (turtles-get-instance (intern id-as-str)))
-                         (doc (turtles-instance-shortdoc inst)))
-               (concat " " doc)))))
+         `(:annotation-function
+           ,(lambda (id-as-str)
+              (when-let* ((inst (turtles-get-instance (intern id-as-str)))
+                          (doc (turtles-instance-shortdoc inst)))
+                (concat " " doc)))))
         (predicate (if predicate
                        (lambda (cell)
                          (funcall predicate (cdr cell)))

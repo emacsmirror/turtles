@@ -1071,6 +1071,92 @@
   (should (eq (alist-get 'window-system (frame-parameters))
               (turtles-pop-to-buffer-other-frame :check nil nil))))
 
+(ert-deftest turtles-pop-to-buffer-interactive ()
+  (turtles-ert-test)
+
+  (let ((inst (turtles-start-instance 'default))
+        (buf (turtles-instance-eval
+              'default
+              '(with-current-buffer
+                   (generate-new-buffer "*pop-to-buffer-test*")
+                 (insert "foo bar")
+                 (current-buffer))))
+        (turtles-pop-to-buffer-actions
+         (list #'turtles-pop-to-buffer-embedded
+               #'turtles-pop-to-buffer-copy))
+        (inhibit-message t))
+
+    (turtles-with-minibuffer
+        (let ((completion-cycle-threshold 0))
+          (turtles-pop-to-buffer buf))
+
+      (turtles-with-grab-buffer (:name "initial")
+          (should (equal "Display buffer:" (buffer-string))))
+
+      (minibuffer-complete)
+      (minibuffer-complete)
+      (turtles-with-grab-buffer (:buf "*Completions*")
+        (goto-char (point-min))
+        (search-forward "possible completions:\n")
+        (should (equal (concat "copy Display a copy of the instance buffer.\n"
+                               "embedded Display buffer in the terminal buffer.")
+                       (buffer-substring (point) (point-max))))
+
+        (execute-kbd-macro (kbd "copy"))))
+
+    ;; pop-to-buffer should have made a copy. Let's check it.
+    (with-current-buffer (window-buffer (selected-window))
+      (should (string-prefix-p "[default] *pop-to-buffer-test*" (buffer-name)))
+      (should (equal "foo bar" (buffer-string)))
+      (kill-buffer (current-buffer)))))
+
+(ert-deftest turtles-pop-to-buffer-interactive-lambdas ()
+  (turtles-ert-test)
+
+  (let* ((inst (turtles-start-instance 'default))
+         (buf (turtles-instance-eval
+               'default
+               '(with-current-buffer
+                    (generate-new-buffer "*pop-to-buffer-test*")
+                  (insert "foo bar")
+                  (current-buffer))))
+         (calls nil)
+         (turtles-pop-to-buffer-actions
+          (list
+           (lambda (action &rest _args)
+             "My Lambda 1."
+             (when (eq :display action)
+               (push 'lambda-1 calls))
+             t)
+           (lambda (action &rest _args)
+             "My Lambda 2."
+             (when (eq :display action)
+               (push 'lambda-2 calls))
+             t)))
+         (inhibit-message t))
+
+    (turtles-with-minibuffer
+        (let ((completion-cycle-threshold 0))
+          (turtles-pop-to-buffer buf))
+      
+      (turtles-with-grab-buffer (:name "initial")
+        (should (equal "Display buffer:" (buffer-string))))
+
+      (minibuffer-complete)
+      (minibuffer-complete)
+      (turtles-with-grab-buffer (:buf "*Completions*")
+        (goto-char (point-min))
+        (search-forward "possible completions:\n")
+        (should (equal (concat "lambda-1 My Lambda 1.\n"
+                               "lambda-2 My Lambda 2.")
+                       (buffer-substring (point) (point-max)))))
+      
+      (execute-kbd-macro (kbd "1"))
+      (turtles-with-grab-buffer (:name "choice")
+        (should (equal "Display buffer: lambda-1" (buffer-string)))))
+
+    (should (equal '(lambda-1) calls))))
+
 (ert-deftest turtles--split-minibuffer-body ()
   (should
    (equal
@@ -1264,3 +1350,4 @@
       (goto-char (match-beginning 0))
       (should (string-equal-ignore-case "#276ce2" (foreground-color-at-point)))
       (should (string-equal-ignore-case "#0c1526" (background-color-at-point))))))
+

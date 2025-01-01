@@ -1061,19 +1061,29 @@ itself."
      ((length= actions 1)
       (apply (car actions) :display inst buffer-name pop-to-buffer-args))
      (t
-      (let* ((action-alist (mapcar (lambda (func)
-                                     (cons (or (car (split-string (documentation func) "\n"))
-                                               (when (symbolp func) (symbol-name func))
-                                               "Anonymous action")
-                                           func))
+      (let* ((action-alist (mapcar (let ((counter 0))
+                                     (lambda (func)
+                                       (cons
+                                        (if (symbolp func)
+                                            (string-remove-prefix
+                                             "turtles-pop-to-buffer-" (symbol-name func))
+                                          (format "lambda-%d" (cl-incf counter)))
+                                        func)))
                                    actions))
+             (completion-extra-properties
+              `(:annotation-function
+                ,(lambda (key)
+                   (let ((func (alist-get key action-alist nil nil #'string=)))
+                     (when-let ((shortdoc (car (split-string (documentation func) "\n"))))
+                       (concat " " shortdoc))))))
              (action
-             (completing-read
-              "Display buffer: "
-              action-alist nil 'require-match nil 'pop-to-buffer-action-history)))
+              (alist-get
+               (completing-read
+                "Display buffer: "
+                action-alist nil 'require-match nil 'pop-to-buffer-action-history)
+               action-alist nil nil #'string=)))
         (when action
-          (apply (alist-get action action-alist nil nil #'string=)
-                 :display inst buffer-name pop-to-buffer-args)))))))
+          (apply action :display inst buffer-name pop-to-buffer-args)))))))
 
 (defun turtles-pop-to-buffer-embedded (action inst buffer-name &rest pop-to-buffer-args)
   "Display buffer in the terminal buffer.
