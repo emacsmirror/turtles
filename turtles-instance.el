@@ -100,11 +100,6 @@ Each such key is decoded into the head
 `turtles--processing-key-stack' and processed as such by the
 instance.")
 
-(defvar turtles--pending-key-stack nil
-  "Stack of keys to feed to the current instance using the magic key.
-
-Note that the keys are in the reverse order.")
-
 (defvar turtles--processing-key-stack nil
   "Stack of keys to use to translate magic key presses.")
 
@@ -685,24 +680,20 @@ SRC and DEST can be a string or a buffer."
            (+ pos-src diff) (+ next-pos-src diff) (list prop-dest val) dest))
         (setq pos-src next-pos-src)))))
 
-(defun turtles--push-input (keyvec)
-  "Push KEYVEC into the key stack to be sent by `turtles--press-magic-key'."
-  (mapc (lambda (key) (push (make-vector 1 key) turtles--pending-key-stack))
-        keyvec))
+(defun turtles--send-input (keyvec)
+  "Feed KEYVEC to the current instance.
 
-(defun turtles--press-magic-key ()
-  "Feed the keys from the key stack to the current instance.
-
-Warning: Don't call this function again until the key stack has
-been fully emptied."
+It's up to the caller to make sure that Emacs enters its main
+loop again to process the keys."
   (unless (turtles-upstream)
     (error "Not in a Turtles instance. Did you forget to add (turtles-ert-test)?"))
-  (when turtles--pending-key-stack
-    (let ((key-count (length turtles--pending-key-stack)))
+  (when-let ((pending (mapcar
+                       (lambda (key)
+                         (make-vector 1 key))
+                       keyvec)))
+    (let ((key-count (length pending)))
       (setq turtles--processing-key-stack
-            (append turtles--processing-key-stack
-                    (nreverse turtles--pending-key-stack)))
-      (setq turtles--pending-key-stack nil)
+            (append turtles--processing-key-stack pending))
       (turtles-io-call-method (turtles-upstream)
                               'press-magic-key
                               (list (turtles-this-instance) key-count)))))
@@ -717,8 +708,7 @@ then triggers that using the magic key."
                          (define-key map keybinding command)
                          map)
                        (lambda () turtles--processing-key-stack))
-    (turtles--push-input keybinding)
-    (turtles--press-magic-key)))
+    (turtles--send-input keybinding)))
 
 (defun turtles--run-once-input-processed (set-timer funclist)
   "Wait until Emacs has process the key stack then from FUNCLIST.

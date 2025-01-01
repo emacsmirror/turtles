@@ -1077,12 +1077,10 @@
     '(list
       (lambda ()
         (should (equal "Prompt:" (turtles-to-string)))
-        (turtles--push-input (kbd "he"))
-        (turtles--press-magic-key))
+        (turtles--send-input (kbd "he")))
       (lambda nil
         (should (equal "Prompt: he" (turtles-to-string)))
-        (turtles--push-input (kbd "llo"))
-        (turtles--press-magic-key))
+        (turtles--send-input (kbd "llo")))
       (lambda nil
         (should (equal "Prompt: hello" (turtles-to-string)))
         (turtles--with-minibuffer-body-end)))
