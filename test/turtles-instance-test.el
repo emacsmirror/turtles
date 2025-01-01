@@ -191,7 +191,8 @@
 
   (unwind-protect
       (let ((restart-inst (turtles-get-instance 'turtles--restart))
-            (default-inst (turtles-get-instance 'default)))
+            (default-inst (turtles-get-instance 'default))
+            (inhibit-message t))
         (should-not (turtles-instance-live-p restart-inst))
         (should-not (turtles-instance-live-p default-inst))
 
@@ -219,7 +220,8 @@
   (let* ((default-inst (turtles-get-instance 'default))
          (restart-inst (turtles-get-instance 'turtles--restart))
          (turtles-instance-alist `((default . ,default-inst)
-                                   (turtles--restart . ,restart-inst))))
+                                   (turtles--restart . ,restart-inst)))
+         (inhibit-message t))
     (turtles-with-minibuffer
         (should (eq restart-inst (turtles-read-instance)))
      (turtles-with-grab-buffer (:name "initial")
