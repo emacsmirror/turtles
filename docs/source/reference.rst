@@ -68,7 +68,11 @@ Screen Grab
 
 Two macros are provided that fully control how the terminal frame is
 grabbed and fully-processed: :code:`turtles-with-grab-buffer` and
-:code:`turtles-to-string`:
+:code:`turtles-to-string`, described below.
+
+All function that grab the terminal frame must be called from within a
+secondary instance, that is, after below :code:`(turtles-ert-test)` in
+an ERT test.
 
 (turtles-with-grab-buffer (&key ...) &rest body) : macro
       This macro creates an ERT test buffer, grab the specified
@@ -254,6 +258,10 @@ Minibuffer
 
 (turtles-with-minibuffer READ &rest BODY) : macro
     This macro tests minibuffer or recursive-edit interactions.
+
+    This macro is meant to be called from within a secondary instance,
+    that is, after below :code:`(turtles-ert-test)` in an ERT
+    test.
 
     The READ section is a single sexp that calls a function that runs
     on the minibuffer or within a recursive-edit. When this function
