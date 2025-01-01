@@ -885,30 +885,30 @@ READFUNC is a function created from the READ argument of the macro.
 
 BODYFUNCLIST is created from the BODY argument of the macro, by
 `turtles--split-with-minibuffer-body'."
-  (let ((mb-result-var nil)
-        (has-mb-result-var nil)
-        (timer-var nil))
+  (let ((mb-result nil)
+        (has-mb-result nil)
+        (timer nil))
     (when noninteractive
       (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
     (run-with-timer
      0 nil
      (lambda ()
-       (setq mb-result-var (funcall readfunc))
-       (setq has-mb-result-var t)))
+       (setq mb-result (funcall readfunc))
+       (setq has-mb-result t)))
     (run-with-timer
      0 nil
      (lambda ()
-       (when has-mb-result-var
+       (when has-mb-result
          (error "READ section of turtles-with-minibuffer returned too early"))
        (turtles--run-once-input-processed
         (lambda (newtimer)
-          (setq timer-var newtimer))
+          (setq timer newtimer))
         bodyfunclist)))
-    (while (not has-mb-result-var)
+    (while (not has-mb-result)
       (sleep-for 0.01))
-    (when timer-var
-      (cancel-timer timer-var))
-    mb-result-var))
+    (when timer
+      (cancel-timer timer))
+    mb-result))
 
 (defun turtles--with-minibuffer-body-end ()
   "The end of the body of `turtles--with-minibuffer'.
