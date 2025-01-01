@@ -1085,9 +1085,7 @@
         (turtles--press-magic-key))
       (lambda nil
         (should (equal "Prompt: hello" (turtles-to-string)))
-        (when
-            (active-minibuffer-window)
-          (exit-minibuffer))))
+        (turtles--with-minibuffer-body-end)))
     (turtles--split-with-minibuffer-body
      `((should (equal "Prompt:" (turtles-to-string)))
        :keys "he"

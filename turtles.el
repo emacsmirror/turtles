@@ -910,6 +910,14 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
       (cancel-timer timer-var))
     mb-result-var))
 
+(defun turtles--with-minibuffer-body-end ()
+  "The end of the body of `turtles--with-minibuffer'.
+
+This closes the minibuffer, in case the body left it open."
+  (when-let ((win (active-minibuffer-window)))
+    (with-current-buffer (window-buffer win)
+      (exit-minibuffer))))
+
 (defun turtles--split-with-minibuffer-body (body)
   "Interpret :keys and others in BODY.
 
@@ -953,8 +961,7 @@ cmd, into a list of lambdas that can be fed to
        ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
         (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))
        (t (push (pop rest) current-lambda))))
-    (push '(when (active-minibuffer-window) (exit-minibuffer))
-          current-lambda)
+    (push '(turtles--with-minibuffer-body-end) current-lambda)
     (funcall close-current-lambda)
 
     `(list . ,(nreverse lambdas))))
