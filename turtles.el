@@ -830,52 +830,119 @@ it; call the functions directly."
 READ is a form that reads from the minibuffer and return the
 result.
 
-BODY is executed while READ is is running, usually waiting for
-minibuffer input or, more generally, the end of a recursive-edit.
-Once BODY ends, the minibuffer or recursive-edit exits, and the
-whole macro returns with the result of READ.
+BODY is executed while READ is waiting for minibuffer input with
+the minibuffer active. The minibuffer exits at the end of BODY,
+and the whole macro returns with the result of READ.
+
+BODY can be a mix of:
+ - lisp expressions
+ - :keys \"...\"
+ - :events [...]
+ - :command #\\='mycommand
+ - :command-with-keybinding keybinding #\\='mycommand
+
+:keys must be followed by a string in the same format as accepted
+by `kbd'. It tells Turtles to feed some input to Emacs to be
+executed in the normal command loop. This is the real thing,
+contrary to `execute-kbd-macro' or `ert-simulate-keys'.
+
+:events works as :keys but takes an event array. This alternative
+can be useful to feed non-keyboard events to the current
+instance.
+
+:command must be followed by a command. It tells turtle to make
+Emacs execute that command in the normal command loop.
+
+:command-with-keybinding must be followed by a keybinding and a
+command. The command is executed in the normal command loop, with
+`this-command-keys' reporting it to have been triggered by the
+given keybinding.
+
+It most cases, the difference between sending keys or launching a
+command directly or interactively doesn't matter and it's just
+more convenient to call commands directly as a lisp expression
+rather than use :keys or :command.
 
 BODY usually contains calls to `should' to check the Emacs state,
-`turtles-with-grab-buffer' or `turtles-to-string' to check its
-display and `turtles-input-keys' and `turtles-input-commands' to
-simulate user input.
+and `turtles-with-grab-buffer' or `turtles-to-string' to check
+its display.
 
-Return the result of evaluating READ."
+This is provided here as a replacement to `ert-simulate-keys', as
+the approach taken by `ert-simulate-keys' doesn't allow grabbing
+intermediate states, because Emacs won't redisplay as long as
+there's pending input.
+
+Return whatever READ eventually evaluates to."
   (declare (indent 1))
-  `(turtles--run-with-minibuffer
-    (lambda () ,read)   (lambda () ,@body)))
+  (let ((mb-result-var (make-symbol "mb-result"))
+        (has-mb-result-var (make-symbol "has-mb-result"))
+        (timer-var (make-symbol "timer")))
+    `(let ((,mb-result-var nil)
+           (,has-mb-result-var nil)
+           (,timer-var nil))
+       (when noninteractive
+         (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
+       (run-with-timer
+        0 nil
+        (lambda ()
+          (setq ,mb-result-var (progn ,read))
+          (setq ,has-mb-result-var t)))
+       (turtles--run-with-minibuffer (lambda (newtimer)
+                                       (setq ,timer-var newtimer)) .
+        ,(turtles--read-from-minibuffer-split-body body))
+       (while (not ,has-mb-result-var)
+         (sleep-for 0.01))
+       (when ,timer-var
+         (cancel-timer ,timer-var))
+       ,mb-result-var)))
 
-(defun turtles--run-with-minibuffer (readfunc bodyfunc)
-  "Internal implementation of `turtles-run-with-minibuffer'.
+(defun turtles--read-from-minibuffer-split-body (body)
+  "Interpret :keys and others in BODY.
 
-READFUNC runs the read section. BODYFUNC runs the body section."
-  (when noninteractive
-    (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
-  (let ((mb-result nil)
-        (has-mb-result nil)
-        (initial-depth (recursion-depth)))
-    (run-with-timer
-     0 nil
-     (lambda ()
-       (setq mb-result (funcall readfunc)
-             has-mb-result t)))
-    (run-with-timer
-     0 nil
-     (lambda ()
-       (when has-mb-result
-         (error "READ section of turtles-with-grab-buffer returned too early"))
-       (funcall bodyfunc)
-       (turtles--exit-recursive-edit
-        (- (recursion-depth) initial-depth))))
-    (while (not has-mb-result)
-      (sleep-for 0.01))
-    mb-result))
+This is the core code-generation logic of `turtles-read-from-minibuffer'.
 
-(defun turtles--exit-recursive-edit (levels)
-  "Exit all recursive edits to go back up LEVELS."
-  (while (> levels 0)
-    (throw 'exit (lambda ()
-                   (turtles--exit-recursive-edit (1- levels))))))
+This function splits a BODY containing a mix of lisp expressions,
+:keys string, :command cmd, :command-with-keybinding keybinding
+cmd, into a list of lambdas that can be fed to
+`turtles--run-with-minibuffer'."
+  (let* ((rest body)
+         (lambdas nil)
+         (current-lambda nil)
+         (close-current-lambda
+          (lambda ()
+            (when current-lambda
+              (push `(lambda () . ,(nreverse current-lambda)) lambdas)
+              (setq current-lambda nil)))))
+    (while rest
+      (cond
+       ((eq :keys (car rest))
+        (pop rest)
+        (push `(turtles--push-input (kbd ,(pop rest))) current-lambda)
+        (push '(turtles--press-magic-key) current-lambda)
+        (funcall close-current-lambda))
+       ((eq :events (car rest))
+        (pop rest)
+        (push `(turtles--push-input ,(pop rest)) current-lambda)
+        (push '(turtles--press-magic-key) current-lambda)
+        (funcall close-current-lambda))
+       ((eq :command (car rest))
+        (pop rest)
+        (push `(turtles--send-command ,(pop rest)) current-lambda)
+        (funcall close-current-lambda))
+       ((eq :command-with-keybinding (car rest))
+        (pop rest)
+        (let ((keybinding (kbd (pop rest)))
+              (command (pop rest)))
+          (push `(turtles--send-command ,command ,keybinding)
+                current-lambda))
+        (funcall close-current-lambda))
+       ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
+        (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))
+       (t (push (pop rest) current-lambda))))
+    (push '(when (active-minibuffer-window) (exit-minibuffer))
+          current-lambda)
+    (funcall close-current-lambda)
+    (nreverse lambdas)))
 
 (defun turtles--internal-grab (frame win buf calling-buf minibuffer
                                      mode-line header-line grab-faces margins)

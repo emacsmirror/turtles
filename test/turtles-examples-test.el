@@ -86,12 +86,12 @@
         (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
           (should (equal "Choose: <>" (buffer-string))))
 
-        (turtles-input-keys "Ch")
+        :keys "Ch"
         (minibuffer-complete)
         (turtles-with-grab-buffer (:name "completion" :point "<>")
           (should (equal "Choose: Choice <>" (buffer-string))))
 
-        (turtles-input-keys "B")))))
+        :keys "B"))))
 
 (ert-deftest turtles-examples-test-isearch ()
   (turtles-ert-test)
@@ -105,16 +105,16 @@
       (goto-char (point-min))
 
       (turtles-with-minibuffer
-          (isearch-forward nil 'no-recursive-edit)
+          (isearch-forward)
 
-        (turtles-input-keys "baa")
+        :keys "baa"
         (turtles-with-grab-buffer (:minibuffer t)
           (should (equal "I-search: baa" (buffer-string))))
         (turtles-with-grab-buffer (:buf testbuf :name "match 1" :faces '((isearch "[]")))
           (should (equal "[Baa], baa, black sheep, have you any wool?"
                          (buffer-string))))
 
-        (turtles-input-keys "\C-s")
+        :keys "\C-s"
         (turtles-with-grab-buffer (:buf testbuf :name "match 2" :faces '((isearch "[]")))
           (should (equal "Baa, [baa], black sheep, have you any wool?"
                          (buffer-string))))
