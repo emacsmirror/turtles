@@ -560,7 +560,7 @@ FRAME selected and return the result to CONN."
     (condition-case err
         (with-selected-frame frame
           (if (fboundp 'clear-minibuffer-message)
-              (funcall 'clear-minibuffer-message)
+              (funcall #'clear-minibuffer-message)
             (message nil))
           (when setup-func
             (funcall setup-func)))

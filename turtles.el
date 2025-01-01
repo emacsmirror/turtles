@@ -55,10 +55,10 @@ function.
 The signature of these functions must be (action inst bufname
 &rest pop-to-buffer-args).
 
-When ACTION is \\='check, the function must
+When ACTION is :check, the function must
 check whether it can pop to BUFFER and, if yes, return non-nil.
 
-When ACTION is \\='display, the function must do what it can do
+When ACTION is :display, the function must do what it can do
 display BUFFER.
 
 INST is a live `turtles-instance' containing the buffer.
@@ -1052,14 +1052,14 @@ itself."
       (error "Cannot display buffer. Instance %s is dead" inst-id))
     (setq actions
           (delq nil (mapcar (lambda (func)
-                              (when (funcall func 'check inst buffer)
+                              (when (funcall func :check inst buffer)
                                 func))
                             turtles-pop-to-buffer-actions)))
     (cond
      ((length= actions 0)
       (error "No available action. Check out M-x configure-option turtles-pop-to-buffer-actions"))
      ((length= actions 1)
-      (apply (car actions) 'display inst buffer-name pop-to-buffer-args))
+      (apply (car actions) :display inst buffer-name pop-to-buffer-args))
      (t
       (let* ((action-alist (mapcar (lambda (func)
                                      (cons (or (car (split-string (documentation func) "\n"))
@@ -1072,13 +1072,13 @@ itself."
               "Display buffer: "
               action-alist nil 'require-match nil 'pop-to-buffer-action-history)))
         (when action
-          (apply (alist-get action action-alist nil nil 'string=)
-                 'display inst buffer-name pop-to-buffer-args)))))))
+          (apply (alist-get action action-alist nil nil #'string=)
+                 :display inst buffer-name pop-to-buffer-args)))))))
 
 (defun turtles-pop-to-buffer-embedded (action inst buffer-name &rest pop-to-buffer-args)
   "Display buffer in the terminal buffer.
 
-When called with ACTION set to \\='display, connect to the
+When called with ACTION set to :display, connect to the
 instance INST to order it to display buffer BUFFER-NAME, then pop
 to the local terminal buffer showing that instance with
 `pop-to-buffer' and POP-TO-BUFFER-ARGS.
@@ -1086,8 +1086,8 @@ to the local terminal buffer showing that instance with
 This function is meant to be added to
 `turtles-pop-to-buffer-actions'"
   (cond
-   ((eq 'check action) t)
-   ((eq 'display action)
+   ((eq :check action) t)
+   ((eq :display action)
     ;; Display the buffer in the instance.
     (turtles-instance-eval inst
      `(set-window-buffer (frame-root-window) (get-buffer ,buffer-name)))
@@ -1104,7 +1104,7 @@ This function is meant to be added to
 (defun turtles-pop-to-buffer-copy (action inst buffer-name &rest pop-to-buffer-args)
   "Display a copy of the instance buffer.
 
-When called with ACTION set to \\='display, connect to the
+When called with ACTION set to :display, connect to the
 instance INST to copy the text, point and mark of BUFFER-NAME
 into a local buffer, then display that local buffer with
 `pop-to-buffer' and POP-TO-BUFFER-ARGS.
@@ -1115,8 +1115,8 @@ with it.
 This function is meant to be added to
 `turtles-pop-to-buffer-actions'"
   (cond
-   ((eq 'check action) t)
-   ((eq 'display action)
+   ((eq :check action) t)
+   ((eq :display action)
     (let* ((local-bufname (format "[%s] %s" (turtles-instance-id inst) buffer-name))
            (buf (get-buffer local-bufname)))
     (if (and buf (buffer-local-value 'turtles--original-instance buf))
@@ -1139,12 +1139,12 @@ This function is meant to be added to
 (defun turtles-pop-to-buffer-other-frame (action inst buffer-name &rest _ignored)
   "Open buffer on the instance, in another frame.
 
-When called with ACTION set to \\='display, display BUFFER-NAME
+When called with ACTION set to :display, display BUFFER-NAME
 in the Turtles instance INST, by asking the instance to create a
 new frame and show that buffer there.
 
 This can only work when running in a window system. When called
-with action set to \\='check, answer nil when running in a
+with action set to :check, answer nil when running in a
 terminal.
 
 This function is meant to be added to `turtles-pop-to-buffer-actions'"
@@ -1152,8 +1152,8 @@ This function is meant to be added to `turtles-pop-to-buffer-actions'"
          (window-system (alist-get 'window-system params))
          (display (alist-get 'display params)))
     (cond
-     ((eq 'check action) (alist-get 'window-system params))
-     ((eq 'display action)
+     ((eq :check action) (alist-get 'window-system params))
+     ((eq :display action)
       (turtles-instance-eval inst
        `(let ((buf (get-buffer ,buffer-name)))
           (select-frame
