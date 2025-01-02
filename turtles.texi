@@ -561,16 +561,16 @@ section to work.
 
 This macro marks the current test as a Turtles test. It connects
 to a secondary Emacs instance, starts it if necessary, then runs
-everything below (turtles-ert-test) in that secondary instance.
+everything below @code{(turtles-ert-test)} in that secondary
+instance.
 
 The ID of the instance to connect can be passed to the key
-argument :instance. That ID defaults to @code{default}, with a
-80x24 terminal. See the @ref{d,,Instance Management} section for details on
-how to define new instances.
+argument :instance. That ID defaults to @code{default}, an
+instance with a 80x24 terminal. (@ref{d,,Instance Management})
 
-A :timeout value, in seconds, can be passed to tell Turtles how
-long to wait for an answer from the secondary instance. Increase
-this value if you’re getting timeout errors.
+Passing a :timeout value, in seconds, tells Turtles how long to
+wait for an answer from the secondary instance. Increase this
+value if you’re getting timeout errors.
 
 @item (turtles-this-instance) : function
 
@@ -586,7 +586,7 @@ a secondary instance started by Turtles.
 
 When called from a secondary Emacs instance, this function
 returns the connection to the main Emacs process, a
-@code{turtles-io-conn} struct, described in section @ref{17,,RPC (turtles-io)}.
+@code{turtles-io-conn} struct. (@ref{17,,RPC (turtles-io)})
 
 When called from the main Emacs process, this function returns
 nil.
@@ -613,29 +613,32 @@ Two macros are provided that fully control how the terminal frame is
 grabbed and fully-processed: @code{turtles-with-grab-buffer} and
 @code{turtles-to-string}, described below.
 
-All function that grab the terminal frame must be called from within a
-secondary instance, that is, after below @code{(turtles-ert-test)} in
-an ERT test.
+All functions that grab the terminal frame must be called from within
+a secondary instance, that is, below @code{(turtles-ert-test)} in an ERT
+test.
 
 When grabbing the terminal frame, the content of the current buffer is
 replaced with a copy of the terminal data, with the point set at the
 position of the cursor.
 
 In that buffer, color and similar text attributes are available as a
-‘face text property. Starting with Emacs 29.1, the terminal supports
-24bit colors, but older Emacs versions must do with 16 or even 8
-colors. This usually doesn’t matter as it’s more convenient to check
-for faces rather than colors, see the :faces key argument below.
+@code{'face} text property. Starting with Emacs 29.1, the terminal
+supports 24bit colors, but older Emacs versions must do with 16 or
+even 8 colors. This usually doesn’t matter as it’s more convenient to
+check for faces rather than colors, see the :faces key argument below.
 
 
 @table @asis
 
 @item (turtles-with-grab-buffer (&key …) &rest body) : macro
 
-This macro creates an ERT test buffer, grab the specified
+This macro creates an ERT test buffer, grabs the specified
 portion of the frame, post-processes it, then evaluates BODY.
 
-BODY then usually checks the buffer content @code{should}.
+It then runs BODY with the ERT test buffer as current buffer.
+BODY usually checks the buffer content with @code{should} and
+@code{should-not}. At the end of BODY, the buffer is killed unless
+the test failed.
 
 Key arguments:
 
@@ -687,7 +690,7 @@ property ‘face.
 
 Additionally, it is possible to specify strings to use to mark
 regions of the buffer with a specific face, to make it easier
-to test using just (equals … (buffer-string)).
+to test using just @code{(equals ... (buffer-string))}.
 
 FACE-LIST-OR-ALIST is a list of either:
 
@@ -736,9 +739,9 @@ inspection when the test fails.
 @end table
 
 The two macros above form the frontend of the Turtles grabbing
-functionality. Usually, that’s all you need. The functions below
-provide the functionality offered by these frontends and are only
-useful if you choose to use neither @code{turtles-with-grab-buffer}
+functionality. Usually, that’s all you need. The macros calls the
+functions below, which are then only useful if you choose to use
+neither @code{turtles-with-grab-buffer} nor @code{turtles-to-string}.
 
 
 @table @asis
@@ -752,7 +755,7 @@ WIN is a window that must be selected while grabbing.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@ref{c,,turtles-with-grab-buffer} for details.
+@code{turtles-with-grab-buffer}. (@ref{c,,Screen Grab})
 
 @item (turtles-grab-window win &optional grab-faces margin) : function
 
@@ -761,7 +764,7 @@ and puts the point at the position where the cursor is.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@ref{c,,turtles-with-grab-buffer} for details.
+@code{turtles-with-grab-buffer}. (@ref{c,,Screen Grab})
 
 If MARGIN is non-nil, grab not only the body of the window, but
 also the left and right margins.
@@ -784,7 +787,7 @@ window or buffer.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@ref{c,,turtles-with-grab-buffer} for details.
+@code{turtles-with-grab-buffer} (@ref{c,,Screen Grab})
 
 @item (turtles-grab-header-line win-or-buf &optional grab-faces) : function
 
@@ -793,29 +796,29 @@ a window or buffer.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@ref{c,,turtles-with-grab-buffer} for details.
+@code{turtles-with-grab-buffer}. (@ref{c,,Screen Grab})
 
 @item (turtles-mark-text-with-faces alist) : function
 
-This function marks faces does the :face of
-@code{turtles-with-grab-buffer}.
+This function marks faces in the current buffer, as does the
+:face argument of @code{turtles-with-grab-buffer}. It detects the
+regions with a specific face in the current buffer and surrounds
+them with an opening and a closing string, provided in the
+alist.
 
-It detects the regions with a specific face in the current
-buffer and marks them.
-
-It takes a list of, either:
+ALIST is a list of, either:
 
 
 @itemize -
 
 @item 
-( face pair ) with pair being a string that can be split into
+@code{( face pair )} with pair being a string that can be split into
 opening and closing strings, for example “()”, “[]” or even
 “<<>>”.
 
 @item 
-( face opening closing ) opening being
-opening and closing strings, for example “face1:(” “)”
+@code{( face opening closing )} with separate opening and closing
+strings, for example “face1:(” “)”
 @end itemize
 
 Note that for this function to work, the faces must have been
@@ -837,7 +840,7 @@ This function just calls (insert STR).
 
 @item (turtles-trim-buffer) : function
 
-This function delete trailing whitespaces on all lines and
+This function deletes trailing whitespaces on all lines and
 trailing newlines at the end of the current buffer.
 @end table
 
@@ -854,21 +857,21 @@ trailing newlines at the end of the current buffer.
 @item (turtles-with-minibuffer READ &rest BODY) : macro
 
 This macro tests minibuffer or recursive-edit interactions.
-
-This macro is meant to be called from within a secondary instance,
+It is meant to be called from within a secondary instance,
 that is, after below @code{(turtles-ert-test)} in an ERT
 test.
 
-The READ section is a single sexp that calls a function that runs
-on the minibuffer or within a recursive-edit. When this function
-returns, the macro ends and returns the result of evaluating READ.
+The first sexp within that macro, the READ section, calls a
+function that opens the minibuffer or a recursive-edit and waits
+for user interactions. When this function returns, the macro ends
+and returns whatever READ evaluates to.
 
-The BODY section is a series of sexp that is executed
-interactively `while the READ section runs'. This isn’t
-multi-threading; @code{turtles-with-minibuffer} waits for the
-READ sections to call @code{recursive-edit}, usually indirectly
-through @code{read-from-minibuffer}, and runs BODY within that
-interactive session.
+The rest of the sexp within the macro, the BODY section, are
+executed `while the READ section runs'. This isn’t
+multi-threading, as @code{turtles-with-minibuffer} waits for the READ
+sections to call @code{recursive-edit}, usually indirectly through
+@code{read-from-minibuffer}, and then BODY within that interactive
+session.
 
 BODY is usually a mix of:
 
@@ -908,7 +911,6 @@ following won’t work, for example: @code{(if cond :keys "abc")}
 This expression provides KEYS as user input to the minibuffer.
 
 KEYS is in the same format as passed to @code{kbd}.
-:command:
 
 Prefer @code{(execute-kbd-macro)}, when it works.
 
@@ -936,8 +938,7 @@ This expression works as above, but makes sure that the command
 will find in @code{(this-command-keys)}, if it asks.
 @end table
 
-See the @ref{f,,Minibuffer with completing-read} and @ref{12,,Faces with Isearch} sections of
-the tutorial for usage examples.
+Usage examples: @ref{f,,Minibuffer with completing-read} and @ref{12,,Faces with Isearch}
 @end table
 
 @node Instance Management,Visiting Instance Buffers,Minibuffer,Reference
@@ -968,17 +969,17 @@ The secondary Emacs instances are run within a hidden
 @code{term-mode} buffer. Such buffers are called ”
 `turtles-term-<instance-name>'” (note the space). You may switch to
 that buffer to interact directly with the Emacs instance. To see
-colors, rename it; Emacs doesn’t bother processing ‘font-lock-face in
-hidden buffers.
+colors, rename it, as Emacs doesn’t bother processing ‘font-lock-face
+in hidden buffers.
 
 While secondary instances can be interacted with from that buffer, it
 is awkward, as the two Emacs instances use the same keybindings. You
-might be happier calling @ref{1b,,turtles-new-frame-in-instance},
-if you’re running in a windowing environment, or otherwise call
-@ref{d,,turtles-instance-eval}.
+might be happier calling @code{turtles-new-frame-in-instance} (@ref{1b,,Visiting Instance Buffers})
+if you’re running in a windowing environment, or otherwise
+@code{turtles-instance-eval}. (@ref{d,,Instance Management})
 
 The main Emacs process communicates with the secondary instances using
-socket communication described in the @ref{17,,next section}. On
+socket communication described in the next section @ref{17,,RPC (turtles-io)}. On
 startup, the instances connect to the server, and, from then on,
 communicate with the server through RPCs.
 
@@ -1002,15 +1003,17 @@ case, the simplest thing to do is to restart all live instances with
 
 @item (turtles-start-server) : function
 
-This function starts a @ref{17,,turtles-io-server} for instances
-to connect to. It doesn’t start any instances.
+This function creates a @code{turtles-io-server} (@ref{17,,RPC (turtles-io)})
+for instances to connect to. It doesn’t start any instances.
 
-Calling this function is usually not necessary, the server is
+Calling this function is usually not necessary, as the server is
 started automatically before starting the first instance.
 
 @item (turtles-shutdown) : command
 
-This function shuts down the current @ref{17,,turtles-io-server}, if any, as well as all instances connected to it.
+This function stops the current @code{turtles-io-server}
+(@ref{17,,RPC (turtles-io)}) if it is running, as well as all instances connected
+to it.
 
 @item (turtles-restart) : command
 
@@ -1027,11 +1030,11 @@ instance by its ID.
 
 ID is the instance ID.
 
-CONN is the @ref{17,,turtles-io-conn} to use to communicate
+CONN is a @code{turtles-io-conn} (@ref{17,,RPC (turtles-io)}) to use to communicate
 with the instance.
 
 WIDTH, WEIGHT, FORWARD and SETUP are as passed to
-@code{turtles-definstance}, see below for details.
+@code{turtles-definstance}. See below for details.
 
 TERM-BUF is the term-mode buffer within which the instance is
 running, if it is running.
@@ -1068,6 +1071,13 @@ value should be copied to the instance at launch. This is useful
 if you have variables whose value influence the tests that you
 want to remain consistent between the main Emacs process and the
 secondary instance.
+
+Example:
+
+@example
+(turtles-definstance my-instance (:width 132 :height 43)
+  "Emacs instance within a larger terminal.")
+@end example
 
 @item (turtles-get-instance inst-or-id) : function
 
@@ -1237,15 +1247,15 @@ The protocol is based on a socket-based communication between the main
 Emacs process, the server, and the secondary Emacs instances, the
 client.
 
-Each side communicate with the other by sending elisp expressions
-separated by @code{n"""n}. Each elisp expression is a message,
-which can be of the following types:
+Each side communicate with the other by sending messages
+separated by @code{\n"""\n}. The messages are elisp expression of
+the following form:
 
 
 @itemize -
 
 @item 
-a method call of the form:
+a method call:
 
 @example
 (:id id :method method-name :params params)
@@ -1261,7 +1271,7 @@ PARAMS is a lisp type defined by the method as its parameter. It
 might be nil or missing.
 
 @item 
-a result of the form:
+a result:
 
 @example
 (:id id :result result)
@@ -1272,7 +1282,7 @@ was passed to that call and RESULT is a lisp expression that the
 method returns. It might be nil, but it cannot be missing.
 
 @item 
-an error of the form:
+an error:
 
 @example
 (:id id :error error)
@@ -1298,7 +1308,7 @@ Turtles defines placeholders for them:
 @item 
 buffers: (turtles-buffer :name NAME) or (turtles-buffer :live
 nil). Such placeholders can be opened from the main Emacs process
-with @ref{1b,,pop-to-buffer}
+with @code{pop-to-buffer} (@ref{1b,,Visiting Instance Buffers})
 
 @item 
 window: (turtles-buffer :buffer BUFFER-NAME)
