@@ -18,7 +18,7 @@ needed, the primary instance grab the screen and provides the result,
 that is, a terminal screen with colors and cursor position, to the
 secondary instance.
 
-To get started, :ref:`install turtles <install>`, create a new ERT
+To get started, install turtles (:ref:`install`), then create a new
 test file with:
 
 .. code-block:: elisp
@@ -33,14 +33,12 @@ test file with:
 If you checked out the source from
 `<https://github.com/szermatt/turtles>`_, you'll find the tests shown
 in this tutorial in the file `test/turtles-example-test.el
-<https://github.com/szermatt/turtles/blob/master/test/turtles-examples-test.el>`_
-and you can run them interactively or in batch mode using :code:`eldev
-test`.
+<https://github.com/szermatt/turtles/blob/master/test/turtles-examples-test.el>`_.
 
 .. _tut_hello_world:
 
-Screen Grabbing
----------------
+Screen Grabbing with Hello World
+--------------------------------
 
 To get started, let's create a test that creates a buffer, renders it
 and check the result:
@@ -62,30 +60,29 @@ and check the result:
                        (buffer-string))))))
 
 
-The first call in the test is :ref:`(turtles-ert-test)<ert>`. This
-function creates a secondary Emacs instances, then runs the rest of
-the test within that instance.
+The first call in the test is ``(turtles-ert-test)``. (:ref:`ert`)
+This function creates a secondary Emacs instances, then runs the rest
+of the test within that instance. What Turtles calls instance is a
+separate Emacs process that ``turtles-ert-test`` started within a
+terminal window.
 
-What Turtles calls instance is a separate Emacs process that
-:code:`turtles-ert-test` started within a terminal window.
+Running within a secondary instance is necessary because it is needed
+by ``(turtles-with-grab-buffer)``. (:ref:`grab`) This macro displays
+its containing buffer in a window, grabs the content of that window
+and puts than into an ERT test buffer.
 
-Running within a secondary instance is only useful because it is
-needed by :ref:`(turtles-with-grab-buffer) <grab>`. This macro
-displays its containing buffer in a window, grabs the content of that
-window and puts than into an ERT test buffer.
+The body of ``turtles-with-grab-buffer`` runs that grabbed buffer as
+current buffer, then kills the buffer at the end, unless the test
+failed, just like the body of ``ert-with-test-buffer``. The content of
+the buffer can be modified and checked with the usual tools.
 
-The body of :code:`turtles-with-grab-buffer` runs within that grabbed
-buffer, just like the body of :code:`ert-with-test-buffer`. Its content
-can be modified and checked with the usual tools.
-
-Obviously, the window that was grabbed didn't have just two lines and
+In reality, the window that was grabbed didn't have just two lines and
 was larger than just the two words that appear here. What was really
-grabbed contained spaces and newlines that
-:code:`turtles-with-grabbed` trimmed automatically to make it easier
-to test.
+grabbed contained spaces and newlines that ``turtles-with-grabbed``
+trimmed automatically to make it easier to test.
 
-Try passing the option :code:`:trim t` and running the test with
-:code:`ert-run-tests-interactively`:
+Try passing the option ``:trim t`` and re-running the test with
+`M-x ert-run-tests-interactively`:
 
 .. code-block:: elisp
 
@@ -93,9 +90,7 @@ Try passing the option :code:`:trim t` and running the test with
         (should (equal "hello, world!"
                        (buffer-string))))))
 
-You'll then see something like the following:
-
-.. code-block::
+You'll get something like the following in the ``*ert*`` buffer::
 
   F turtles-examples-hello-world
       Buffer: *Test buffer (turtles-examples-hello-world)*
@@ -121,12 +116,10 @@ You'll then see something like the following:
                                     first-mismatch-at 13)))
 
 As you can see above, the window that was grabbed had a bit more than
-20 lines. This corresponds to a single window within a 80x24, the size
-of the default :ref:`instance <instances>`.
+20 lines. This corresponds to a single window within a 80x24 terminal,
+the terminal dimensions of the default instance. (:ref:`instances`)
 
-The ERT test buffers listed above
-
-.. code-block::
+The ERT test buffers listed above::
 
       Buffer: *Test buffer (turtles-examples-hello-world)*
       Buffer: *Test buffer (turtles-examples-hello-world): grab*
@@ -136,10 +129,10 @@ be offered a choice of different ways of seeing these buffers. The
 most convenient one, if you're running in a windowing environment, is
 to ask the instance to create a new frame to show the buffer.
 
-:code:`turtles-with-grab-buffer` doesn't just grab the window content,
-of course, but actually the whole frame, then strips out everything
-that's outside the window. To better understand what this means, add
-the option :code:`frame t`, as shown below, and run the tests again:
+``turtles-with-grab-buffer`` doesn't just grab the window content, but
+actually the whole frame, then strips out everything that's outside
+the window. To better understand what this means, add the option
+``frame t``, as shown below, and run the tests again:
 
 .. code-block:: elisp
 
@@ -147,21 +140,22 @@ the option :code:`frame t`, as shown below, and run the tests again:
         (should (equal "hello, world!"
                        (buffer-string))))))
 
-They will fail, and in the error message, or the buffers listed there,
-you'll see the entire Emacs frame that was grabbed, including the mode
-line and message area.
+The above fail, and in the error message, and the buffers listed
+there, you'll see the entire Emacs frame that was grabbed, including
+the mode line and message area.
 
-Have a look at the :ref:`turtles-with-grab-buffer reference <grab>` to
-see how you can grab other sections of the screen.
+``turtles-with-grab-buffers`` (:ref:`grab`) supports different keyword
+arguments that let you choose a section of the screen to grab and
+post-process it.
 
 .. _tut_minibuffer:
 
-Minibuffer
-----------
+Minibuffer with completing-read
+-------------------------------
 
 This second example illustrates the use of
-:ref:`(turtles-with-minibuffer) <minibuffer>` running
-:code:`completing-read`:
+``(turtles-with-minibuffer)`` (:ref:`minibuffer`) running
+``completing-read``:
 
 .. code-block:: elisp
 
@@ -186,7 +180,7 @@ This second example illustrates the use of
           (execute-kbd-macro "B")))))
 
 
-:code:`turtles-with-minibuffer` takes as argument two separate sections, as shown below:
+``turtles-with-minibuffer`` takes as argument two separate sections, shown below:
 
 .. code-block:: elisp
 
@@ -197,18 +191,18 @@ This second example illustrates the use of
 
 The READ section is a single sexp that calls a function that runs on
 the minibuffer or within a recursive-edit. When this function returns,
-:code:`turtles-with-minibuffer` ends and returns the result of
+``turtles-with-minibuffer`` ends and returns the result of
 evaluating READ.
 
 The example above doesn't care about what READ evaluates to, because
-it checks the retrun value of :code:`completing-read` directly within
+it checks the retrun value of ``completing-read`` directly within
 that section.
 
 The BODY section is a series of sexp that is executed interactively
-*while the READ section runs*. This isn't multi-threading;
-:code:`turtles-with-minibuffer` waits for the READ sections to call
-:code:`recursive-edit`, usually indirectly through
-:code:`read-from-minibuffer`, and runs BODY within that interactive
+*while the READ section runs*. This isn't multi-threading, as
+``turtles-with-minibuffer`` waits for the READ sections to call
+``recursive-edit``, usually indirectly through
+``read-from-minibuffer``, and runs BODY within that interactive
 session.
 
 At the end of BODY, the minibuffer is closed, if needed, and control
@@ -221,15 +215,16 @@ Within that example BODY first checks the minibuffer content with:
           (turtles-with-grab-buffer (:name "initial prompt" :point "<>")
             (should (equal "Choose: <>" (buffer-string))))
 
-The argument :point tells :code:`turtles-with-grab-buffer` to
+The argument :point tells ``turtles-with-grab-buffer`` to
 highlight the position of the cursor with "<>". You can also check
 that manually; it's just convenient to see the content and the
 position of the point in the same string.
 
-This test interacts with :code:`completing-read` by simulating the
+This test interacts with ``completing-read`` by simulating the
 user typing some text and pressing :kbd:`TAB`.
 
-The test could have called the command :kbd:`TAB` corresponds to directly:
+The test could have directly called the command :kbd:`TAB` is bound
+to:
 
 .. code-block:: elisp
 
@@ -239,13 +234,14 @@ The test could have called the command :kbd:`TAB` corresponds to directly:
           (should (equal "Choose: Choice <>" (buffer-string))))
 
 Calling interactive commands in such a way in a test is usually
-clearer than going through key bindings, and in most cases, it works well.
+clearer than going through key bindings, and, in most cases, it works
+well.
 
-Some commands that rely on the specific environment provided by the
-command loop won't work if called directly or even through
-:code:`execute-kbd-macro`. :ref:`:keys and :command <minibuffer>` can
-help with such tricky commands. Though it would be overkill here, you
-could do:
+However, some commands that rely on the specific environment provided
+by the command loop don't like being called directly or even through
+``execute-kbd-macro``. :keys and :command (:ref:`minibuffer`) can help
+in such tricky situations. Though it would be overkill here, you could
+write:
 
 .. code-block:: elisp
 
@@ -261,7 +257,7 @@ Faces with Isearch
 ------------------
 
 This last example tests isearch. While not a minibuffer-based command,
-isearch still works with :code:`turtles-with-minibuffer`.
+isearch still works with ``turtles-with-minibuffer``.
 
 .. code-block:: elisp
 
@@ -306,18 +302,17 @@ The interesting bit here is:
             (should (equal "[Baa], baa, black sheep, have you any wool?"
                            (buffer-string))))
 
-This test is used to check which part of the buffer isearch
-highlighted.
+The above checks which part of the buffer isearch highlighted. The
+argument :faces tells ``turtles-with-grab-buffer`` to grab a small set
+of faces and make them available in the buffer as the text property
+'face.
 
-The argument :faces tells :code:`turtles-with-grab-buffer` to grab a
-small set of faces and make them available in the buffer as the text
-property 'face.
+This example additionally provides "[]", which tells
+``turtles-with-grab-buffer`` to mark portions of the buffer that have
+such a face with brackets. This way, we don't need to check text
+properties in the test.
 
-This example additionally asks :code:`turtles-with-grab-buffer` to
-detect portions of the buffer with such a face and surround them with
-brackets, to make it more convenient to test.
-
-Faces aren't available in a terminal, of course. Turtles uses colors
-to highlight the faces it's interested in, then processes the grabbed
-data to recognize the faces it wants from these colors it has
-assigned.
+Faces aren't really available when grabbing a terminal screen. To make
+this work, Turtles uses colors to highlight the faces it's interested
+in, then recognize the faces it wants in the grabbed data from these
+colors it has assigned.
