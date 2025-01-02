@@ -1426,25 +1426,14 @@ In your report, please discuss what you wanted to happen as well as
 what happened. Also, please include enough information to reproduce
 the issue.
 
-Please include:
-
-
-@itemize -
-
-@item 
-the version of Emacs you’re running, taken, for example, from
-@code{M-x about-emacs}
-
-@item 
-whether you’re running Emacs in a window environment or a terminal
-@end itemize
+Please include at least the version of turtles you’re using and the version of Emacs you’re running, taken, for example, from @code{M-x about-emacs}.
 
 @node Suggesting features,Asking questions,Reporting issues,Contributing
 @anchor{contrib suggesting-features}@anchor{22}
 @subsection Suggesting features
 
 
-Please add feature suggestions to the Issue Tracker@footnote{https://github.com/szermatt/turtles/issues}.
+Please add feature suggestions to the Issue Tracker@footnote{https://github.com/szermatt/turtles/issues} or start a discussion@footnote{https://github.com/szermatt/turtles/discussions}.
 
 @node Asking questions,Code contributions,Suggesting features,Contributing
 @anchor{contrib asking-questions}@anchor{23}
@@ -1458,10 +1447,11 @@ Start a discussion@footnote{https://github.com/szermatt/turtles/discussions} wit
 @subsection Code contributions
 
 
-To contribute code to the project, open a Pull Request@footnote{https://github.com/szermatt/turtles/pulls}.
+To contribute code to the project, open a Pull Request@footnote{https://github.com/szermatt/turtles/pulls} targeted to
+the @code{dev} branch.
 
-Before you do that, please make sure the any new features is covered
-by tests and that the tests pass.
+Before you do that, make sure the any new features is covered by tests
+and that the tests pass.
 
 To run the tests, install and setup eldev@footnote{https://github.com/emacs-eldev/eldev}, then run @code{eldev
 test}.
@@ -1471,7 +1461,10 @@ might be unexpected interaction with your Emacs configurations. The
 tests passing reliably when run using @code{eldev test} is what
 matters.
 
-Please also make sure your commit message follows Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}.
+Please also make sure your commit message follows Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}, in
+short, the commit message of new features should start with “feat: “,
+fixes with “fix: “, refactorings with “refactor: ” and tests with
+“test: “.
 
 @node Documentation contributions,,Code contributions,Contributing
 @anchor{contrib documentation-contributions}@anchor{25}@anchor{contrib eldev}@anchor{26}
@@ -1479,7 +1472,9 @@ Please also make sure your commit message follows Conventional Commits 1.0.0@foo
 
 
 You don’t need to be a developer to contribute! Contribution to the
-documentation or code comments are very welcome. Please open a Pull Request@footnote{https://github.com/szermatt/turtles/pulls} with your proposed modifications.
+documentation or code comments are very welcome. Please open a Pull Request@footnote{https://github.com/szermatt/turtles/pulls} targeting the @code{master} branch with your proposed
+modifications. To follow follows Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}, the
+commit message should start with “docs: “
 
 The documentation is written in reStructuredText. You’ll need to
 install Sphinx@footnote{https://www.sphinx-doc.org} to build it:
@@ -1490,7 +1485,8 @@ python3 -m venv venv
 pip3 install -r docs/requirements.txt
 @end example
 
-Then run @code{eldev html} to build the documentation.
+Then run @code{eldev html} or @code{eldev build turtles.info}
+to build the documentation.
 
 @node Index,,Contents,Top
 @unnumbered Index
