@@ -132,7 +132,7 @@ to ask the instance to create a new frame to show the buffer.
 ``turtles-with-grab-buffer`` doesn't just grab the window content, but
 actually the whole frame, then strips out everything that's outside
 the window. To better understand what this means, add the option
-``frame t``, as shown below, and run the tests again:
+``:frame t``, as shown below, and run the tests again:
 
 .. code-block:: elisp
 
