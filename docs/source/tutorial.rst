@@ -140,9 +140,9 @@ the window. To better understand what this means, add the option
         (should (equal "hello, world!"
                        (buffer-string))))))
 
-The above fail, and in the error message, and the buffers listed
-there, you'll see the entire Emacs frame that was grabbed, including
-the mode line and message area.
+Running the above with ERT will fail, and in the error message and the
+buffers listed there, you'll see the entire Emacs frame that was
+grabbed, including the mode line and message area.
 
 ``turtles-with-grab-buffers`` (:ref:`grab`) supports different keyword
 arguments that let you choose a section of the screen to grab and

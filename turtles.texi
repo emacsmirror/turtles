@@ -345,7 +345,7 @@ to ask the instance to create a new frame to show the buffer.
 @code{turtles-with-grab-buffer} doesn’t just grab the window content, but
 actually the whole frame, then strips out everything that’s outside
 the window. To better understand what this means, add the option
-@code{frame t}, as shown below, and run the tests again:
+@code{:frame t}, as shown below, and run the tests again:
 
 @example
 (turtles-with-grab-buffer (:frame t)
@@ -353,9 +353,9 @@ the window. To better understand what this means, add the option
                  (buffer-string))))))
 @end example
 
-The above fail, and in the error message, and the buffers listed
-there, you’ll see the entire Emacs frame that was grabbed, including
-the mode line and message area.
+Running the above with ERT will fail, and in the error message and the
+buffers listed there, you’ll see the entire Emacs frame that was
+grabbed, including the mode line and message area.
 
 @code{turtles-with-grab-buffers} (@ref{c,,Screen Grab}) supports different keyword
 arguments that let you choose a section of the screen to grab and
