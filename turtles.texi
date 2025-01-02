@@ -104,15 +104,15 @@ Contents
 
 Tutorial
 
-* Screen Grabbing:: 
-* Minibuffer:: 
+* Screen Grabbing with Hello World:: 
+* Minibuffer with completing-read:: 
 * Faces with Isearch:: 
 
 Reference
 
 * ERT Integration:: 
 * Screen Grab:: 
-* Minibuffer: Minibuffer<2>. 
+* Minibuffer:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -223,7 +223,7 @@ needed, the primary instance grab the screen and provides the result,
 that is, a terminal screen with colors and cursor position, to the
 secondary instance.
 
-To get started, @ref{5,,install turtles}, create a new ERT
+To get started, install turtles (@ref{5,,Installation}), then create a new
 test file with:
 
 @example
@@ -236,20 +236,18 @@ test file with:
 
 If you checked out the source from
 @indicateurl{https://github.com/szermatt/turtles}, you’ll find the tests shown
-in this tutorial in the file test/turtles-example-test.el@footnote{https://github.com/szermatt/turtles/blob/master/test/turtles-examples-test.el}
-and you can run them interactively or in batch mode using @code{eldev
-test}.
+in this tutorial in the file test/turtles-example-test.el@footnote{https://github.com/szermatt/turtles/blob/master/test/turtles-examples-test.el}.
 
 @menu
-* Screen Grabbing:: 
-* Minibuffer:: 
+* Screen Grabbing with Hello World:: 
+* Minibuffer with completing-read:: 
 * Faces with Isearch:: 
 
 @end menu
 
-@node Screen Grabbing,Minibuffer,,Tutorial
-@anchor{tutorial screen-grabbing}@anchor{9}@anchor{tutorial tut-hello-world}@anchor{a}
-@subsection Screen Grabbing
+@node Screen Grabbing with Hello World,Minibuffer with completing-read,,Tutorial
+@anchor{tutorial screen-grabbing-with-hello-world}@anchor{9}@anchor{tutorial tut-hello-world}@anchor{a}
+@subsection Screen Grabbing with Hello World
 
 
 To get started, let’s create a test that creates a buffer, renders it
@@ -271,30 +269,29 @@ and check the result:
                      (buffer-string))))))
 @end example
 
-The first call in the test is @ref{b,,(turtles-ert-test)}. This
-function creates a secondary Emacs instances, then runs the rest of
-the test within that instance.
+The first call in the test is @code{(turtles-ert-test)}. (@ref{b,,ERT Integration})
+This function creates a secondary Emacs instances, then runs the rest
+of the test within that instance. What Turtles calls instance is a
+separate Emacs process that @code{turtles-ert-test} started within a
+terminal window.
 
-What Turtles calls instance is a separate Emacs process that
-@code{turtles-ert-test} started within a terminal window.
+Running within a secondary instance is necessary because it is needed
+by @code{(turtles-with-grab-buffer)}. (@ref{c,,Screen Grab}) This macro displays
+its containing buffer in a window, grabs the content of that window
+and puts than into an ERT test buffer.
 
-Running within a secondary instance is only useful because it is
-needed by @ref{c,,(turtles-with-grab-buffer)}. This macro
-displays its containing buffer in a window, grabs the content of that
-window and puts than into an ERT test buffer.
+The body of @code{turtles-with-grab-buffer} runs that grabbed buffer as
+current buffer, then kills the buffer at the end, unless the test
+failed, just like the body of @code{ert-with-test-buffer}. The content of
+the buffer can be modified and checked with the usual tools.
 
-The body of @code{turtles-with-grab-buffer} runs within that grabbed
-buffer, just like the body of @code{ert-with-test-buffer}. Its content
-can be modified and checked with the usual tools.
-
-Obviously, the window that was grabbed didn’t have just two lines and
+In reality, the window that was grabbed didn’t have just two lines and
 was larger than just the two words that appear here. What was really
-grabbed contained spaces and newlines that
-@code{turtles-with-grabbed} trimmed automatically to make it easier
-to test.
+grabbed contained spaces and newlines that @code{turtles-with-grabbed}
+trimmed automatically to make it easier to test.
 
-Try passing the option @code{:trim t} and running the test with
-@code{ert-run-tests-interactively}:
+Try passing the option @code{:trim t} and re-running the test with
+@cite{M-x ert-run-tests-interactively}:
 
 @example
 (turtles-with-grab-buffer (:trim t)
@@ -302,7 +299,7 @@ Try passing the option @code{:trim t} and running the test with
                  (buffer-string))))))
 @end example
 
-You’ll then see something like the following:
+You’ll get something like the following in the @code{*ert*} buffer:
 
 @example
 F turtles-examples-hello-world
@@ -330,10 +327,10 @@ F turtles-examples-hello-world
 @end example
 
 As you can see above, the window that was grabbed had a bit more than
-20 lines. This corresponds to a single window within a 80x24, the size
-of the default @ref{d,,instance}.
+20 lines. This corresponds to a single window within a 80x24 terminal,
+the terminal dimensions of the default instance. (@ref{d,,Instance Management})
 
-The ERT test buffers listed above
+The ERT test buffers listed above:
 
 @example
 Buffer: *Test buffer (turtles-examples-hello-world)*
@@ -345,10 +342,10 @@ be offered a choice of different ways of seeing these buffers. The
 most convenient one, if you’re running in a windowing environment, is
 to ask the instance to create a new frame to show the buffer.
 
-@code{turtles-with-grab-buffer} doesn’t just grab the window content,
-of course, but actually the whole frame, then strips out everything
-that’s outside the window. To better understand what this means, add
-the option @code{frame t}, as shown below, and run the tests again:
+@code{turtles-with-grab-buffer} doesn’t just grab the window content, but
+actually the whole frame, then strips out everything that’s outside
+the window. To better understand what this means, add the option
+@code{frame t}, as shown below, and run the tests again:
 
 @example
 (turtles-with-grab-buffer (:frame t)
@@ -356,20 +353,21 @@ the option @code{frame t}, as shown below, and run the tests again:
                  (buffer-string))))))
 @end example
 
-They will fail, and in the error message, or the buffers listed there,
-you’ll see the entire Emacs frame that was grabbed, including the mode
-line and message area.
+The above fail, and in the error message, and the buffers listed
+there, you’ll see the entire Emacs frame that was grabbed, including
+the mode line and message area.
 
-Have a look at the @ref{c,,turtles-with-grab-buffer reference} to
-see how you can grab other sections of the screen.
+@code{turtles-with-grab-buffers} (@ref{c,,Screen Grab}) supports different keyword
+arguments that let you choose a section of the screen to grab and
+post-process it.
 
-@node Minibuffer,Faces with Isearch,Screen Grabbing,Tutorial
-@anchor{tutorial minibuffer}@anchor{e}@anchor{tutorial tut-minibuffer}@anchor{f}
-@subsection Minibuffer
+@node Minibuffer with completing-read,Faces with Isearch,Screen Grabbing with Hello World,Tutorial
+@anchor{tutorial minibuffer-with-completing-read}@anchor{e}@anchor{tutorial tut-minibuffer}@anchor{f}
+@subsection Minibuffer with completing-read
 
 
 This second example illustrates the use of
-@ref{10,,(turtles-with-minibuffer)} running
+@code{(turtles-with-minibuffer)} (@ref{10,,Minibuffer}) running
 @code{completing-read}:
 
 @example
@@ -394,7 +392,7 @@ This second example illustrates the use of
         (execute-kbd-macro "B")))))
 @end example
 
-@code{turtles-with-minibuffer} takes as argument two separate sections, as shown below:
+@code{turtles-with-minibuffer} takes as argument two separate sections, shown below:
 
 @example
 (turtles-with-minibuffer
@@ -412,7 +410,7 @@ it checks the retrun value of @code{completing-read} directly within
 that section.
 
 The BODY section is a series of sexp that is executed interactively
-`while the READ section runs'. This isn’t multi-threading;
+`while the READ section runs'. This isn’t multi-threading, as
 @code{turtles-with-minibuffer} waits for the READ sections to call
 @code{recursive-edit}, usually indirectly through
 @code{read-from-minibuffer}, and runs BODY within that interactive
@@ -436,7 +434,8 @@ position of the point in the same string.
 This test interacts with @code{completing-read} by simulating the
 user typing some text and pressing @code{TAB}.
 
-The test could have called the command @code{TAB} corresponds to directly:
+The test could have directly called the command @code{TAB} is bound
+to:
 
 @example
 (execute-kbd-macro "Ch")
@@ -446,13 +445,14 @@ The test could have called the command @code{TAB} corresponds to directly:
 @end example
 
 Calling interactive commands in such a way in a test is usually
-clearer than going through key bindings, and in most cases, it works well.
+clearer than going through key bindings, and, in most cases, it works
+well.
 
-Some commands that rely on the specific environment provided by the
-command loop won’t work if called directly or even through
-@code{execute-kbd-macro}. @ref{10,,;keys and ;command} can
-help with such tricky commands. Though it would be overkill here, you
-could do:
+However, some commands that rely on the specific environment provided
+by the command loop don’t like being called directly or even through
+@code{execute-kbd-macro}. :keys and :command (@ref{10,,Minibuffer}) can help
+in such tricky situations. Though it would be overkill here, you could
+write:
 
 @example
 :keys "Ch"
@@ -461,7 +461,7 @@ could do:
   (should (equal "Choose: Choice <>" (buffer-string))))
 @end example
 
-@node Faces with Isearch,,Minibuffer,Tutorial
+@node Faces with Isearch,,Minibuffer with completing-read,Tutorial
 @anchor{tutorial faces-with-isearch}@anchor{11}@anchor{tutorial tut-isearch}@anchor{12}
 @subsection Faces with Isearch
 
@@ -511,21 +511,20 @@ The interesting bit here is:
                  (buffer-string))))
 @end example
 
-This test is used to check which part of the buffer isearch
-highlighted.
+The above checks which part of the buffer isearch highlighted. The
+argument :faces tells @code{turtles-with-grab-buffer} to grab a small set
+of faces and make them available in the buffer as the text property
+‘face.
 
-The argument :faces tells @code{turtles-with-grab-buffer} to grab a
-small set of faces and make them available in the buffer as the text
-property ‘face.
+This example additionally provides “[]”, which tells
+@code{turtles-with-grab-buffer} to mark portions of the buffer that have
+such a face with brackets. This way, we don’t need to check text
+properties in the test.
 
-This example additionally asks @code{turtles-with-grab-buffer} to
-detect portions of the buffer with such a face and surround them with
-brackets, to make it more convenient to test.
-
-Faces aren’t available in a terminal, of course. Turtles uses colors
-to highlight the faces it’s interested in, then processes the grabbed
-data to recognize the faces it wants from these colors it has
-assigned.
+Faces aren’t really available when grabbing a terminal screen. To make
+this work, Turtles uses colors to highlight the faces it’s interested
+in, then recognize the faces it wants in the grabbed data from these
+colors it has assigned.
 
 @node Reference,Contributing,Tutorial,Contents
 @anchor{reference doc}@anchor{13}@anchor{reference ref}@anchor{14}@anchor{reference reference}@anchor{15}
@@ -535,7 +534,7 @@ assigned.
 @menu
 * ERT Integration:: 
 * Screen Grab:: 
-* Minibuffer: Minibuffer<2>. 
+* Minibuffer:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -593,7 +592,7 @@ When called from the main Emacs process, this function returns
 nil.
 @end table
 
-@node Screen Grab,Minibuffer<2>,ERT Integration,Reference
+@node Screen Grab,Minibuffer,ERT Integration,Reference
 @anchor{reference grab}@anchor{c}@anchor{reference screen-grab}@anchor{18}
 @subsection Screen Grab
 
@@ -842,7 +841,7 @@ This function delete trailing whitespaces on all lines and
 trailing newlines at the end of the current buffer.
 @end table
 
-@node Minibuffer<2>,Instance Management,Screen Grab,Reference
+@node Minibuffer,Instance Management,Screen Grab,Reference
 @anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{10}
 @subsection Minibuffer
 
@@ -937,11 +936,11 @@ This expression works as above, but makes sure that the command
 will find in @code{(this-command-keys)}, if it asks.
 @end table
 
-See the @ref{f,,Minibuffer} and @ref{12,,Faces with Isearch} sections of
+See the @ref{f,,Minibuffer with completing-read} and @ref{12,,Faces with Isearch} sections of
 the tutorial for usage examples.
 @end table
 
-@node Instance Management,Visiting Instance Buffers,Minibuffer<2>,Reference
+@node Instance Management,Visiting Instance Buffers,Minibuffer,Reference
 @anchor{reference instance-management}@anchor{1a}@anchor{reference instances}@anchor{d}
 @subsection Instance Management
 
