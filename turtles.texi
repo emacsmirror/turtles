@@ -1473,7 +1473,7 @@ fixes with “fix: “, refactorings with “refactor: ” and tests with
 
 You don’t need to be a developer to contribute! Contribution to the
 documentation or code comments are very welcome. Please open a Pull Request@footnote{https://github.com/szermatt/turtles/pulls} targeting the @code{master} branch with your proposed
-modifications. To follow follows Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}, the
+modifications. To follow Conventional Commits 1.0.0@footnote{https://www.conventionalcommits.org/en/v1.0.0/}, the
 commit message should start with “docs: “
 
 The documentation is written in reStructuredText. You’ll need to

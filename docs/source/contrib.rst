@@ -57,7 +57,7 @@ Documentation contributions
 You don't need to be a developer to contribute! Contribution to the
 documentation or code comments are very welcome. Please open a `Pull
 Request`_ targeting the ``master`` branch with your proposed
-modifications. To follow follows `Conventional
+modifications. To follow `Conventional
 Commits 1.0.0 <https://www.conventionalcommits.org/en/v1.0.0/>`_, the
 commit message should start with "docs: "
 
