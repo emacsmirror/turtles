@@ -724,7 +724,7 @@ This function is meant to be used as around advice for
 (defun turtles--around-ert-run-test (func test &rest args)
   "Collect test results sent by another Emacs instance.
 
-This function takes results set up by `turtles-ert-test' and puts
+This function takes results set up by `turtles--ert-test' and puts
 them into the local `ert-test' instance.
 
 This function is meant to be used as around advice for
@@ -739,7 +739,7 @@ need to be forwarded to FUNC."
 (defun turtles--around-ert-run-tests (func &rest args)
   "Collect test results sent by another Emacs instance.
 
-This function takes results set up by `turtles-ert-test' and puts
+This function takes results set up by `turtles--ert-test' and puts
 them into the local `ert-test' instance.
 
 This function is meant to be used as around advice for
