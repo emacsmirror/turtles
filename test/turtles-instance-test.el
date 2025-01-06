@@ -184,8 +184,7 @@
         (should (equal '(:foreground "red") (get-text-property 13 'face str)))
         (should (equal '(:foreground "red") (get-text-property 16 'face str)))))))
 
-(ert-deftest turtles-restart ()
-  (turtles-ert-test)
+(turtles-ert-deftest turtles-restart ()
   (turtles-shutdown)
   (should-not (turtles-live-instances))
 
@@ -213,9 +212,7 @@
                                                            turtles--instance-test-id))))
     (turtles-shutdown)))
 
-(ert-deftest turtles-read-instance ()
-  (turtles-ert-test)
-
+(turtles-ert-deftest turtles-read-instance ()
   ;; We want only two instances for this test.
   (let* ((default-inst (turtles-get-instance 'default))
          (restart-inst (turtles-get-instance 'turtles--restart))
