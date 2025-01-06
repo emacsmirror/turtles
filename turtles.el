@@ -547,10 +547,10 @@ in the whole buffer and any newlines at the end of the buffer."
 
 (cl-defmacro turtles-ert-deftest
     (name (&key instance timeout) &body body)
-  "Define an ERT test that runs on a secondary Emacs instance.
+  "Define an ERT test to run on a secondary Emacs instance.
 
-This macro is the Turtles equivalent of ert-deftest. It is a full drop-in
-replacement for ert-deftest with the following differences:
+This macro is the Turtles equivalent of `ert-deftest'. It is a full drop-in
+replacement for `ert-deftest' with the following differences:
 
 - The test is run in a secondary Emacs instance
 - It supports additional, optional key arguments within parentheses
@@ -619,7 +619,7 @@ just won't do."
            (test-sym (when test (ert-test-name test)))
            (inst-id (or inst-id 'default))
            (inst (turtles-get-instance inst-id)))
-      (unless test (error "Not in an ERT test."))
+      (unless test (error "Not in an ERT test"))
       (cl-assert test-sym)
 
       (unless inst
