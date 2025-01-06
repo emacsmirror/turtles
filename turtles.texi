@@ -250,15 +250,14 @@ in this tutorial in the file test/turtles-example-test.el@footnote{https://githu
 @subsection Screen Grabbing with Hello World
 
 
-To get started, let’s create a test that creates a buffer, renders it
-and check the result:
+Let’s write a test that creates a buffer, renders it and check the
+result:
 
 @example
-(ert-deftest turtles-examples-hello-world ()
-   ;; Start a secondary Emacs instance
-  (turtles-ert-test)
+(turtles-ert-deftest turtles-examples-hello-world ()
+  ;; The body of turtles-ert-deftest runs inside a
+  ;; secondary Emacs instance.
 
-  ;; From this point, everything runs in the secondary instance.
   (ert-with-test-buffer ()
     (insert "hello, ") ; Fill in the buffer
     (insert (propertize "the " 'invisible t))
@@ -269,14 +268,14 @@ and check the result:
                      (buffer-string))))))
 @end example
 
-The first call in the test is @code{(turtles-ert-test)}. (@ref{b,,ERT Integration})
-This function creates a secondary Emacs instances, then runs the rest
-of the test within that instance. What Turtles calls instance is a
-separate Emacs process that @code{turtles-ert-test} started within a
-terminal window.
+This call defines an ERT test called turtles-example-hello-world that
+starts a secondary Emacs instances, then runs the rest of the test
+within that instance. What Turtles calls instance is a separate Emacs
+process that running a test defined by @code{turtles-ert-deftest} started
+within a terminal window.
 
 Running within a secondary instance is necessary because it is needed
-by @code{(turtles-with-grab-buffer)}. (@ref{c,,Screen Grab}) This macro displays
+by @code{(turtles-with-grab-buffer)}. (@ref{b,,Screen Grab}) This macro displays
 its containing buffer in a window, grabs the content of that window
 and puts than into an ERT test buffer.
 
@@ -328,7 +327,7 @@ F turtles-examples-hello-world
 
 As you can see above, the window that was grabbed had a bit more than
 20 lines. This corresponds to a single window within a 80x24 terminal,
-the terminal dimensions of the default instance. (@ref{d,,Instance Management})
+the terminal dimensions of the default instance. (@ref{c,,Instance Management})
 
 The ERT test buffers listed above:
 
@@ -357,23 +356,21 @@ Running the above with ERT will fail, and in the error message and the
 buffers listed there, you’ll see the entire Emacs frame that was
 grabbed, including the mode line and message area.
 
-@code{turtles-with-grab-buffers} (@ref{c,,Screen Grab}) supports different keyword
+@code{turtles-with-grab-buffers} (@ref{b,,Screen Grab}) supports different keyword
 arguments that let you choose a section of the screen to grab and
 post-process it.
 
 @node Minibuffer with completing-read,Faces with Isearch,Screen Grabbing with Hello World,Tutorial
-@anchor{tutorial minibuffer-with-completing-read}@anchor{e}@anchor{tutorial tut-minibuffer}@anchor{f}
+@anchor{tutorial minibuffer-with-completing-read}@anchor{d}@anchor{tutorial tut-minibuffer}@anchor{e}
 @subsection Minibuffer with completing-read
 
 
 This second example illustrates the use of
-@code{(turtles-with-minibuffer)} (@ref{10,,Minibuffer}) running
+@code{(turtles-with-minibuffer)} (@ref{f,,Minibuffer}) running
 @code{completing-read}:
 
 @example
-(ert-deftest turtles-examples-test-completing-read ()
-  (turtles-ert-test)
-
+(turtles-ert-deftest turtles-examples-test-completing-read ()
   (ert-with-test-buffer ()
     (let ((completing-read-function #'completing-read-default))
       (turtles-with-minibuffer
@@ -450,7 +447,7 @@ well.
 
 However, some commands that rely on the specific environment provided
 by the command loop don’t like being called directly or even through
-@code{execute-kbd-macro}. :keys and :command (@ref{10,,Minibuffer}) can help
+@code{execute-kbd-macro}. :keys and :command (@ref{f,,Minibuffer}) can help
 in such tricky situations. Though it would be overkill here, you could
 write:
 
@@ -462,7 +459,7 @@ write:
 @end example
 
 @node Faces with Isearch,,Minibuffer with completing-read,Tutorial
-@anchor{tutorial faces-with-isearch}@anchor{11}@anchor{tutorial tut-isearch}@anchor{12}
+@anchor{tutorial faces-with-isearch}@anchor{10}@anchor{tutorial tut-isearch}@anchor{11}
 @subsection Faces with Isearch
 
 
@@ -470,9 +467,7 @@ This last example tests isearch. While not a minibuffer-based command,
 isearch still works with @code{turtles-with-minibuffer}.
 
 @example
-(ert-deftest turtles-examples-test-isearch ()
-  (turtles-ert-test)
-
+(turtles-ert-deftest turtles-examples-test-isearch ()
   (ert-with-test-buffer ()
     (let ((testbuf (current-buffer)))
       (select-window (display-buffer testbuf))
@@ -527,7 +522,7 @@ in, then recognize the faces it wants in the grabbed data from these
 colors it has assigned.
 
 @node Reference,Contributing,Tutorial,Contents
-@anchor{reference doc}@anchor{13}@anchor{reference ref}@anchor{14}@anchor{reference reference}@anchor{15}
+@anchor{reference doc}@anchor{12}@anchor{reference ref}@anchor{13}@anchor{reference reference}@anchor{14}
 @section Reference
 
 
@@ -542,11 +537,11 @@ colors it has assigned.
 @end menu
 
 @node ERT Integration,Screen Grab,,Reference
-@anchor{reference ert}@anchor{b}@anchor{reference ert-integration}@anchor{16}
+@anchor{reference ert}@anchor{15}@anchor{reference ert-integration}@anchor{16}
 @subsection ERT Integration
 
 
-@geindex function; turtles-ert-test
+@geindex function; turtles-ert-deftest
 @geindex function; turtles-upstream
 @geindex function; turtles-this-instance
 
@@ -554,23 +549,41 @@ Turtles runs ERT tests is a secondary Emacs instance, which is started
 and piloted by Turtles. This is what allows everything else in this
 section to work.
 
+(turtles-ert-deftest name (&key instance timeout) body) : macro
 
-@table @asis
+@quotation
 
-@item (turtles-ert-test &key instance timeout) : macro
-
-This macro marks the current test as a Turtles test. It connects
-to a secondary Emacs instance, starts it if necessary, then runs
-everything below @code{(turtles-ert-test)} in that secondary
-instance.
+This macro define an ERT test with the given name that runs its
+content inside of a secondary Emacs instance.
 
 The ID of the instance to connect can be passed to the key
 argument :instance. That ID defaults to @code{default}, an
-instance with a 80x24 terminal. (@ref{d,,Instance Management})
+instance with a 80x24 terminal. (@ref{c,,Instance Management})
 
 Passing a :timeout value, in seconds, tells Turtles how long to
 wait for an answer from the secondary instance. Increase this
 value if you’re getting timeout errors.
+
+The body of the macro is just like the body of a
+@code{ert-deftest}, that is, it can contain:
+
+
+@itemize -
+
+@item 
+an optional docstring
+
+@item 
+:tags and :expected-result key arguments
+
+@item 
+the test body possibly containing calls to (should), (should-not),
+(skip-when) or (skip-unless), defined by @code{ert-deftest}.
+@end itemize
+@end quotation
+
+
+@table @asis
 
 @item (turtles-this-instance) : function
 
@@ -593,7 +606,7 @@ nil.
 @end table
 
 @node Screen Grab,Minibuffer,ERT Integration,Reference
-@anchor{reference grab}@anchor{c}@anchor{reference screen-grab}@anchor{18}
+@anchor{reference grab}@anchor{b}@anchor{reference screen-grab}@anchor{18}
 @subsection Screen Grab
 
 
@@ -614,8 +627,7 @@ grabbed and fully-processed: @code{turtles-with-grab-buffer} and
 @code{turtles-to-string}, described below.
 
 All functions that grab the terminal frame must be called from within
-a secondary instance, that is, below @code{(turtles-ert-test)} in an ERT
-test.
+a secondary instance, that is, inside a @code{(turtles-ert-deftest)}.
 
 When grabbing the terminal frame, the content of the current buffer is
 replaced with a copy of the terminal data, with the point set at the
@@ -755,7 +767,7 @@ WIN is a window that must be selected while grabbing.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@code{turtles-with-grab-buffer}. (@ref{c,,Screen Grab})
+@code{turtles-with-grab-buffer}. (@ref{b,,Screen Grab})
 
 @item (turtles-grab-window win &optional grab-faces margin) : function
 
@@ -764,7 +776,7 @@ and puts the point at the position where the cursor is.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@code{turtles-with-grab-buffer}. (@ref{c,,Screen Grab})
+@code{turtles-with-grab-buffer}. (@ref{b,,Screen Grab})
 
 If MARGIN is non-nil, grab not only the body of the window, but
 also the left and right margins.
@@ -787,7 +799,7 @@ window or buffer.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@code{turtles-with-grab-buffer} (@ref{c,,Screen Grab})
+@code{turtles-with-grab-buffer} (@ref{b,,Screen Grab})
 
 @item (turtles-grab-header-line win-or-buf &optional grab-faces) : function
 
@@ -796,7 +808,7 @@ a window or buffer.
 
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
-@code{turtles-with-grab-buffer}. (@ref{c,,Screen Grab})
+@code{turtles-with-grab-buffer}. (@ref{b,,Screen Grab})
 
 @item (turtles-mark-text-with-faces alist) : function
 
@@ -845,7 +857,7 @@ trailing newlines at the end of the current buffer.
 @end table
 
 @node Minibuffer,Instance Management,Screen Grab,Reference
-@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{10}
+@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{f}
 @subsection Minibuffer
 
 
@@ -858,8 +870,7 @@ trailing newlines at the end of the current buffer.
 
 This macro tests minibuffer or recursive-edit interactions.
 It is meant to be called from within a secondary instance,
-that is, after below @code{(turtles-ert-test)} in an ERT
-test.
+that is, inside of a @code{(turtles-ert-deftest)}.
 
 The first sexp within that macro, the READ section, calls a
 function that opens the minibuffer or a recursive-edit and waits
@@ -938,11 +949,11 @@ This expression works as above, but makes sure that the command
 will find in @code{(this-command-keys)}, if it asks.
 @end table
 
-Usage examples: @ref{f,,Minibuffer with completing-read} and @ref{12,,Faces with Isearch}
+Usage examples: @ref{e,,Minibuffer with completing-read} and @ref{11,,Faces with Isearch}
 @end table
 
 @node Instance Management,Visiting Instance Buffers,Minibuffer,Reference
-@anchor{reference instance-management}@anchor{1a}@anchor{reference instances}@anchor{d}
+@anchor{reference instance-management}@anchor{1a}@anchor{reference instances}@anchor{c}
 @subsection Instance Management
 
 
@@ -976,7 +987,7 @@ While secondary instances can be interacted with from that buffer, it
 is awkward, as the two Emacs instances use the same keybindings. You
 might be happier calling @code{turtles-new-frame-in-instance} (@ref{1b,,Visiting Instance Buffers})
 if you’re running in a windowing environment, or otherwise
-@code{turtles-instance-eval}. (@ref{d,,Instance Management})
+@code{turtles-instance-eval}. (@ref{c,,Instance Management})
 
 The main Emacs process communicates with the secondary instances using
 socket communication described in the next section @ref{17,,RPC (turtles-io)}. On
@@ -1044,7 +1055,7 @@ running, if it is running.
 Define a new instance with the given ID.
 
 Turtles defines a shared instance with ID @code{default}. This is
-the instance used by @ref{b,,turtle-ert-test} unless a
+the instance used by @ref{15,,turtle-ert-test} unless a
 specific one is given. The default instance starts a 80x24
 terminal with no setup.
 

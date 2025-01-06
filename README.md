@@ -72,10 +72,9 @@ For more details, see the
 ```elisp
 (require 'turtles)
 
-(ert-deftest turtles-test-hello-world ()
-  (turtles-ert-test)             ;; Start a secondary Emacs instance
-                                 ;; Everything below this point runs
-                                 ;; in the secondary instance.
+(turtles-ert-deftest turtles-test-hello-world ()
+  ;; The body of turtles-ert-deftest runs inside a
+  ;; secondary Emacs instance.
 
   (ert-with-test-buffer ()
     (insert "hello, ")           ;; Fill in the buffer

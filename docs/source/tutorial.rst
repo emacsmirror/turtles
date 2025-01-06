@@ -40,16 +40,15 @@ in this tutorial in the file `test/turtles-example-test.el
 Screen Grabbing with Hello World
 --------------------------------
 
-To get started, let's create a test that creates a buffer, renders it
-and check the result:
+Let's write a test that creates a buffer, renders it and check the
+result:
 
 .. code-block:: elisp
 
-  (ert-deftest turtles-examples-hello-world ()
-     ;; Start a secondary Emacs instance
-    (turtles-ert-test)
+  (turtles-ert-deftest turtles-examples-hello-world ()
+    ;; The body of turtles-ert-deftest runs inside a
+    ;; secondary Emacs instance.
 
-    ;; From this point, everything runs in the secondary instance.
     (ert-with-test-buffer ()
       (insert "hello, ") ; Fill in the buffer
       (insert (propertize "the " 'invisible t))
@@ -60,11 +59,11 @@ and check the result:
                        (buffer-string))))))
 
 
-The first call in the test is ``(turtles-ert-test)``. (:ref:`ert`)
-This function creates a secondary Emacs instances, then runs the rest
-of the test within that instance. What Turtles calls instance is a
-separate Emacs process that ``turtles-ert-test`` started within a
-terminal window.
+This call defines an ERT test called turtles-example-hello-world that
+starts a secondary Emacs instances, then runs the rest of the test
+within that instance. What Turtles calls instance is a separate Emacs
+process that running a test defined by ``turtles-ert-deftest`` started
+within a terminal window.
 
 Running within a secondary instance is necessary because it is needed
 by ``(turtles-with-grab-buffer)``. (:ref:`grab`) This macro displays
@@ -159,9 +158,7 @@ This second example illustrates the use of
 
 .. code-block:: elisp
 
-  (ert-deftest turtles-examples-test-completing-read ()
-    (turtles-ert-test)
-
+  (turtles-ert-deftest turtles-examples-test-completing-read ()
     (ert-with-test-buffer ()
       (let ((completing-read-function #'completing-read-default))
         (turtles-with-minibuffer
@@ -261,9 +258,7 @@ isearch still works with ``turtles-with-minibuffer``.
 
 .. code-block:: elisp
 
-  (ert-deftest turtles-examples-test-isearch ()
-    (turtles-ert-test)
-
+  (turtles-ert-deftest turtles-examples-test-isearch ()
     (ert-with-test-buffer ()
       (let ((testbuf (current-buffer)))
         (select-window (display-buffer testbuf))
