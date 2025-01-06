@@ -619,8 +619,7 @@ just won't do."
            (test-sym (when test (ert-test-name test)))
            (inst-id (or inst-id 'default))
            (inst (turtles-get-instance inst-id)))
-      (unless test
-        (error "Not in an ERT test. Call (turtles-ert-test) from inside a test"))
+      (unless test (error "Not in an ERT test."))
       (cl-assert test-sym)
 
       (unless inst
@@ -976,7 +975,7 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
         (timer nil)
         (returned-too-early nil))
     (when noninteractive
-      (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
+      (error "Cannot work in noninteractive mode. Did you forget to use (turtles-ert-deftest)?"))
     (run-with-timer
      0 nil
      (lambda ()
