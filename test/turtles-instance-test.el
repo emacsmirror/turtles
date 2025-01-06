@@ -19,6 +19,7 @@
 (require 'compat)
 (require 'ert)
 (require 'ert-x)
+(require 'turtles)
 (require 'turtles-instance)
 
 (turtles-definstance turtles--restart ()
@@ -182,5 +183,58 @@
         (should (equal nil (get-text-property 12 'face str)))
         (should (equal '(:foreground "red") (get-text-property 13 'face str)))
         (should (equal '(:foreground "red") (get-text-property 16 'face str)))))))
+
+(turtles-ert-deftest turtles-restart ()
+  (turtles-shutdown)
+  (should-not (turtles-live-instances))
+
+  (unwind-protect
+      (let ((restart-inst (turtles-get-instance 'turtles--restart))
+            (default-inst (turtles-get-instance 'default))
+            (inhibit-message t))
+        (should-not (turtles-instance-live-p restart-inst))
+        (should-not (turtles-instance-live-p default-inst))
+
+        (turtles-start-instance restart-inst)
+        (should (turtles-instance-live-p restart-inst))
+        (should-not (turtles-instance-live-p default-inst))
+
+        (turtles-instance-eval restart-inst '(progn
+                                               (defvar turtles--instance-test-id nil)
+                                               (setq turtles--instance-test-id 1)))
+        (should (equal 1 (turtles-instance-eval restart-inst 'turtles--instance-test-id)))
+
+        (turtles-restart)
+        (should (turtles-instance-live-p restart-inst))
+        (should-not (turtles-instance-live-p default-inst))
+        (should-not (turtles-instance-eval restart-inst '(progn
+                                                           (defvar turtles--instance-test-id nil)
+                                                           turtles--instance-test-id))))
+    (turtles-shutdown)))
+
+(turtles-ert-deftest turtles-read-instance ()
+  ;; We want only two instances for this test.
+  (let* ((default-inst (turtles-get-instance 'default))
+         (restart-inst (turtles-get-instance 'turtles--restart))
+         (turtles-instance-alist `((default . ,default-inst)
+                                   (turtles--restart . ,restart-inst)))
+         (inhibit-message t))
+    (turtles-with-minibuffer
+        (should (eq restart-inst (turtles-read-instance)))
+     (turtles-with-grab-buffer (:name "initial")
+       (should (equal "Instance:" (buffer-string))))
+
+     ;; Make sure that the short documentation are provided correctly as annotations.
+     (minibuffer-complete)
+     (turtles-with-grab-buffer (:buf "*Completions*")
+       (goto-char (point-max))
+       (forward-line -1)
+       (should (equal (concat "default Emacs instance to run tests on.\n"
+                              "turtles--restart A private test instance to test restart.")
+                      (buffer-substring (point) (point-max)))))
+
+     ;; Select restart
+     (execute-kbd-macro "turtles--restart"))))
+
 
 (require 'turtles-instance)

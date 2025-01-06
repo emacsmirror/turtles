@@ -9,7 +9,7 @@ ERT Integration
 ---------------
 
 .. index::
-   pair: function; turtles-ert-test
+   pair: function; turtles-ert-deftest
    pair: function; turtles-upstream
    pair: function; turtles-this-instance
 
@@ -17,19 +17,26 @@ Turtles runs ERT tests is a secondary Emacs instance, which is started
 and piloted by Turtles. This is what allows everything else in this
 section to work.
 
-(turtles-ert-test &key instance timeout) : macro
-      This macro marks the current test as a Turtles test. It connects
-      to a secondary Emacs instance, starts it if necessary, then runs
-      everything below ``(turtles-ert-test)`` in that secondary
-      instance.
+(turtles-ert-deftest name (&key instance timeout) body) : macro
+
+      This macro define an ERT test with the given name that runs its
+      content inside of a secondary Emacs instance. 
 
       The ID of the instance to connect can be passed to the key
       argument :instance. That ID defaults to ``default``, an
       instance with a 80x24 terminal. (:ref:`instances`)
 
-      Passing a :timeout value, in seconds, tells Turtles how long to
-      wait for an answer from the secondary instance. Increase this
-      value if you're getting timeout errors.
+      A :timeout value, in seconds, can be passed to tell Turtles how
+      long to wait for an answer from the secondary instance. Increase
+      this value if you're getting timeout errors.
+
+      The body of the macro is just like the body of a
+      ``ert-deftest``, that is, it can contain:
+
+      - an optional docstring
+      - :tags and :expected-result key arguments
+      - the test body possibly containing calls to (should), (should-not),
+        (skip-when) or (skip-unless), defined by ``ert-deftest``.
 
 (turtles-this-instance) : function
       When run in a secondary Emacs instance, this function returns
@@ -71,8 +78,7 @@ grabbed and fully-processed: ``turtles-with-grab-buffer`` and
 ``turtles-to-string``, described below.
 
 All functions that grab the terminal frame must be called from within
-a secondary instance, that is, below ``(turtles-ert-test)`` in an ERT
-test.
+a secondary instance, that is, inside a ``(turtles-ert-deftest)``.
 
 When grabbing the terminal frame, the content of the current buffer is
 replaced with a copy of the terminal data, with the point set at the
@@ -272,8 +278,12 @@ Minibuffer
 (turtles-with-minibuffer READ &rest BODY) : macro
     This macro tests minibuffer or recursive-edit interactions.
     It is meant to be called from within a secondary instance,
-    that is, after below ``(turtles-ert-test)`` in an ERT
-    test.
+    that is, inside of a ``(turtles-ert-deftest)``.
+
+    The first sexp within that macro, the READ section, calls a
+    function that opens the minibuffer or a recursive-edit and waits
+    for user interactions. When this function returns, the macro ends
+    and returns whatever READ evaluates to.
 
     The first sexp within that macro, the READ section, calls a
     function that opens the minibuffer or a recursive-edit and waits

@@ -466,11 +466,11 @@ or nil.
 If specified, PREDICATE must be a function that takes a single
 argument of type `turtles-instance'."
   (let ((completion-extra-properties
-         '(:annotation-function
-           (lambda (id-as-str)
-             (when-let* ((inst (turtles-get-instance (intern id-as-str)))
-                         (doc (turtles-instance-shortdoc inst)))
-               (concat " " doc)))))
+         `(:annotation-function
+           ,(lambda (id-as-str)
+              (when-let* ((inst (turtles-get-instance (intern id-as-str)))
+                          (doc (turtles-instance-shortdoc inst)))
+                (concat " " doc)))))
         (predicate (if predicate
                        (lambda (cell)
                          (funcall predicate (cdr cell)))
@@ -707,7 +707,7 @@ SRC and DEST can be a string or a buffer."
 It's up to the caller to make sure that Emacs enters its main
 loop again to process the keys."
   (unless (turtles-upstream)
-    (error "Not in a Turtles instance. Did you forget to add (turtles-ert-test)?"))
+    (error "Not in a Turtles instance. Did you forget to use (turtles-ert-deftest)?"))
   (when-let ((pending (mapcar
                        (lambda (key)
                          (make-vector 1 key))

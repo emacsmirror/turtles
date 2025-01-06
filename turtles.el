@@ -4,7 +4,7 @@
 
 ;; Author: Stephane Zermatten <szermatt@gmx.net>
 ;; Maintainer: Stephane Zermatten <szermatt@gmail.com>
-;; Version: 1.0.1snapshot
+;; Version: 2.0.0snapshot
 ;; Package-Requires: ((emacs "26.1") (compat "30.0.1.0"))
 ;; Keywords: testing, unix
 ;; URL: http://github.com/szermatt/turtles
@@ -99,16 +99,32 @@ instance and discarded afterwards.
 This is a hash map whose key is a (cons instance-id file-name)
 and whose value is always t.")
 
+(defvar turtles--ert-setup-done nil
+  "Non-nil if ERT integration setup was done.")
+
+(defun turtles-ert-setup ()
+  "Setup ERT integration (upstream only).
+
+This isn't run inside instances."
+  (unless (or turtles--ert-setup-done (turtles-this-instance))
+    (advice-add 'ert-run-test :around #'turtles--around-ert-run-test)
+    (advice-add 'ert-run-tests :around #'turtles--around-ert-run-tests)
+    (advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)))
+
+(defun turtles-ert-teardown ()
+  "Tear Down ERT integration."
+  (when turtles--ert-setup-done
+    (advice-add 'ert-run-test :around #'turtles--around-ert-run-test)
+    (advice-add 'ert-run-tests :around #'turtles--around-ert-run-tests)
+    (advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)
+    (setq turtles--ert-setup-done nil)))
+
 (defun turtles-display-buffer-full-frame (buf)
   "Display BUF in the frame root window.
 
 This is similar to Emacs 29's `display-buffer-full-frame', but
 rougher and available in Emacs 26."
   (set-window-buffer (frame-root-window) buf))
-
-(advice-add 'ert-run-test :around #'turtles--around-ert-run-test)
-(advice-add 'ert-run-tests :around #'turtles--around-ert-run-tests)
-(advice-add 'pop-to-buffer :around #'turtles--around-pop-to-buffer)
 
 (defun turtles-grab-frame (&optional win grab-faces)
   "Grab a snapshot current frame into the current buffer.
@@ -529,21 +545,67 @@ in the whole buffer and any newlines at the end of the buffer."
   (while (eq ?\n (char-before (point-max)))
     (delete-region (1- (point-max)) (point-max))))
 
-(cl-defmacro turtles-ert-test (&key instance timeout)
-  "Run the current test in another Emacs instance.
+(cl-defmacro turtles-ert-deftest
+    (name (&key instance timeout) &body body)
+  "Define an ERT test to run on a secondary Emacs instance.
 
-INSTANCE is the instance to start, the instance \\='default is used
-if none is specified.
+This macro is the Turtles equivalent of `ert-deftest'. It is a full drop-in
+replacement for `ert-deftest' with the following differences:
 
-TIMEOUT is the time after which the server should give up waiting
-for an answer from the instance."
-  `(turtles--ert-test ,instance ,(macroexp-file-name) ,timeout))
+- The test is run in a secondary Emacs instance
+- It supports additional, optional key arguments within parentheses
+  after the name: INSTANCE and TIMEOUT.
+
+NAME is the name of the ERT test.
+
+:instance INSTANCE is the name of a Turtles instance previously defined with
+`turtles-definstance'. It defaults to the instance \\='default.
+
+:timeout TIMEOUT is the time, in seconds, that Turtles should wait for
+the secondary instance to return a result before giving up. Increase
+this value if your test is slow.
+
+BODY, the rest, is interpreted by `ert-deftest', which see. It contains
+an optional docstring, followed by :tags or :expect key arguments, then
+the body, possibly containing special forms `should', `should-not',
+`skip-when' or `skip-unless', as defined by `ert-deftest'."
+  (declare (debug (&define [&name "test@" symbolp]
+			   sexp [&optional stringp]
+			   [&rest keywordp sexp] def-body))
+           (doc-string 3)
+           (indent 2))
+  (let ((fname-var (make-symbol "fname")))
+  `(let ((,fname-var (macroexp-file-name)))
+     (turtles-ert-setup)
+     ,(append
+       `(ert-deftest ,name ())
+       (car (turtles--ert-test-body-split body))
+       `((turtles--ert-test ,instance ,fname-var ,timeout))
+       (cdr (turtles--ert-test-body-split body))))))
+
+(defun turtles--ert-test-body-split (body)
+  "Split BODY into header and body.
+
+BODY should be the body of an `ert-deftest'. The return header contains
+the docstring and key arguments.
+
+The result is a (cons HEADER REST)"
+  (let ((header nil)
+        (rest body))
+    (when (stringp (car rest))
+      (push (pop rest) header))
+    (while (let ((maybe-sym (car rest)))
+             (and (symbolp maybe-sym)
+                  (string-prefix-p ":" (symbol-name maybe-sym))))
+      (push (pop rest) header)
+      (push (pop rest) header))
+    (cons (nreverse header) rest)))
 
 (defun turtles--ert-test (inst-id file-name timeout)
   "Run the current test in another Emacs instance.
 
-This function implements `turtles-ert-test'. Always call the
-macro and not this function.
+This function is what turns an `ert-deftest' into a
+`turtles-ert-deftest'.
 
 INST-ID is the instance to start up. It default to \\='default.
 
@@ -557,18 +619,11 @@ just won't do."
            (test-sym (when test (ert-test-name test)))
            (inst-id (or inst-id 'default))
            (inst (turtles-get-instance inst-id)))
-      (unless test
-        (error "Not in an ERT test. Call (turtles-ert-test) from inside a test"))
+      (unless test (error "Not in an ERT test"))
       (cl-assert test-sym)
 
       (unless inst
         (error "No turtles instance defined with ID %s" inst-id))
-
-      ;; Last ditch attempt at getting back the file name, if it was
-      ;; lost. This only works starting with Emacs 29.1.
-      (when (eval-when-compile (>= emacs-major-version 29))
-        (unless file-name
-          (setq file-name (ert-test-file-name test))))
 
       (turtles-start-instance inst)
       (let ((timeout (or timeout 10.0))
@@ -669,7 +724,7 @@ This function is meant to be used as around advice for
 (defun turtles--around-ert-run-test (func test &rest args)
   "Collect test results sent by another Emacs instance.
 
-This function takes results set up by `turtles-ert-test' and puts
+This function takes results set up by `turtles--ert-test' and puts
 them into the local `ert-test' instance.
 
 This function is meant to be used as around advice for
@@ -684,7 +739,7 @@ need to be forwarded to FUNC."
 (defun turtles--around-ert-run-tests (func &rest args)
   "Collect test results sent by another Emacs instance.
 
-This function takes results set up by `turtles-ert-test' and puts
+This function takes results set up by `turtles--ert-test' and puts
 them into the local `ert-test' instance.
 
 This function is meant to be used as around advice for
@@ -917,9 +972,10 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
 `turtles--split-with-minibuffer-body'."
   (let ((mb-result nil)
         (has-mb-result nil)
-        (timer nil))
+        (timer nil)
+        (returned-too-early nil))
     (when noninteractive
-      (error "Cannot work in noninteractive mode. Did you forget to add (turtles-ert-test)?"))
+      (error "Cannot work in noninteractive mode. Did you forget to use (turtles-ert-deftest)?"))
     (run-with-timer
      0 nil
      (lambda ()
@@ -928,16 +984,18 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
     (run-with-timer
      0 nil
      (lambda ()
-       (when has-mb-result
-         (error "READ section of turtles-with-minibuffer returned too early"))
-       (turtles--run-once-input-processed
-        (lambda (newtimer)
-          (setq timer newtimer))
-        bodyfunclist)))
+       (if has-mb-result
+           (setq returned-too-early t)
+         (turtles--run-once-input-processed
+          (lambda (newtimer)
+            (setq timer newtimer))
+          bodyfunclist))))
     (while (not has-mb-result)
       (sleep-for 0.01))
     (when timer
       (cancel-timer timer))
+    (when returned-too-early
+      (error "READ section of turtles-with-minibuffer returned too early"))
     mb-result))
 
 (defun turtles--with-minibuffer-body-end ()
@@ -1061,19 +1119,29 @@ itself."
      ((length= actions 1)
       (apply (car actions) :display inst buffer-name pop-to-buffer-args))
      (t
-      (let* ((action-alist (mapcar (lambda (func)
-                                     (cons (or (car (split-string (documentation func) "\n"))
-                                               (when (symbolp func) (symbol-name func))
-                                               "Anonymous action")
-                                           func))
+      (let* ((action-alist (mapcar (let ((counter 0))
+                                     (lambda (func)
+                                       (cons
+                                        (if (symbolp func)
+                                            (string-remove-prefix
+                                             "turtles-pop-to-buffer-" (symbol-name func))
+                                          (format "lambda-%d" (cl-incf counter)))
+                                        func)))
                                    actions))
+             (completion-extra-properties
+              `(:annotation-function
+                ,(lambda (key)
+                   (let ((func (alist-get key action-alist nil nil #'string=)))
+                     (when-let ((shortdoc (car (split-string (documentation func) "\n"))))
+                       (concat " " shortdoc))))))
              (action
-             (completing-read
-              "Display buffer: "
-              action-alist nil 'require-match nil 'pop-to-buffer-action-history)))
+              (alist-get
+               (completing-read
+                "Display buffer: "
+                action-alist nil 'require-match nil 'pop-to-buffer-action-history)
+               action-alist nil nil #'string=)))
         (when action
-          (apply (alist-get action action-alist nil nil #'string=)
-                 :display inst buffer-name pop-to-buffer-args)))))))
+          (apply action :display inst buffer-name pop-to-buffer-args)))))))
 
 (defun turtles-pop-to-buffer-embedded (action inst buffer-name &rest pop-to-buffer-args)
   "Display buffer in the terminal buffer.

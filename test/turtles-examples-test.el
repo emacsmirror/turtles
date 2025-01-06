@@ -25,11 +25,8 @@
 (require 'turtles)
 
 ;; Snippet shown in README.md
-(ert-deftest turtles-examples-hello-world ()
-   ;; Start a secondary Emacs instance
-  (turtles-ert-test)
-
-  ;; From this point, everything runs in the secondary instance.
+(turtles-ert-deftest turtles-examples-hello-world ()
+  ;; This test runs in the secondary instance.
   (ert-with-test-buffer ()
     (insert "hello, ") ; Fill in the buffer
     (insert (propertize "the " 'invisible t))
@@ -39,9 +36,7 @@
       (should (equal "hello, world!"
                      (buffer-string))))))
 
-(ert-deftest turtles-examples-test-hideshow ()
-  (turtles-ert-test)
-
+(turtles-ert-deftest turtles-examples-test-hideshow ()
   (ert-with-test-buffer ()
     (insert "(defun test-1 ()\n")
     (insert " (message \"test, the first\"))\n")
@@ -73,9 +68,7 @@
                       "(defun test-3 ()...)")
                      (buffer-string))))))
 
-(ert-deftest turtles-examples-test-completing-read ()
-  (turtles-ert-test)
-
+(turtles-ert-deftest turtles-examples-test-completing-read ()
   (ert-with-test-buffer ()
     (let ((completing-read-function #'completing-read-default))
       (turtles-with-minibuffer
@@ -93,9 +86,7 @@
 
         (execute-kbd-macro "B")))))
 
-(ert-deftest turtles-examples-test-isearch ()
-  (turtles-ert-test)
-
+(turtles-ert-deftest turtles-examples-test-isearch ()
   (ert-with-test-buffer ()
     (let ((testbuf (current-buffer)))
       (select-window (display-buffer testbuf))
