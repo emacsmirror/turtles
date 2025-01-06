@@ -549,9 +549,10 @@ Turtles runs ERT tests is a secondary Emacs instance, which is started
 and piloted by Turtles. This is what allows everything else in this
 section to work.
 
-(turtles-ert-deftest name (&key instance timeout) body) : macro
 
-@quotation
+@table @asis
+
+@item (turtles-ert-deftest name (&key instance timeout) body) : macro
 
 This macro define an ERT test with the given name that runs its
 content inside of a secondary Emacs instance.
@@ -580,10 +581,6 @@ an optional docstring
 the test body possibly containing calls to (should), (should-not),
 (skip-when) or (skip-unless), defined by @code{ert-deftest}.
 @end itemize
-@end quotation
-
-
-@table @asis
 
 @item (turtles-this-instance) : function
 

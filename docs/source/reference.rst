@@ -18,7 +18,6 @@ and piloted by Turtles. This is what allows everything else in this
 section to work.
 
 (turtles-ert-deftest name (&key instance timeout) body) : macro
-
       This macro define an ERT test with the given name that runs its
       content inside of a secondary Emacs instance. 
 
