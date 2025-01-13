@@ -2,6 +2,8 @@
 
 [![test](https://github.com/szermatt/turtles/workflows/test/badge.svg)](https://github.com/szermatt/turtles/actions)
 [![Documentation Status](https://readthedocs.org/projects/turtles/badge/?version=latest)](https://turtles.readthedocs.io/en/latest/?badge=latest)
+[![MELPA stable](https://stable.melpa.org/packages/turtles-badge.svg)](https://stable.melpa.org/#/turtles)
+[![MELPA](https://melpa.org/packages/turtles-badge.svg)](https://melpa.org/#/turtles)
 
 This package help write ERT-based tests to that check how Emacs
 renders buffers and windows. The ERT tests can be run interactively or
