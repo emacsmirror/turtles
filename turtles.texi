@@ -181,7 +181,7 @@ using eldev@footnote{https://github.com/emacs-eldev/eldev} to run tests in batch
 
 @example
 (eldev-add-extra-dependencies 'test 'turtles)
-(eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "1.0.0")
+(eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "2.0.0")
 @end example
 @end itemize
 

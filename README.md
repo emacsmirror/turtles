@@ -51,7 +51,7 @@ Install Turtles:
   ```elisp
 
     (eldev-add-extra-dependencies 'test 'turtles)
-    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "1.0.0")
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "2.0.0")
   ```
 
 - from [MELPA](https://melpa.org/#/getting-started), by typing `M-x
