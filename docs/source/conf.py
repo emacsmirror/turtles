@@ -6,8 +6,8 @@ project = 'turtles'
 copyright = '2024, 2025, Stephane Zermatten'
 author = 'Stephane Zermatten'
 
-release = '2.0.0snapshot'
-version = '2.0.0snapshot'
+release = '2.0.0'
+version = '2.0.0'
 
 # -- General configuration
 
