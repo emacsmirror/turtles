@@ -165,6 +165,14 @@ from source, using an alternative package managers, such as straight@footnote{ht
 @end example
 
 @item 
+from MELPA@footnote{https://melpa.org/#/getting-started}, by typing @cite{M-x package-install turtles}.
+
+Note that there’s no practical difference between the stable and
+unstable MELPA package, as development happens on a branch. Both
+stable and unstable include the latest release of the code, unstable
+may contain a more recent version of the .info doc.
+
+@item 
 the old-fashioned way, copying the .el files from into your
 @code{.emacs.d} directory.
 

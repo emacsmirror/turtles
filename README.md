@@ -53,6 +53,11 @@ Install Turtles:
     (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "1.0.0")
   ```
 
+- from [MELPA](https://melpa.org/#/getting-started), by typing `M-x
+  package-install turtles`. Note that there's no practical difference
+  between the stable and unstable melpa package, as development
+  happens on a branch. You'll always get the latest release.
+
 Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
 ## How it works

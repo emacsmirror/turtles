@@ -17,6 +17,14 @@ Install Turtles:
     (use-package turtles
       :straight (:type git :repo "https://github.com/szermatt/turtles.git"))
 
+- from `MELPA <https://melpa.org/#/getting-started>`_, by typing `M-x
+  package-install turtles`.
+
+  Note that there's no practical difference between the stable and
+  unstable MELPA package, as development happens on a branch. Both
+  stable and unstable include the latest release of the code, unstable
+  may contain a more recent version of the .info doc.
+
 - the old-fashioned way, copying the .el files from into your
   :file:`.emacs.d` directory.
 
