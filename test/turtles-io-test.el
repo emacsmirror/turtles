@@ -25,12 +25,12 @@
 (ert-deftest turtles-io-send-message-to-server ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server (turtles-io-server
                           socket
-                          `((ping . ,(lambda (conn id method params)
+                          `((ping . ,(lambda (conn id _method _params)
                                        (turtles-io-send-result conn id "pong"))))))
             (should (turtles-io-server-p server))
             (should (process-live-p (turtles-io-server-proc server)))
@@ -62,13 +62,13 @@
 (ert-deftest turtles-io-send-message-to-client ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server (turtles-io-server socket))
             (should (turtles-io-server-p server))
             (setq client (turtles-io-connect
-                          socket `((ping . ,(lambda (conn id method params)
+                          socket `((ping . ,(lambda (conn id _method _params)
                                               (turtles-io-send-result conn id "pong"))))))
             (turtles-io-wait-until
              (lambda () (turtles-io-server-connections server))
@@ -85,7 +85,7 @@
 (ert-deftest turtles-io-call-unknown-method ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server (turtles-io-server socket))
@@ -102,7 +102,7 @@
 (ert-deftest turtles-io-handle-method ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server
@@ -124,7 +124,7 @@
 (ert-deftest turtles-io-handle-method-with-error ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server
@@ -155,13 +155,13 @@
 
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server
                   (turtles-io-server
                    socket
-                   `((inc . ,(lambda (conn id _method index)
+                   `((inc . ,(lambda (conn id _method _index)
                                (turtles-io-handle-method (conn id)
                                  (signal 'fake-error "foobar")))))))
 
@@ -181,13 +181,13 @@
 (ert-deftest turtles-io-handle-method-with-error-not-a-symbol ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server
                   (turtles-io-server
                    socket
-                   `((inc . ,(lambda (conn id method _params)
+                   `((inc . ,(lambda (conn id _method _params)
                                (turtles-io-send-error conn id '("error string" 3)))))))
 
             (setq client (turtles-io-connect socket))
@@ -207,7 +207,7 @@
 (ert-deftest turtles-io-method-return-nil ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server
@@ -229,7 +229,7 @@
 (ert-deftest turtles-io-method-return-unreadable ()
   (ert-with-temp-directory dir
     (let ((socket (expand-file-name "socket" dir))
-          server client collected-responses)
+          server client)
       (unwind-protect
           (progn
             (setq server
@@ -335,8 +335,7 @@
                      (turtles-io--print-msg-to-string
                       `(:id 12 :result (1 2 ,(copy-marker 3 t) 3))))))
 
-    (should (equal (format "(:id 12 :result (1 2 (turtles-marker) 3))"
-                           (prin1-to-string (buffer-name)))
+    (should (equal "(:id 12 :result (1 2 (turtles-marker) 3))"
                    (turtles-io--print-msg-to-string
                     `(:id 12 :result (1 2 ,(make-marker) 3)))))
 

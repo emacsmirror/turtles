@@ -731,10 +731,10 @@
     (should (equal 1 2))))
 
 (ert-deftest turtles-recreate-buttons ()
-  (define-button-type 'turtles-test-button 'action (lambda (button) (message "click")))
+  (define-button-type 'turtles-test-button 'action (lambda (_button)
+                                                     (message "click")))
 
-  (let* ((press-count 0)
-         (button-text (with-temp-buffer
+  (let* ((button-text (with-temp-buffer
                         (insert "foobar")
                         (make-text-button 1 5 :type 'turtles-test-button)
                         (buffer-string)))
@@ -995,8 +995,8 @@
               (turtles-pop-to-buffer-other-frame :check nil nil))))
 
 (turtles-ert-deftest turtles-pop-to-buffer-interactive ()
-  (let ((inst (turtles-start-instance 'default))
-        (buf (turtles-instance-eval
+  (turtles-start-instance 'default)
+  (let ((buf (turtles-instance-eval
               'default
               '(with-current-buffer
                    (generate-new-buffer "*pop-to-buffer-test*")
@@ -1032,8 +1032,8 @@
       (kill-buffer (current-buffer)))))
 
 (turtles-ert-deftest turtles-pop-to-buffer-interactive-lambdas ()
-  (let* ((inst (turtles-start-instance 'default))
-         (buf (turtles-instance-eval
+  (turtles-start-instance 'default)
+  (let* ((buf (turtles-instance-eval
                'default
                '(with-current-buffer
                     (generate-new-buffer "*pop-to-buffer-test*")
