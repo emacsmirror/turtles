@@ -531,13 +531,29 @@ test."
                             (turtles--handle-ert-test
                              setup-func initial-frame conn id method params))))
            (exit . turtles--handle-exit))))
+  (set-process-sentinel (turtles-io-conn-proc turtles--upstream)
+                        #'turtles--client-sentinel)
   (turtles-io-notify turtles--upstream 'register instance-id))
+
+(defun turtles--client-sentinel (_proc event)
+  "Kill Emacs if EVENT reports an issue with network connection _PROC."
+  (unless (or (string-prefix-p "open" event)
+              (string= "run\n" event))
+    (turtles--kill-emacs)))
 
 (defun turtles--handle-exit (_conn _id _method _params)
   "Handle the server method \\='exit.
 
 This method never returns and sends nothing back to the caller."
-  (kill-emacs nil))
+  (turtles--kill-emacs))
+
+(defun turtles--kill-emacs ()
+  "Kill emacs unconditionally."
+  (let ((kill-emacs-hook nil)
+        (confirm-kill-processes nil)
+        (confirm-kill-emacs nil)
+        (kill-emacs-query-functions nil))
+    (kill-emacs nil)))
 
 (defun turtles--handle-eval (conn id _method expr)
   "Evaluate EXPR.
