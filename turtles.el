@@ -1000,7 +1000,7 @@ to return."
                           (lambda (newtimer)
                             (setq body-timer newtimer))
                           bodyfunclist))))
-                (sit-for timeout)
+                (sleep-for timeout)
                 (error "Timed out"))
             (`(read . ,result)
              ;; The read section has ended. The body might not have
@@ -1021,7 +1021,7 @@ to return."
                (signal (car err) (cdr err)))
              (pcase
                  (catch 'turtles-with-minibuffer-return
-                   (sit-for 0)
+                   (sleep-for 0)
                    (error "Timed out waiting for READ section"))
                (`(read . ,result) result)))
             (other
