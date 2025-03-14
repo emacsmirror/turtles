@@ -530,9 +530,10 @@ test."
                           (lambda (conn id method params)
                             (turtles--handle-ert-test
                              setup-func initial-frame conn id method params))))
-           (exit . turtles--handle-exit))))
+           (prepare-for-exit . turtles--prepare-for-exit))))
   (set-process-sentinel (turtles-io-conn-proc turtles--upstream)
                         #'turtles--client-sentinel)
+  (define-key special-event-map (kbd "<sighup>") #'turtles--kill-emacs)
   (turtles-io-notify turtles--upstream 'register instance-id))
 
 (defun turtles--client-sentinel (_proc event)
@@ -541,11 +542,12 @@ test."
               (string= "run\n" event))
     (turtles--kill-emacs)))
 
-(defun turtles--handle-exit (_conn _id _method _params)
-  "Handle the server method \\='exit.
+(defun turtles--prepare-for-exit (_conn _id _method _params)
+  "Handle the server method \\='prepare-for-exit.
 
 This method never returns and sends nothing back to the caller."
-  (turtles--kill-emacs))
+  (setq turtles-send-messages-upstream nil)
+  (setq turtles--upstream nil))
 
 (defun turtles--kill-emacs ()
   "Kill emacs unconditionally."
@@ -606,7 +608,8 @@ the current instance then send it upstream."
              turtles-send-messages-upstream
              (turtles-upstream)
              ;; Don't send message recursively
-             (not (> turtles--sending-messages-up 0)))
+             (not (> turtles--sending-messages-up 0))
+             (turtles-io-conn-live-p (turtles-upstream)))
     (turtles--with-incremented-var turtles--sending-messages-up
       (turtles-io-notify (turtles-upstream) 'message
                          (concat (format "[%s] " (turtles-this-instance))
