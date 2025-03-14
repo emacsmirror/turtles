@@ -549,8 +549,7 @@ This method never returns and sends nothing back to the caller."
 
 (defun turtles--kill-emacs ()
   "Kill emacs unconditionally."
-  (let ((kill-emacs-hook nil)
-        (confirm-kill-processes nil)
+  (let ((confirm-kill-processes nil)
         (confirm-kill-emacs nil)
         (kill-emacs-query-functions nil))
     (kill-emacs nil)))
