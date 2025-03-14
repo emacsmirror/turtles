@@ -987,8 +987,13 @@ to return."
                       (run-with-timer
                        0 nil
                        (lambda ()
-                         (throw 'turtles-with-minibuffer-return
-                                (cons 'read (funcall readfunc))))))
+                         (let ((result (list 'read nil nil)))
+                           (if (>= emacs-major-version 30)
+                               (condition-case-unless-debug err
+                                   (setf (nth 1 result) (funcall readfunc))
+                                 (t (setf (nth 2 result) err)))
+                             (setf (nth 1 result) (funcall readfunc)))
+                         (throw 'turtles-with-minibuffer-return result)))))
                 (setq body-timer
                       (run-with-timer
                        0 nil
@@ -1002,9 +1007,11 @@ to return."
                           bodyfunclist))))
                 (sleep-for timeout)
                 (error "Timed out"))
-            (`(read . ,result)
+            (`(read ,result ,err)
              ;; The read section has ended. The body might not have
              ;; run fully.
+             (when err
+               (signal (car err) (cdr err)))
              (unless body-started
                ;; The body didn't have a chance to start. This is very
                ;; suspicious.

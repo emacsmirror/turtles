@@ -1224,6 +1224,11 @@
        (read-from-minibuffer "Prompt: ")
      :keys "ok")))
 
+(turtles-ert-deftest turtles-with-minibuffer-fail-in-read ()
+  :expected-result :failed
+  (turtles-with-minibuffer
+   (should (equal "incorrect" (read-from-minibuffer "Prompt: ")))))
+
 (turtles-ert-deftest turtles-term-truecolor ()
   (skip-unless (>= emacs-major-version 29))
   ;; Truecolor in term.el became available in Emacs 29.1. Before that,
