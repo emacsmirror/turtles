@@ -963,40 +963,69 @@ Return whatever READ eventually evaluates to."
     (lambda () ,read)
     ,(turtles--split-with-minibuffer-body body)))
 
-(defun turtles--with-minibuffer-internal (readfunc bodyfunclist)
+(defun turtles--with-minibuffer-internal (readfunc bodyfunclist &optional timeout)
   "Implementation of `turtles-with-minibuffer'.
 
 READFUNC is a function created from the READ argument of the macro.
 
 BODYFUNCLIST is created from the BODY argument of the macro, by
-`turtles--split-with-minibuffer-body'."
-  (let ((mb-result nil)
-        (has-mb-result nil)
-        (timer nil)
-        (returned-too-early nil))
-    (when noninteractive
-      (error "Cannot work in noninteractive mode. Did you forget to use (turtles-ert-deftest)?"))
-    (run-with-timer
-     0 nil
-     (lambda ()
-       (setq mb-result (funcall readfunc))
-       (setq has-mb-result t)))
-    (run-with-timer
-     0 nil
-     (lambda ()
-       (if has-mb-result
-           (setq returned-too-early t)
-         (turtles--run-once-input-processed
-          (lambda (newtimer)
-            (setq timer newtimer))
-          bodyfunclist))))
-    (while (not has-mb-result)
-      (sleep-for 0.01))
-    (when timer
-      (cancel-timer timer))
-    (when returned-too-early
-      (error "READ section of turtles-with-minibuffer returned too early"))
-    mb-result))
+`turtles--split-with-minibuffer-body'.
+
+TIMEOUT specifies how long to wait for both the BODY and READ sections
+to return."
+  (when noninteractive
+    (error "Cannot work in noninteractive mode. Did you forget to use (turtles-ert-deftest)?"))
+  (let ((read-timer nil)
+        (body-started nil)
+        (body-timer nil)
+        (timeout (or timeout 30.0)))
+    (unwind-protect
+        (progn
+          (pcase
+              (catch 'turtles-with-minibuffer-return
+                (setq read-timer
+                      (run-with-timer
+                       0 nil
+                       (lambda ()
+                         (throw 'turtles-with-minibuffer-return
+                                (cons 'read (funcall readfunc))))))
+                (setq body-timer
+                      (run-with-timer
+                       0 nil
+                       (lambda ()
+                         (setq body-started t)
+                         (turtles--run-once-input-processed
+                          (lambda (newtimer)
+                            (setq body-timer newtimer))
+                          (append bodyfunclist
+                                  (list (lambda ()
+                                          (throw 'turtles-with-minibuffer-return '(body)))))))))
+                (sit-for timeout)
+                (error "Timed out"))
+            (`(read . ,result)
+             ;; The read section has ended. The body might not have
+             ;; run fully.
+             (unless body-started
+               ;; The body didn't have a chance to start. This is very
+               ;; suspicious.
+               (error "READ section returned too early (result: %s)" result))
+             result)
+            (`(body)
+             ;; The body section has ended. Force quit the minibuffer,
+             ;; if necessary, then check for the read section; it
+             ;; should return immediately.
+             (turtles--with-minibuffer-body-end)
+             (pcase
+                 (catch 'turtles-with-minibuffer-return
+                   (sit-for 0)
+                   (error "Timed out waiting for READ section"))
+               (`(read . ,result) result)))
+            (other
+             (error "Caught unexpected value: %s" other))))
+      (when read-timer
+        (cancel-timer read-timer))
+      (when body-timer
+        (cancel-timer body-timer)))))
 
 (defun turtles--with-minibuffer-body-end ()
   "The end of the body of `turtles--with-minibuffer'.
