@@ -126,7 +126,8 @@ instance.")
   (height 24 :read-only t :documentation "Terminal height, in characters.")
   (forward nil :documentation "List of variables to copy at instance launc")
   (setup nil :read-only t :documentation "Expression to execute before every test.")
-  (term-buf nil :documentation "Buffer running this instance, if live."))
+  (term-buf nil :documentation "Buffer running this instance, if live.")
+  (term-proc nil :documentation "Emacs subprocess, tied to term-buf."))
 
 (defun turtles-get-instance (id)
   "Get an instance from its ID.
@@ -144,13 +145,6 @@ either an instance or an instance id."
 Return nil if there is no documentation."
   (when-let ((doc (turtles-instance-doc inst-or-id)))
       (car (string-split doc"\n"))))
-
-(defsubst turtles-instance-term-proc (inst)
-  "Return the process running in the term window of INST.
-
-This is the Emacs subprocess."
-  (when-let ((b (turtles-instance-term-buf inst)))
-    (get-buffer-process b)))
 
 (defun turtles-instance-live-p (inst)
   "Return non-nil if INST is a live instance."
@@ -405,8 +399,9 @@ Does nothing if the instance is already running."
             ;; supports 24bit colors.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
           (turtles--term-exec cmdline))
-
-        (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
+        (let ((proc (get-buffer-process (current-buffer))))
+          (setf (turtles-instance-term-proc inst) proc)
+          (set-process-query-on-exit-flag proc nil))
         (turtles-io-wait-until
          (lambda () (turtles-instance-conn inst))
          (lambda () (concat
@@ -447,13 +442,16 @@ Does nothing if the instance is already running."
         (when (process-live-p p)
           (delete-process p)))
       (setf (turtles-instance-conn inst) nil))
+    (when-let ((p (turtles-instance-term-proc inst)))
+      (when (process-live-p p)
+        (delete-process p))
+      (setf (turtles-instance-term-proc inst) nil))
     (when-let ((b (turtles-instance-term-buf inst)))
       (when (buffer-live-p b)
-        (when-let ((p (get-buffer-process b)))
-          (when (process-live-p p)
-            (delete-process p)))
         (let ((kill-buffer-query-functions nil))
-          (kill-buffer b))))
+          (kill-buffer b)))
+      (setf (turtles-instance-term-buf inst) nil))
+
     inst))
 
 (defun turtles-read-instance (&optional prompt predicate)
