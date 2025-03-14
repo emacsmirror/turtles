@@ -419,3 +419,26 @@
    (equal
     '(turtles-obj :type xwidget)
     (turtles-io--parse-unreadable "#<killed xwidget>"))))
+
+(ert-deftest turtles-io-timeout-to-end-time ()
+  (cl-letf (((symbol-function 'current-time)
+             (lambda ()
+               ;; 2025-03-14T21:34:22+0000
+               '(26580 41182 758839 0))))
+    (should (equal
+             "2025-03-14T21:34:52+0000"
+             (format-time-string
+              "%FT%T%z" (turtles-io--timeout-to-end-time 30.0) t)))
+    (should (equal
+             '(26500 41182 758839 0)
+             (turtles-io--timeout-to-end-time
+              '(absolute . (26500 41182 758839 0)))))))
+
+(ert-deftest turtles-io--remaining-seconds ()
+  (cl-letf* ((test-time '(26580 41182 758839 0))
+             ((symbol-function 'current-time)
+             (lambda () test-time)))
+    (should (equal 30.0 (turtles-io--remaining-seconds
+                         (time-add test-time 30.0))))
+    (should (equal -30.0 (turtles-io--remaining-seconds
+                          (time-subtract test-time 30.0))))))

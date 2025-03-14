@@ -620,17 +620,34 @@ If PROC is non nil, tell Emacs to only accept output from that
 process while waiting. This can dramatically speed up operations
 when waiting results from a specific process.
 
+TIMEOUT may be either a relative timeout in seconds, as a number, or an
+absolute time limit as a cons \\='(absolute time), with time a time
+value as returned by `current-time'.
+
 On timeout, sends a signal of type `turtles-io-timeout'"
-  (let ((start (current-time)) remaining)
+  (let ((end-time (turtles-io--timeout-to-end-time timeout)))
     (while (not (funcall predicate))
-      (setq remaining (- timeout
-                         (time-to-seconds
-                          (time-subtract (current-time) start))))
-      (unless (> remaining 0)
-        (signal 'turtles-io-timeout (funcall on-timeout)))
-      (when (and max-wait-time (> remaining max-wait-time))
-        (setq remaining max-wait-time))
-      (accept-process-output proc remaining))))
+      (let ((remaining (turtles-io--remaining-seconds end-time)))
+        (unless (> remaining 0)
+          (signal 'turtles-io-timeout (funcall on-timeout)))
+        (when (and max-wait-time (> remaining max-wait-time))
+          (setq remaining max-wait-time))
+        (accept-process-output proc remaining)))))
+
+(defun turtles-io--timeout-to-end-time (timeout)
+  "Return current time plus TIMEOUT as a time value.
+
+TIMEOUT must be a time in seconds or an absolute time as a (cons
+\\='absolute time) with time a time value as returned by `current-time'."
+  (pcase timeout
+    (`(absolute . ,time) time)
+    (seconds (time-add (current-time) (seconds-to-time seconds)))))
+
+(defun turtles-io--remaining-seconds (end-time)
+  "Return seconds remaining until END-TIME.
+
+END-TIME must be a time value."
+  (time-to-seconds (time-subtract end-time (current-time))))
 
 (provide 'turtles-io)
 
