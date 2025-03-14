@@ -754,19 +754,35 @@ Any timer that's created should be passed to SET-TIMER.
 
 This function waits for `turtles--processing-key-stack' to be
 emptied, runs the head of FUNCLIST, and repeat until FUNCLIST is
-empty."
-  (when funclist
-    (if turtles--processing-key-stack
-        ;; Waiting for a key to finish to be process, it seems that an
-        ;; idle timer would be more appropriate. However, an idle
-        ;; timer can be interrupted or escape the sit-for in
-        ;; turtles-read-from-minibuffer, so we use here a timer and
-        ;; what is basically a busy loop.
-        (funcall set-timer
-                 (run-with-timer 0 nil #'turtles--run-once-input-processed
-                                 set-timer funclist))
-      (funcall (car funclist))
-      (turtles--run-once-input-processed set-timer (cdr funclist)))))
+empty.
+
+Throws \\='turtles-with-minibuffer-return when done, with value (cons
+\\='body err). If non-nil, err is the kind of error captured by
+`condition-case'."
+  (cond
+   ;; We're done
+   ((null funclist)
+    (throw 'turtles-with-minibuffer-return '(body)))
+
+   ;; Waiting for a key to finish to be process, it seems that an
+   ;; idle timer would be more appropriate. However, an idle
+   ;; timer can be interrupted or escape the sit-for in
+   ;; turtles-read-from-minibuffer, so we use here a timer and
+   ;; what is basically a busy loop.
+   (turtles--processing-key-stack
+    (funcall set-timer
+             (run-with-timer 0 nil #'turtles--run-once-input-processed
+                             set-timer funclist)))
+   (t
+    (if (>= emacs-major-version 30)
+        ;; Emacs 30 swallows errors. Intercept them and throw them.
+        (condition-case-unless-debug err
+            (funcall (car funclist))
+          (t (throw 'turtles-with-minibuffer-return
+                    (cons 'body err))))
+      ;; Emacs 29 and earlier forward errors.
+      (funcall (car funclist)))
+    (turtles--run-once-input-processed set-timer (cdr funclist)))))
 
 (provide 'turtles-instance)
 

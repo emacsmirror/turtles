@@ -994,12 +994,12 @@ to return."
                        0 nil
                        (lambda ()
                          (setq body-started t)
+                         ;; throws turtles-with-minibuffer-return
+                         ;; '(body . err) when done.
                          (turtles--run-once-input-processed
                           (lambda (newtimer)
                             (setq body-timer newtimer))
-                          (append bodyfunclist
-                                  (list (lambda ()
-                                          (throw 'turtles-with-minibuffer-return '(body)))))))))
+                          bodyfunclist))))
                 (sit-for timeout)
                 (error "Timed out"))
             (`(read . ,result)
@@ -1010,11 +1010,15 @@ to return."
                ;; suspicious.
                (error "READ section returned too early (result: %s)" result))
              result)
-            (`(body)
-             ;; The body section has ended. Force quit the minibuffer,
-             ;; if necessary, then check for the read section; it
-             ;; should return immediately.
+            (`(body . ,err)
+             ;; Force quit the minibuffer, if necessary, then check
+             ;; for the read section; it should return immediately.
              (turtles--with-minibuffer-body-end)
+
+             ;; Forward errors. Starting with Emacs 30, errors thrown
+             ;; from within the body timer may be swallowed otherwise.
+             (when err
+               (signal (car err) (cdr err)))
              (pcase
                  (catch 'turtles-with-minibuffer-return
                    (sit-for 0)
