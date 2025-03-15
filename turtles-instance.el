@@ -756,13 +756,13 @@ This function waits for `turtles--processing-key-stack' to be
 emptied, runs the head of FUNCLIST, and repeat until FUNCLIST is
 empty.
 
-Throws \\='turtles-with-minibuffer-return when done, with value (cons
+Throws \\='turtles-with-minibuffer-return when done, with value (list
 \\='body err). If non-nil, err is the kind of error captured by
 `condition-case'."
   (cond
    ;; We're done
    ((null funclist)
-    (throw 'turtles-with-minibuffer-return '(body)))
+    (throw 'turtles-with-minibuffer-return '(body nil)))
 
    ;; Waiting for a key to finish to be process, it seems that an
    ;; idle timer would be more appropriate. However, an idle
@@ -779,7 +779,7 @@ Throws \\='turtles-with-minibuffer-return when done, with value (cons
         (condition-case-unless-debug err
             (funcall (car funclist))
           (t (throw 'turtles-with-minibuffer-return
-                    (cons 'body err))))
+                    (list 'body err))))
       ;; Emacs 29 and earlier forward errors.
       (funcall (car funclist)))
     (turtles--run-once-input-processed set-timer (cdr funclist)))))

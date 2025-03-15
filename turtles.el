@@ -999,9 +999,9 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                          (let ((result (list 'read nil nil)))
                            (if (>= emacs-major-version 30)
                                (condition-case-unless-debug err
-                                   (setf (nth 1 result) (funcall readfunc))
-                                 (t (setf (nth 2 result) err)))
-                             (setf (nth 1 result) (funcall readfunc)))
+                                   (setf (nth 2 result) (funcall readfunc))
+                                 (t (setf (nth 1 result) err)))
+                             (setf (nth 2 result) (funcall readfunc)))
                          (throw 'turtles-with-minibuffer-return result)))))
                 (setq body-timer
                       (run-with-timer
@@ -1009,7 +1009,7 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                        (lambda ()
                          (setq body-started t)
                          ;; throws turtles-with-minibuffer-return
-                         ;; '(body . err) when done.
+                         ;; '(body err) when done.
                          (turtles--run-once-input-processed
                           (lambda (newtimer)
                             (setq body-timer newtimer))
@@ -1028,7 +1028,7 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                 (error "Timed out"))
             ('timeout
              (error "Timed out. Likely the BODY section failed to exit the minibuffer"))
-            (`(read ,result ,err)
+            (`(read ,err ,result)
              ;; The read section has ended. The body might not have
              ;; run fully.
              (when err
@@ -1038,7 +1038,7 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                ;; suspicious.
                (error "READ section returned before BODY section could even start (with result: %s)" result))
              result)
-            (`(body . ,err)
+            (`(body ,err)
              ;; Force quit the minibuffer, if necessary, then check
              ;; for the read section; it should return immediately.
              (turtles--with-minibuffer-body-end)
@@ -1053,7 +1053,7 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                    (error "Timed out waiting for READ section"))
                ('timeout
                 (error "Timed out. Likely the BODY section failed to exit the minibuffer"))
-               (`(read ,result ,err)
+               (`(read ,err ,result)
                 (when err
                   (signal (car err) (cdr err)))
                 result)
