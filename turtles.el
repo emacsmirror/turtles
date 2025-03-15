@@ -99,6 +99,12 @@ instance and discarded afterwards.
 This is a hash map whose key is a (cons instance-id file-name)
 and whose value is always t.")
 
+(defvar turtles--ert-test-abs-timeout nil
+  "Absolute timeout value that ends just before the server gives up.
+
+This value should be used as timeout within the test to be sure to end
+in time.")
+
 (defvar turtles--ert-setup-done nil
   "Non-nil if ERT integration setup was done.")
 
@@ -570,8 +576,8 @@ an optional docstring, followed by :tags or :expect key arguments, then
 the body, possibly containing special forms `should', `should-not',
 `skip-when' or `skip-unless', as defined by `ert-deftest'."
   (declare (debug (&define [&name "test@" symbolp]
-			   sexp [&optional stringp]
-			   [&rest keywordp sexp] def-body))
+                           sexp [&optional stringp]
+                           [&rest keywordp sexp] def-body))
            (doc-string 3)
            (indent 2))
   (let ((fname-var (make-symbol "fname")))
@@ -626,9 +632,16 @@ just won't do."
         (error "No turtles instance defined with ID %s" inst-id))
 
       (turtles-start-instance inst)
-      (let ((timeout (or timeout 10.0))
-            (conn (turtles-instance-conn inst))
-            res)
+      (let* ((end-time (turtles-io--timeout-to-end-time (or timeout 10.0)))
+             (early-end-time (time-subtract end-time (seconds-to-time 1.0)))
+             (test-sexpr `(progn
+                            (setq turtles--ert-test-abs-timeout '(absolute . ,early-end-time))
+                            (ert-run-test test)
+                            (ert-test-most-recent-result test)))
+             (conn (turtles-instance-conn inst))
+             res)
+        (when (<= (turtles-io--remaining-seconds early-end-time) 0)
+          (error "Turtles test timeout too short. Must be larger than 1s"))
         (if file-name
             ;; Reload test from file-name. This guarantees that
             ;; everything around that test, such as requires, has also
@@ -642,10 +655,10 @@ just won't do."
                                       (gethash (cons inst-id file-name)
                                                turtles--ert-load-cache))
                            `(load ,file-name nil 'nomessage 'nosuffix))
+
                         (let ((test (ert-get-test (quote ,test-sym))))
-                          (ert-run-test test)
-                          (ert-test-most-recent-result test)))
-                     :timeout timeout))
+                          ,test-sexpr))
+                     :timeout `(absolute . ,end-time)))
               (when turtles--ert-load-cache
                 (puthash (cons inst-id file-name) t turtles--ert-load-cache)))
 
@@ -671,9 +684,8 @@ just won't do."
                     (require 'ert-x)
                     (require 'turtles)
 
-                    (ert-run-test test)
-                    (ert-test-most-recent-result test))
-                 :timeout timeout)))
+                    ,test-sexpr)
+                 :timeout `(absolute . ,end-time))))
 
         (turtles--process-result-from-instance res)
         (setq turtles--ert-result res))
@@ -970,33 +982,89 @@ READFUNC is a function created from the READ argument of the macro.
 
 BODYFUNCLIST is created from the BODY argument of the macro, by
 `turtles--split-with-minibuffer-body'."
-  (let ((mb-result nil)
-        (has-mb-result nil)
-        (timer nil)
-        (returned-too-early nil))
-    (when noninteractive
-      (error "Cannot work in noninteractive mode. Did you forget to use (turtles-ert-deftest)?"))
-    (run-with-timer
-     0 nil
-     (lambda ()
-       (setq mb-result (funcall readfunc))
-       (setq has-mb-result t)))
-    (run-with-timer
-     0 nil
-     (lambda ()
-       (if has-mb-result
-           (setq returned-too-early t)
-         (turtles--run-once-input-processed
-          (lambda (newtimer)
-            (setq timer newtimer))
-          bodyfunclist))))
-    (while (not has-mb-result)
-      (sleep-for 0.01))
-    (when timer
-      (cancel-timer timer))
-    (when returned-too-early
-      (error "READ section of turtles-with-minibuffer returned too early"))
-    mb-result))
+  (when noninteractive
+    (error "Cannot work in noninteractive mode. Did you forget to use (turtles-ert-deftest)?"))
+  (let ((read-timer nil)
+        (body-started nil)
+        (body-timer nil)
+        (timeout-timer nil)
+        (end-time (turtles-io--timeout-to-end-time (or turtles--ert-test-abs-timeout 10.0))))
+    (unwind-protect
+        (progn
+          (pcase
+              (catch 'turtles-with-minibuffer-return
+                (setq read-timer
+                      (run-with-timer
+                       0 nil
+                       (lambda ()
+                         (let ((result (list 'read nil nil)))
+                           (if (>= emacs-major-version 30)
+                               (condition-case-unless-debug err
+                                   (setf (nth 2 result) (funcall readfunc))
+                                 (t (setf (nth 1 result) err)))
+                             (setf (nth 2 result) (funcall readfunc)))
+                           (throw 'turtles-with-minibuffer-return result)))))
+                (setq body-timer
+                      (run-with-timer
+                       0 nil
+                       (lambda ()
+                         (setq body-started t)
+                         ;; May throw turtles-with-minibuffer-return
+                         ;; '(body err) when done, but more often ends
+                         ;; up throwing 'exit to exit the minibuffer.
+                         (turtles--run-once-input-processed
+                          (lambda (newtimer)
+                            (setq body-timer newtimer))
+                          bodyfunclist))))
+
+                ;; We use a timer that throws for timeout, as
+                ;; sleep-for usually just gets stuck on running
+                ;; readfunc.
+                (setq timeout-timer
+                      (run-with-timer
+                       (turtles-io--remaining-seconds end-time) nil
+                       (lambda ()
+                         (throw 'turtles-with-minibuffer-return 'timeout))))
+
+                (sleep-for (max 0.0 (turtles-io--remaining-seconds end-time)))
+                (error "Timed out"))
+
+            ('timeout
+             (error "Timed out. The BODY section failed to exit the minibuffer"))
+
+            ;; The read section ended. The BODY section might not have
+            ;; run fully, but it must have started, since it's what
+            ;; should have made the READ section end.
+            (`(read ,err ,result)
+             ;; Forward errors. Starting with Emacs 30, error thrown
+             ;; from within the read timer may be swallowed.
+             (when err
+               (signal (car err) (cdr err)))
+             (unless body-started
+               (error "READ section ended before BODY section could start (result: %s)" result))
+
+             result)
+
+            ;; The BODY section ended successfully. It's the
+            ;; responsibility of the BODY section to make the READ
+            ;; section exit, so it's wrong for the BODY section to end
+            ;; successfully before the READ section.
+            (`(body nil)
+             (error "BODY section ended without exiting the READ section"))
+
+            ;; The BODY section failed. We forward errors from the BODY
+            ;; section. Starting with Emacs 30, errors thrown from
+            ;; within the body timer may be swallowed otherwise.
+            (`(body ,err)
+             (signal (car err) (cdr err)))
+
+            (other (error "Unexpected value: %s" other))))
+      (when read-timer
+        (cancel-timer read-timer))
+      (when body-timer
+        (cancel-timer body-timer))
+      (when timeout-timer
+        (cancel-timer timeout-timer)))))
 
 (defun turtles--with-minibuffer-body-end ()
   "The end of the body of `turtles--with-minibuffer'.

@@ -126,7 +126,8 @@ instance.")
   (height 24 :read-only t :documentation "Terminal height, in characters.")
   (forward nil :documentation "List of variables to copy at instance launc")
   (setup nil :read-only t :documentation "Expression to execute before every test.")
-  (term-buf nil :documentation "Buffer running this instance, if live."))
+  (term-buf nil :documentation "Buffer running this instance, if live.")
+  (term-proc nil :documentation "Emacs subprocess, tied to term-buf."))
 
 (defun turtles-get-instance (id)
   "Get an instance from its ID.
@@ -144,13 +145,6 @@ either an instance or an instance id."
 Return nil if there is no documentation."
   (when-let ((doc (turtles-instance-doc inst-or-id)))
       (car (string-split doc"\n"))))
-
-(defsubst turtles-instance-term-proc (inst)
-  "Return the process running in the term window of INST.
-
-This is the Emacs subprocess."
-  (when-let ((b (turtles-instance-term-buf inst)))
-    (get-buffer-process b)))
 
 (defun turtles-instance-live-p (inst)
   "Return non-nil if INST is a live instance."
@@ -326,13 +320,13 @@ It returns its result to CONN, identified by ID."
   "Shutdown the server and all its instances."
   (interactive)
   (mapc (lambda (cell)
-          (turtles-stop-instance (cdr cell)))
+          (ignore-errors (turtles-stop-instance (cdr cell))))
         turtles-instance-alist)
 
   (when-let ((s turtles--server))
     (when (and s (turtles-io-server-p s))
     (when-let ((proc (turtles-io-server-proc s)))
-      (delete-process proc))
+      (ignore-errors (delete-process proc)))
     (when-let ((f (turtles-io-server-socket s)))
       (ignore-errors (delete-file f)))
     (setq turtles--server nil))))
@@ -369,6 +363,7 @@ Does nothing if the instance is already running."
                  "Instance to start: "
                  (lambda (inst)
                    (not (turtles-instance-live-p inst))))))
+  (add-hook 'kill-emacs-hook #'turtles-shutdown)
   (let* ((inst (turtles-get-instance inst-or-id)))
     (turtles-start-server)
 
@@ -405,8 +400,9 @@ Does nothing if the instance is already running."
             ;; supports 24bit colors.
             (setq cmdline `("env" "COLORTERM=truecolor" . ,cmdline)))
           (turtles--term-exec cmdline))
-
-        (set-process-query-on-exit-flag (get-buffer-process (current-buffer)) nil)
+        (let ((proc (get-buffer-process (current-buffer))))
+          (setf (turtles-instance-term-proc inst) proc)
+          (set-process-query-on-exit-flag proc nil))
         (turtles-io-wait-until
          (lambda () (turtles-instance-conn inst))
          (lambda () (concat
@@ -441,19 +437,21 @@ Does nothing if the instance is already running."
   (let ((inst (turtles-get-instance inst-or-id)))
     (when-let ((c (turtles-instance-conn inst)))
       (when (turtles-io-conn-live-p c)
-        (turtles-io-notify c 'exit))
-      (while (accept-process-output))
+        (ignore-errors (turtles-io-notify c 'prepare-for-exit)))
       (when-let ((p (turtles-io-conn-proc c)))
         (when (process-live-p p)
-          (delete-process p)))
+          (ignore-errors (delete-process p))))
       (setf (turtles-instance-conn inst) nil))
+    (when-let ((p (turtles-instance-term-proc inst)))
+      (when (process-live-p p)
+        (ignore-errors (delete-process p)))
+      (setf (turtles-instance-term-proc inst) nil))
     (when-let ((b (turtles-instance-term-buf inst)))
       (when (buffer-live-p b)
-        (when-let ((p (get-buffer-process b)))
-          (when (process-live-p p)
-            (delete-process p)))
         (let ((kill-buffer-query-functions nil))
-          (kill-buffer b))))
+          (kill-buffer b)))
+      (setf (turtles-instance-term-buf inst) nil))
+
     inst))
 
 (defun turtles-read-instance (&optional prompt predicate)
@@ -530,14 +528,31 @@ test."
                           (lambda (conn id method params)
                             (turtles--handle-ert-test
                              setup-func initial-frame conn id method params))))
-           (exit . turtles--handle-exit))))
+           (prepare-for-exit . turtles--prepare-for-exit))))
+  (set-process-sentinel (turtles-io-conn-proc turtles--upstream)
+                        #'turtles--client-sentinel)
+  (define-key special-event-map (kbd "<sighup>") #'turtles--kill-emacs)
   (turtles-io-notify turtles--upstream 'register instance-id))
 
-(defun turtles--handle-exit (_conn _id _method _params)
-  "Handle the server method \\='exit.
+(defun turtles--client-sentinel (_proc event)
+  "Kill Emacs if EVENT reports an issue with network connection _PROC."
+  (unless (or (string-prefix-p "open" event)
+              (string= "run\n" event))
+    (turtles--kill-emacs)))
+
+(defun turtles--prepare-for-exit (_conn _id _method _params)
+  "Handle the server method \\='prepare-for-exit.
 
 This method never returns and sends nothing back to the caller."
-  (kill-emacs nil))
+  (setq turtles-send-messages-upstream nil)
+  (setq turtles--upstream nil))
+
+(defun turtles--kill-emacs ()
+  "Kill emacs unconditionally."
+  (let ((confirm-kill-processes nil)
+        (confirm-kill-emacs nil)
+        (kill-emacs-query-functions nil))
+    (kill-emacs nil)))
 
 (defun turtles--handle-eval (conn id _method expr)
   "Evaluate EXPR.
@@ -590,7 +605,8 @@ the current instance then send it upstream."
              turtles-send-messages-upstream
              (turtles-upstream)
              ;; Don't send message recursively
-             (not (> turtles--sending-messages-up 0)))
+             (not (> turtles--sending-messages-up 0))
+             (turtles-io-conn-live-p (turtles-upstream)))
     (turtles--with-incremented-var turtles--sending-messages-up
       (turtles-io-notify (turtles-upstream) 'message
                          (concat (format "[%s] " (turtles-this-instance))
@@ -738,19 +754,35 @@ Any timer that's created should be passed to SET-TIMER.
 
 This function waits for `turtles--processing-key-stack' to be
 emptied, runs the head of FUNCLIST, and repeat until FUNCLIST is
-empty."
-  (when funclist
-    (if turtles--processing-key-stack
-        ;; Waiting for a key to finish to be process, it seems that an
-        ;; idle timer would be more appropriate. However, an idle
-        ;; timer can be interrupted or escape the sit-for in
-        ;; turtles-read-from-minibuffer, so we use here a timer and
-        ;; what is basically a busy loop.
-        (funcall set-timer
-                 (run-with-timer 0 nil #'turtles--run-once-input-processed
-                                 set-timer funclist))
-      (funcall (car funclist))
-      (turtles--run-once-input-processed set-timer (cdr funclist)))))
+empty.
+
+Throws \\='turtles-with-minibuffer-return when done, with value (list
+\\='body err). If non-nil, err is the kind of error captured by
+`condition-case'."
+  (cond
+   ;; We're done
+   ((null funclist)
+    (throw 'turtles-with-minibuffer-return '(body nil)))
+
+   ;; Waiting for a key to finish to be process, it seems that an
+   ;; idle timer would be more appropriate. However, an idle
+   ;; timer can be interrupted or escape the sit-for in
+   ;; turtles-read-from-minibuffer, so we use here a timer and
+   ;; what is basically a busy loop.
+   (turtles--processing-key-stack
+    (funcall set-timer
+             (run-with-timer 0 nil #'turtles--run-once-input-processed
+                             set-timer funclist)))
+   (t
+    (if (>= emacs-major-version 30)
+        ;; Emacs 30 swallows errors. Intercept them and throw them.
+        (condition-case-unless-debug err
+            (funcall (car funclist))
+          (t (throw 'turtles-with-minibuffer-return
+                    (list 'body err))))
+      ;; Emacs 29 and earlier forward errors.
+      (funcall (car funclist)))
+    (turtles--run-once-input-processed set-timer (cdr funclist)))))
 
 (provide 'turtles-instance)
 
