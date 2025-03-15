@@ -24,8 +24,8 @@ or in the info manual that comes with the package.
 
 ## Status
 
-Version 2.0.0 was just released. Please depend on that tag 
-or the branch 2.0.
+Version 2.0.1 is the latest version. Please depend on that tag or the
+branch 2.0.
 
 Since this is a library, versioning matters: This project follows
 [Semantic Versioning 2.0.0](https://semver.org/), that is, versions
@@ -51,7 +51,7 @@ Install Turtles:
   ```elisp
 
     (eldev-add-extra-dependencies 'test 'turtles)
-    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "2.0.0")
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "2.0.1")
   ```
 
 - from [MELPA](https://melpa.org/#/getting-started), by typing `M-x
