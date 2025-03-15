@@ -576,8 +576,8 @@ an optional docstring, followed by :tags or :expect key arguments, then
 the body, possibly containing special forms `should', `should-not',
 `skip-when' or `skip-unless', as defined by `ert-deftest'."
   (declare (debug (&define [&name "test@" symbolp]
-			   sexp [&optional stringp]
-			   [&rest keywordp sexp] def-body))
+                           sexp [&optional stringp]
+                           [&rest keywordp sexp] def-body))
            (doc-string 3)
            (indent 2))
   (let ((fname-var (make-symbol "fname")))
