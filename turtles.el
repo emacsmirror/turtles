@@ -1002,14 +1002,15 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                                    (setf (nth 2 result) (funcall readfunc))
                                  (t (setf (nth 1 result) err)))
                              (setf (nth 2 result) (funcall readfunc)))
-                         (throw 'turtles-with-minibuffer-return result)))))
+                           (throw 'turtles-with-minibuffer-return result)))))
                 (setq body-timer
                       (run-with-timer
                        0 nil
                        (lambda ()
                          (setq body-started t)
-                         ;; throws turtles-with-minibuffer-return
-                         ;; '(body err) when done.
+                         ;; May throw turtles-with-minibuffer-return
+                         ;; '(body err) when done, but more often ends
+                         ;; up throwing 'exit to exit the minibuffer.
                          (turtles--run-once-input-processed
                           (lambda (newtimer)
                             (setq body-timer newtimer))
@@ -1026,38 +1027,36 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
 
                 (sleep-for (max 0.0 (turtles-io--remaining-seconds end-time)))
                 (error "Timed out"))
+
             ('timeout
-             (error "Timed out. Likely the BODY section failed to exit the minibuffer"))
+             (error "Timed out. The BODY section failed to exit the minibuffer"))
+
+            ;; The read section ended. The BODY section might not have
+            ;; run fully, but it must have started, since it's what
+            ;; should have made the READ section end.
             (`(read ,err ,result)
-             ;; The read section has ended. The body might not have
-             ;; run fully.
+             ;; Forward errors. Starting with Emacs 30, error thrown
+             ;; from within the read timer may be swallowed.
              (when err
                (signal (car err) (cdr err)))
              (unless body-started
-               ;; The body didn't have a chance to start. This is very
-               ;; suspicious.
-               (error "READ section returned before BODY section could even start (with result: %s)" result))
-             result)
-            (`(body ,err)
-             ;; Force quit the minibuffer, if necessary, then check
-             ;; for the read section; it should return immediately.
-             (turtles--with-minibuffer-body-end)
+               (error "READ section ended before BODY section could start (result: %s)" result))
 
-             ;; Forward errors. Starting with Emacs 30, errors thrown
-             ;; from within the body timer may be swallowed otherwise.
-             (when err
-               (signal (car err) (cdr err)))
-             (pcase
-                 (catch 'turtles-with-minibuffer-return
-                   (sleep-for 0)
-                   (error "Timed out waiting for READ section"))
-               ('timeout
-                (error "Timed out. Likely the BODY section failed to exit the minibuffer"))
-               (`(read ,err ,result)
-                (when err
-                  (signal (car err) (cdr err)))
-                result)
-               (other (error "Unexpected value: %s" other))))
+             result)
+
+            ;; The BODY section ended successfully. It's the
+            ;; responsibility of the BODY section to make the READ
+            ;; section exit, so it's wrong for the BODY section to end
+            ;; successfully before the READ section.
+            (`(body nil)
+             (error "BODY section ended without exiting the READ section"))
+
+            ;; The BODY section failed. We forward errors from the BODY
+            ;; section. Starting with Emacs 30, errors thrown from
+            ;; within the body timer may be swallowed otherwise.
+            (`(body ,err)
+             (signal (car err) (cdr err)))
+
             (other (error "Unexpected value: %s" other))))
       (when read-timer
         (cancel-timer read-timer))
