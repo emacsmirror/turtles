@@ -1051,9 +1051,14 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                  (catch 'turtles-with-minibuffer-return
                    (sleep-for 0)
                    (error "Timed out waiting for READ section"))
-               (`(read . ,result) result)))
-            (other
-             (error "Caught unexpected value: %s" other))))
+               ('timeout
+                (error "Timed out. Likely the BODY section failed to exit the minibuffer"))
+               (`(read ,result ,err)
+                (when err
+                  (signal (car err) (cdr err)))
+                result)
+               (other (error "Unexpected value: %s" other))))
+            (other (error "Unexpected value: %s" other))))
       (when read-timer
         (cancel-timer read-timer))
       (when body-timer
