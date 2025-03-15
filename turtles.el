@@ -632,10 +632,16 @@ just won't do."
         (error "No turtles instance defined with ID %s" inst-id))
 
       (turtles-start-instance inst)
-      (let ((end-time (cons 'absolute
-                            (turtles-io--timeout-to-end-time (or timeout 10.0))))
-            (conn (turtles-instance-conn inst))
-            res)
+      (let* ((end-time (turtles-io--timeout-to-end-time (or timeout 10.0)))
+             (early-end-time (time-subtract end-time (seconds-to-time 1.0)))
+             (test-sexpr `(progn
+                            (setq turtles--ert-test-abs-timeout '(absolute . ,early-end-time))
+                            (ert-run-test test)
+                            (ert-test-most-recent-result test)))
+             (conn (turtles-instance-conn inst))
+             res)
+        (when (<= (turtles-io--remaining-seconds early-end-time) 0)
+          (error "Turtles test timeout too short. Must be larger than 1s"))
         (if file-name
             ;; Reload test from file-name. This guarantees that
             ;; everything around that test, such as requires, has also
@@ -649,14 +655,10 @@ just won't do."
                                       (gethash (cons inst-id file-name)
                                                turtles--ert-load-cache))
                            `(load ,file-name nil 'nomessage 'nosuffix))
-                        (setq turtles--ert-test-abs-timeout
-                              '(absolute . ,(time-subtract
-                                             (cdr end-time)
-                                             (seconds-to-time 1.0))))
+
                         (let ((test (ert-get-test (quote ,test-sym))))
-                          (ert-run-test test)
-                          (ert-test-most-recent-result test)))
-                     :timeout end-time))
+                          ,test-sexpr))
+                     :timeout `(absolute . ,end-time)))
               (when turtles--ert-load-cache
                 (puthash (cons inst-id file-name) t turtles--ert-load-cache)))
 
@@ -682,9 +684,8 @@ just won't do."
                     (require 'ert-x)
                     (require 'turtles)
 
-                    (ert-run-test test)
-                    (ert-test-most-recent-result test))
-                 :timeout end-time)))
+                    ,test-sexpr)
+                 :timeout `(absolute . ,end-time))))
 
         (turtles--process-result-from-instance res)
         (setq turtles--ert-result res))
