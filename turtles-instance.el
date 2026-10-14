@@ -143,7 +143,7 @@ either an instance or an instance id."
   "Return the first line of the documentation of INST-OR-ID.
 
 Return nil if there is no documentation."
-  (when-let ((doc (turtles-instance-doc inst-or-id)))
+  (when-let* ((doc (turtles-instance-doc inst-or-id)))
       (car (string-split doc"\n"))))
 
 (defun turtles-instance-live-p (inst)
@@ -258,7 +258,7 @@ result, successful or not, to CONN, identified by ID.
 
 The result is either t or an error."
   (turtles-io-handle-method (conn id)
-    (if-let ((inst (turtles-get-instance instance-id)))
+    (if-let* ((inst (turtles-get-instance instance-id)))
         (setf (turtles-instance-conn inst) conn)
       (error "Unknown instance %s" instance-id))))
 
@@ -323,11 +323,11 @@ It returns its result to CONN, identified by ID."
           (ignore-errors (turtles-stop-instance (cdr cell))))
         turtles-instance-alist)
 
-  (when-let ((s turtles--server))
+  (when-let* ((s turtles--server))
     (when (and s (turtles-io-server-p s))
-    (when-let ((proc (turtles-io-server-proc s)))
+    (when-let* ((proc (turtles-io-server-proc s)))
       (ignore-errors (delete-process proc)))
-    (when-let ((f (turtles-io-server-socket s)))
+    (when-let* ((f (turtles-io-server-socket s)))
       (ignore-errors (delete-file f)))
     (setq turtles--server nil))))
 
@@ -435,18 +435,18 @@ Does nothing if the instance is already running."
     (turtles-read-instance
      "Instance to stop: " #'turtles-instance-live-p)))
   (let ((inst (turtles-get-instance inst-or-id)))
-    (when-let ((c (turtles-instance-conn inst)))
+    (when-let* ((c (turtles-instance-conn inst)))
       (when (turtles-io-conn-live-p c)
         (ignore-errors (turtles-io-notify c 'prepare-for-exit)))
-      (when-let ((p (turtles-io-conn-proc c)))
+      (when-let* ((p (turtles-io-conn-proc c)))
         (when (process-live-p p)
           (ignore-errors (delete-process p))))
       (setf (turtles-instance-conn inst) nil))
-    (when-let ((p (turtles-instance-term-proc inst)))
+    (when-let* ((p (turtles-instance-term-proc inst)))
       (when (process-live-p p)
         (ignore-errors (delete-process p)))
       (setf (turtles-instance-term-proc inst) nil))
-    (when-let ((b (turtles-instance-term-buf inst)))
+    (when-let* ((b (turtles-instance-term-buf inst)))
       (when (buffer-live-p b)
         (let ((kill-buffer-query-functions nil))
           (kill-buffer b)))
@@ -641,7 +641,7 @@ frame, which only makes sense for graphical displays."
 
 (defun turtles--let-term-settle (inst)
   "Wait until the Emacs process of INST is done updating the buffer."
-  (when-let ((p (turtles-instance-term-proc inst)))
+  (when-let* ((p (turtles-instance-term-proc inst)))
     (when (accept-process-output p 0.05)
       (accept-process-output p 0))))
 
@@ -724,7 +724,7 @@ It's up to the caller to make sure that Emacs enters its main
 loop again to process the keys."
   (unless (turtles-upstream)
     (error "Not in a Turtles instance. Did you forget to use (turtles-ert-deftest)?"))
-  (when-let ((pending (mapcar
+  (when-let* ((pending (mapcar
                        (lambda (key)
                          (make-vector 1 key))
                        keyvec)))

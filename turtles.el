@@ -179,7 +179,7 @@ so any other face not in GRAB-FACE are absent."
   "Return a list of all buffers shown in a window."
   (let ((bufs (list)))
     (dolist (win (window-list))
-      (when-let ((buf (window-buffer win)))
+      (when-let* ((buf (window-buffer win)))
         (unless (memq buf bufs)
           (push buf bufs))))
 
@@ -1070,7 +1070,7 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
   "The end of the body of `turtles--with-minibuffer'.
 
 This closes the minibuffer, in case the body left it open."
-  (when-let ((win (active-minibuffer-window)))
+  (when-let* ((win (active-minibuffer-window)))
     (with-current-buffer (window-buffer win)
       (exit-minibuffer))))
 
@@ -1200,7 +1200,7 @@ itself."
               `(:annotation-function
                 ,(lambda (key)
                    (let ((func (alist-get key action-alist nil nil #'string=)))
-                     (when-let ((shortdoc (car (split-string (documentation func) "\n"))))
+                     (when-let* ((shortdoc (car (split-string (documentation func) "\n"))))
                        (concat " " shortdoc))))))
              (action
               (alist-get

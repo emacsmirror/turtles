@@ -327,12 +327,12 @@ This is meant to be used as `print-unreadable-function'."
                        (alist-get 'name (frame-parameters obj))))
             "frame :live nil"))
          ('window
-          (if-let ((buf (window-buffer obj)))
+          (if-let* ((buf (window-buffer obj)))
               (format "window :buffer %s"
                       (turtles-io--quote-str (buffer-name buf)))
             "window"))
          ('marker
-          (if-let ((pos (marker-position obj))
+          (if-let* ((pos (marker-position obj))
                    (buf (marker-buffer obj)))
               (format "marker :pos %d :buffer %s"
                       (marker-position obj)
@@ -595,7 +595,7 @@ process, depending on which connection status is being reported.."
 
      ;; call response
      ((or has-result err)
-      (if-let ((handler (alist-get id (turtles-io-conn-response-alist conn))))
+      (if-let* ((handler (alist-get id (turtles-io-conn-response-alist conn))))
           (with-temp-buffer (funcall handler (plist-get msg :result) err))
         (warn "Unexpected response: %s" msg)))
 
