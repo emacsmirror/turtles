@@ -37,6 +37,7 @@
                      (buffer-string))))))
 
 (turtles-ert-deftest turtles-examples-test-hideshow ()
+  (let ((truncate-string-ellipsis "..."))
   (ert-with-test-buffer ()
     (insert "(defun test-1 ()\n")
     (insert " (message \"test, the first\"))\n")
@@ -58,7 +59,7 @@
                       "(defun test-2 ()...)\n"
                       "(defun test-3 ()\n"
                       " (message \"test, the third\"))")
-                     (buffer-string))))
+                     (buffer-substring-no-properties (point-min) (point-max)))))
 
     (hs-hide-all)
     (turtles-with-grab-buffer (:name "hide all")
@@ -66,7 +67,7 @@
                       "(defun test-1 ()...)\n"
                       "(defun test-2 ()...)\n"
                       "(defun test-3 ()...)")
-                     (buffer-string))))))
+                     (buffer-string)))))))
 
 (turtles-ert-deftest turtles-examples-test-completing-read ()
   (ert-with-test-buffer ()
