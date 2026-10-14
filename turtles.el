@@ -937,6 +937,7 @@ BODY can be a mix of:
  - :events [...]
  - :command #\\='mycommand
  - :command-with-keybinding keybinding #\\='mycommand
+ - :click button x y
 
 :keys must be followed by a string in the same format as accepted
 by `kbd'. It tells Turtles to feed some input to Emacs to be
@@ -954,6 +955,9 @@ Emacs execute that command in the normal command loop.
 command. The command is executed in the normal command loop, with
 `this-command-keys' reporting it to have been triggered by the
 given keybinding.
+
+:click is followed by a button number and the coordinates within
+the frame where the click should be sent
 
 It most cases, the difference between sending keys or launching a
 command directly or interactively doesn't matter and it's just
@@ -1111,6 +1115,13 @@ cmd, into a list of lambdas that can be fed to
               (command (pop rest)))
           (push `(turtles--send-command ,command ,keybinding)
                 current-lambda))
+        (funcall close-current-lambda))
+       ((eq :click (car rest))
+        (pop rest)
+        (let ((button (pop rest))
+              (x (pop rest))
+              (y (pop rest)))
+          (push `(turtles--send-click ,button ,x ,y) current-lambda))
         (funcall close-current-lambda))
        ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
         (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))

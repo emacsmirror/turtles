@@ -248,6 +248,7 @@ Does nothing if the server is already live."
            `((register . turtles--handle-register)
              (grab . turtles--handle-grab)
              (press-magic-key . turtles--handle-press-magic-key)
+             (send-term-seq . turtles--handle-send-term-seq)
              (message . turtles--handle-message))))))
 
 (defun turtles--handle-register (conn id _method instance-id)
@@ -303,6 +304,24 @@ It returns its result to CONN, identified by ID."
                   (make-list count turtles--magic-key) ""))))
 
     nil)
+
+(defun turtles--handle-send-term-seq (conn id _method params)
+  "Send a terminal sequence to an instance.
+
+PARAMS must be a list with two elements (INSTANCE-ID SEQ).
+INSTANCE-ID is the ID of the instance to send the sequence to.
+SEQ is the terminal sequence to send.
+
+This function implements the server method \\='send-term-seq.
+It returns its result to CONN, identified by ID."
+  (turtles-io-handle-method (conn id)
+    (let ((inst (turtles-get-instance (nth 0 params)))
+          (seq (nth 1 params)))
+      (process-send-string
+       (turtles-instance-term-proc inst)
+       seq))
+
+    nil))
 
 (defun turtles--handle-message (conn id _method msg)
   "Accept the message MSG from another instance.
@@ -520,6 +539,7 @@ test."
               (lambda (_ignored)
                 (pop turtles--processing-key-stack)))
   (menu-bar-mode -1) ;; Recover one line in frame-height
+  (xterm-mouse-mode)
   (setq turtles--upstream
         (turtles-io-connect
          socket
@@ -746,6 +766,42 @@ then triggers that using the magic key."
                          map)
                        (lambda () turtles--processing-key-stack))
     (turtles--send-input keybinding)))
+
+(defun turtles--send-term-seq (seq)
+  "Feed terminal sequence SEQ to the current instance.
+
+It's up to the caller to make sure that Emacs enters its main
+loop again to process the sequence."
+  (unless (turtles-upstream)
+    (error "Not in a Turtles instance. Did you forget to use (turtles-ert-deftest)?"))
+  (turtles-io-call-method (turtles-upstream)
+                          'send-term-seq
+                          (list (turtles-this-instance) seq)))
+
+(defun turtles--send-click (button x y)
+  "Feed mouse click with BUTTON at X and Y to the current instance.
+
+BUTTON is the mouse button as used in click events \\='mouse-1
+\\='mouse-2 ...
+
+X and Y are frame coordinates with (0, 0) at the top left corner of the
+screen."
+  (let* ((fake-event (list button))
+         (button (pcase (event-basic-type fake-event)
+                     ('mouse-1 0)
+                     ('mouse-2 1)
+                     ('mouse-3 2)
+                     ('mouse-4 64)
+                     ('mouse-5 65)
+                     (_ (error "Unsupported mouse button %s" button))))
+         (x (1+ x))
+         (y (1+ y))
+         (seq (format "\e[<%d;%d;%dM\e[<%d;%d;%dm" button x y button x y)))
+    (setq turtles--processing-key-stack
+          (append turtles--processing-key-stack (list [])))
+    (turtles--send-term-seq (concat seq turtles--magic-key))))
+
+(defalias 'turtles-send-click #'turtles--send-click)
 
 (defun turtles--run-once-input-processed (set-timer funclist)
   "Wait until Emacs has process the key stack then from FUNCLIST.

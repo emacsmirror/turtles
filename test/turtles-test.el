@@ -1282,4 +1282,31 @@
                  (turtles--ert-test-body-split '("should fail"
                                                  :expected-result :failed
                                                  (should t))))))
-  
+
+(turtles-ert-deftest turtles-send-click ()
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer))
+          click-pos)
+      (select-window (display-buffer testbuf))
+      (delete-other-windows)
+
+      (insert "Baa, baa, black sheep, have you any wool?")
+      (goto-char (point-min))
+
+      (turtles-with-minibuffer
+          (recursive-edit)
+
+        (turtles-with-grab-buffer (:frame t)
+          (goto-char (point-min))
+          (search-forward "sheep")
+          (goto-char (match-beginning 0))
+          (setq click-pos (cons (current-column) (1- (line-number-at-pos)))))
+
+        :click 'mouse-1 (car click-pos) (cdr click-pos)
+
+        (turtles-with-grab-buffer (:buf testbuf :point "><")
+          ;; the point should have been to just before sheep
+          (should (equal "Baa, baa, black ><sheep, have you any wool?"
+                         (buffer-string))))
+
+        (exit-recursive-edit)))))
