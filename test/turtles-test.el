@@ -1004,8 +1004,7 @@
                  (current-buffer))))
         (turtles-pop-to-buffer-actions
          (list #'turtles-pop-to-buffer-embedded
-               #'turtles-pop-to-buffer-copy))
-        (inhibit-message t))
+               #'turtles-pop-to-buffer-copy)))
 
     (turtles-with-minibuffer
         (let ((completion-cycle-threshold 0))
@@ -1051,8 +1050,7 @@
              "My Lambda 2."
              (when (eq :display action)
                (push 'lambda-2 calls))
-             t)))
-         (inhibit-message t))
+             t))))
 
     (turtles-with-minibuffer
         (let ((completion-cycle-threshold 0))

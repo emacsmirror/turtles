@@ -220,8 +220,7 @@
   (let* ((default-inst (turtles-get-instance 'default))
          (restart-inst (turtles-get-instance 'turtles--restart))
          (turtles-instance-alist `((default . ,default-inst)
-                                   (turtles--restart . ,restart-inst)))
-         (inhibit-message t))
+                                   (turtles--restart . ,restart-inst))))
     (turtles-with-minibuffer
         (should (eq restart-inst (turtles-read-instance)))
      (turtles-with-grab-buffer (:name "initial")
