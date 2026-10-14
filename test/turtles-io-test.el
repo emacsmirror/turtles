@@ -163,6 +163,7 @@
                    socket
                    `((inc . ,(lambda (conn id _method _index)
                                (turtles-io-handle-method (conn id)
+                                 (define-error 'fake-error "Fake %s")
                                  (signal 'fake-error "foobar")))))))
 
             (setq client (turtles-io-connect socket))
