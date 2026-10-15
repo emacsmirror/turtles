@@ -112,7 +112,7 @@ Reference
 
 * ERT Integration:: 
 * Screen Grab:: 
-* Minibuffer:: 
+* Interaction:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -374,7 +374,7 @@ post-process it.
 
 
 This second example illustrates the use of
-@code{(turtles-with-minibuffer)} (@ref{f,,Minibuffer}) running
+@code{(turtles-with-minibuffer)} (@ref{f,,(turtles-with-minibuffer READ &rest BODY)}) running
 @code{completing-read}:
 
 @example
@@ -455,7 +455,7 @@ well.
 
 However, some commands that rely on the specific environment provided
 by the command loop don’t like being called directly or even through
-@code{execute-kbd-macro}. :keys and :command (@ref{f,,Minibuffer}) can help
+@code{execute-kbd-macro}. :keys and :command (@ref{f,,(turtles-with-minibuffer READ &rest BODY)}) can help
 in such tricky situations. Though it would be overkill here, you could
 write:
 
@@ -537,7 +537,7 @@ colors it has assigned.
 @menu
 * ERT Integration:: 
 * Screen Grab:: 
-* Minibuffer:: 
+* Interaction:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -610,7 +610,7 @@ When called from the main Emacs process, this function returns
 nil.
 @end table
 
-@node Screen Grab,Minibuffer,ERT Integration,Reference
+@node Screen Grab,Interaction,ERT Integration,Reference
 @anchor{reference grab}@anchor{b}@anchor{reference screen-grab}@anchor{18}
 @subsection Screen Grab
 
@@ -861,13 +861,144 @@ This function deletes trailing whitespaces on all lines and
 trailing newlines at the end of the current buffer.
 @end table
 
-@node Minibuffer,Instance Management,Screen Grab,Reference
-@anchor{reference id1}@anchor{19}@anchor{reference minibuffer}@anchor{f}
-@subsection Minibuffer
+@node Interaction,Instance Management,Screen Grab,Reference
+@anchor{reference id1}@anchor{19}@anchor{reference interaction}@anchor{1a}
+@subsection Interaction
 
 
+@geindex function; turtles-interaction
 @geindex function; turtles-with-minibuffer
 
+Testing user interaction that happen in the command loop can be
+challenging with an ERT test, as the test keeps the control. Turtles
+provides the macro @cite{turtles-interaction} to help with that.
+
+One special case of interactions are minibuffer interactions, such as
+@code{completing-read}, which take over control for a moment then return
+a value. These and other such function with an embedded recursive-edit
+can be tested using @cite{turtles-with-minibuffer}.
+
+
+@table @asis
+
+@item (turtles-interaction &rest BODY) : macro
+
+This macro tests interaction with the command look using a
+recursive-edit.
+
+It is meant to be called from within a secondary instance,
+that is, inside of a @code{(turtles-ert-deftest)}.
+
+The BODY section of the macro is executed while the command loop
+is active. When control exits the BODY section, it goes back to
+the ERT test.
+
+BODY should be a mix of:
+
+
+@itemize -
+
+@item 
+calls to @code{turtles-with-grab-buffer} to test the content of
+the interaction or any other window.
+
+@item 
+keys passed to the interaction, with (execute-kbd-macro) or :keys (see
+below for :keys).
+
+@item 
+commands that manipulate the Emacs state, called directly, using
+(ert-simulate-command) or using :command (see below for :command).
+@end itemize
+
+Special forms are available within BODY to simulate the user inputing
+events using the command loop. In contrast to @code{execute-kbd-macro},
+@code{ert-simulate-commands} and @code{ert-simulate-keys}, these
+function use the real event loop, triggered by real, external events
+(terminal keys). This isn’t as simulation.
+
+There’s nothing wrong with using @code{execute-kbd-macro} and other
+simulations, when it works. It is also usually faster.
+
+You can’t use these special form except directly in BODY. The
+following won’t work, for example: @code{(if cond :keys "abc")}
+
+
+@table @asis
+
+@item :command command
+
+This expression runs the given interactive command in the event
+loop, triggered by a key stroke.
+
+T calling the command directly or through
+@code{(ert-simulate-command)}, when it works.
+
+@item :command-with-keybinding keybinding command
+
+This expression works as above, but makes sure that the command
+will find in @code{(this-command-keys)}, if it asks.
+
+@item :keys keys
+
+This expression provides KEYS as user input to the interaction.
+
+KEYS is in the same format as passed to @code{kbd}.
+
+@item :events events
+
+This expression provides a vector of events as the user input
+to the interaction.
+
+This is more general than the previous function as the events
+can be any kind of UI events.
+
+@item :mouse-ev event-type x y
+
+This expression provides a single mouse event. This is a real
+event, created by Emacs by simulating user input.
+
+X and Y are 0-based frame coordinates.
+@cite{(mistty-grab-buffer :frame t …)} provides a convenient
+way of figuring out where the elements you’re interested
+in are on the frame.
+
+EVENT-TYPE is an Emacs mouse event type, such as:
+
+@quotation
+
+
+@itemize -
+
+@item 
+click event: @code{'mouse-<num>} for example @code{'mouse-1} or @code{'mouse-2}
+
+@item 
+button down event: @code{'down-mouse-<num>} for example @code{'down-mouse-1}
+
+@item 
+button release event: @code{'drag-mouse-<num>} for example @code{'drag-mouse-1}
+
+@item 
+movement events: @code{'mouse-movement}
+@end itemize
+@end quotation
+
+These events can be prefixed with @code{C-}, @code{M-}, and
+@code{S-} to report the control, meta/alt or shift key
+being pressed during the event.
+
+@item :mouse-ev-list events
+
+This expression provides one or more mouse events.
+EVENTS is a list of the form
+@code{((event-type x y) (event-type x y) ...)}
+
+See the description of @cite{:mouse-ev} above for the meaning
+of EVENT X and Y.
+@end table
+@end table
+@anchor{reference minibuffer}@anchor{f}
 
 @table @asis
 
@@ -877,93 +1008,24 @@ This macro tests minibuffer or recursive-edit interactions.
 It is meant to be called from within a secondary instance,
 that is, inside of a @code{(turtles-ert-deftest)}.
 
-The first sexp within that macro, the READ section, calls a
-function that opens the minibuffer or a recursive-edit and waits
-for user interactions. When this function returns, the macro ends
-and returns whatever READ evaluates to.
-
-The first sexp within that macro, the READ section, calls a
-function that opens the minibuffer or a recursive-edit and waits
-for user interactions. When this function returns, the macro ends
-and returns whatever READ evaluates to.
-
-The rest of the sexp within the macro, the BODY section, are
-executed `while the READ section runs'. This isn’t
-multi-threading, as @code{turtles-with-minibuffer} waits for the READ
-sections to call @code{recursive-edit}, usually indirectly through
-@code{read-from-minibuffer}, and then BODY within that interactive
-session.
-
-BODY is usually a mix of:
-
-
-@itemize -
-
-@item 
-calls to @code{turtles-with-grab-buffer} to test the content of
-the minibuffer or any other window.
-
-@item 
-keys passed to the minibuffer, with (execute-kbd-macro) or :keys (see
-below for :keys).
-
-@item 
-commands that manipulate the minibuffer, called directly, using
-(ert-simulate-command) or using :command (see below for :command).
-@end itemize
-
-At the end of BODY, the minibuffer is closed, if needed, and
-control returns to READ, which checks the result of running BODY.
-
-Special forms are available within BODY to simulate the user inputing
-events using the command loop. In contrast to @code{execute-kbd-macro},
-@code{ert-simulate-commands} and @code{ert-simulate-keys}, these
-function use the real event loop, triggered by real, external events
-(terminal keys). This isn’t as simulation.
-
-You can’t use these special form except directly in BODY. The
-following won’t work, for example: @code{(if cond :keys "abc")}
-
-
-@table @asis
-
-@item :keys keys
-
-This expression provides KEYS as user input to the minibuffer.
-
-KEYS is in the same format as passed to @code{kbd}.
-
-Prefer @code{(execute-kbd-macro)}, when it works.
-
-@item :events events
-
-This expression provides a vector of events as the user input
-to the minibuffer.
-
-This is more general than the previous function as the events
-can be any kind of UI events.
-
-Prefer @code{(execute-kbd-macro)}, when it works.
-
-@item :command command
-
-This expression runs the given interactive command in the event
-loop, triggered by a key stroke.
-
-Prefer calling the command directly or through
-@code{(ert-simulate-command)}, when it works.
-
-@item :command-with-keybinding keybinding command
-
-This expression works as above, but makes sure that the command
-will find in @code{(this-command-keys)}, if it asks.
-@end table
-
 Usage examples: @ref{e,,Minibuffer with completing-read} and @ref{11,,Faces with Isearch}
+
+The first sexp within that macro, the READ section, calls a
+function that opens the minibuffer or a recursive-edit and waits
+for user interactions. When this function returns, the macro ends
+and returns whatever READ evaluates to.
+
+The first sexp within that macro, the READ section, calls a
+function that opens the minibuffer or a recursive-edit and waits
+for user interactions. When this function returns, the macro ends
+and returns whatever READ evaluates to.
+
+The rest of the sexp within the macro, the BODY section is identical
+to the BODY section of @code{turtles-interaction}, described above.
 @end table
 
-@node Instance Management,Visiting Instance Buffers,Minibuffer,Reference
-@anchor{reference instance-management}@anchor{1a}@anchor{reference instances}@anchor{c}
+@node Instance Management,Visiting Instance Buffers,Interaction,Reference
+@anchor{reference instance-management}@anchor{1b}@anchor{reference instances}@anchor{c}
 @subsection Instance Management
 
 
@@ -995,7 +1057,7 @@ in hidden buffers.
 
 While secondary instances can be interacted with from that buffer, it
 is awkward, as the two Emacs instances use the same keybindings. You
-might be happier calling @code{turtles-new-frame-in-instance} (@ref{1b,,Visiting Instance Buffers})
+might be happier calling @code{turtles-new-frame-in-instance} (@ref{1c,,Visiting Instance Buffers})
 if you’re running in a windowing environment, or otherwise
 @code{turtles-instance-eval}. (@ref{c,,Instance Management})
 
@@ -1175,7 +1237,7 @@ Return the IDs of all live instances.
 @end table
 
 @node Visiting Instance Buffers,RPC turtles-io,Instance Management,Reference
-@anchor{reference visit}@anchor{1b}@anchor{reference visiting-instance-buffers}@anchor{1c}
+@anchor{reference visit}@anchor{1c}@anchor{reference visiting-instance-buffers}@anchor{1d}
 @subsection Visiting Instance Buffers
 
 
@@ -1241,7 +1303,7 @@ List of actions that @code{turtles-pop-to-buffer} should consider.
 @end table
 
 @node RPC turtles-io,,Visiting Instance Buffers,Reference
-@anchor{reference rpc}@anchor{17}@anchor{reference rpc-turtles-io}@anchor{1d}
+@anchor{reference rpc}@anchor{17}@anchor{reference rpc-turtles-io}@anchor{1e}
 @subsection RPC (turtles-io)
 
 
@@ -1329,7 +1391,7 @@ Turtles defines placeholders for them:
 @item 
 buffers: (turtles-buffer :name NAME) or (turtles-buffer :live
 nil). Such placeholders can be opened from the main Emacs process
-with @code{pop-to-buffer} (@ref{1b,,Visiting Instance Buffers})
+with @code{pop-to-buffer} (@ref{1c,,Visiting Instance Buffers})
 
 @item 
 window: (turtles-buffer :buffer BUFFER-NAME)
@@ -1422,7 +1484,7 @@ Send a result back to the called. Does nothing if the id is nil.
 @end table
 
 @node Contributing,,Reference,Contents
-@anchor{contrib doc}@anchor{1e}@anchor{contrib contributing}@anchor{1f}
+@anchor{contrib doc}@anchor{1f}@anchor{contrib contributing}@anchor{20}
 @section Contributing
 
 
@@ -1436,7 +1498,7 @@ Send a result back to the called. Does nothing if the id is nil.
 @end menu
 
 @node Reporting issues,Suggesting features,,Contributing
-@anchor{contrib reporting}@anchor{20}@anchor{contrib reporting-issues}@anchor{21}
+@anchor{contrib reporting}@anchor{21}@anchor{contrib reporting-issues}@anchor{22}
 @subsection Reporting issues
 
 
@@ -1450,21 +1512,21 @@ the issue.
 Please include at least the version of turtles you’re using and the version of Emacs you’re running, taken, for example, from @code{M-x about-emacs}.
 
 @node Suggesting features,Asking questions,Reporting issues,Contributing
-@anchor{contrib suggesting-features}@anchor{22}
+@anchor{contrib suggesting-features}@anchor{23}
 @subsection Suggesting features
 
 
 Please add feature suggestions to the Issue Tracker@footnote{https://github.com/szermatt/turtles/issues} or start a discussion@footnote{https://github.com/szermatt/turtles/discussions}.
 
 @node Asking questions,Code contributions,Suggesting features,Contributing
-@anchor{contrib asking-questions}@anchor{23}
+@anchor{contrib asking-questions}@anchor{24}
 @subsection Asking questions
 
 
 Start a discussion@footnote{https://github.com/szermatt/turtles/discussions} with your question.
 
 @node Code contributions,Documentation contributions,Asking questions,Contributing
-@anchor{contrib code-contributions}@anchor{24}
+@anchor{contrib code-contributions}@anchor{25}
 @subsection Code contributions
 
 
@@ -1488,7 +1550,7 @@ fixes with “fix: “, refactorings with “refactor: ” and tests with
 “test: “.
 
 @node Documentation contributions,,Code contributions,Contributing
-@anchor{contrib documentation-contributions}@anchor{25}@anchor{contrib eldev}@anchor{26}
+@anchor{contrib documentation-contributions}@anchor{26}@anchor{contrib eldev}@anchor{27}
 @subsection Documentation contributions
 
 

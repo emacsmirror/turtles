@@ -265,50 +265,45 @@ neither ``turtles-with-grab-buffer`` nor ``turtles-to-string``.
       This function deletes trailing whitespaces on all lines and
       trailing newlines at the end of the current buffer.
 
-.. _minibuffer:
+.. _interaction:
 
-Minibuffer
-----------
+Interaction
+-----------
 
 .. index::
+    pair: function; turtles-interaction
     pair: function; turtles-with-minibuffer
 
+Testing user interaction that happen in the command loop can be
+challenging with an ERT test, as the test keeps the control. Turtles
+provides the macro `turtles-interaction` to help with that.
 
-(turtles-with-minibuffer READ &rest BODY) : macro
-    This macro tests minibuffer or recursive-edit interactions.
+One special case of interactions are minibuffer interactions, such as
+``completing-read``, which take over control for a moment then return
+a value. These and other such function with an embedded recursive-edit
+can be tested using `turtles-with-minibuffer`.
+
+(turtles-interaction &rest BODY) : macro
+    This macro tests interaction with the command look using a
+    recursive-edit.
+    
     It is meant to be called from within a secondary instance,
     that is, inside of a ``(turtles-ert-deftest)``.
 
-    The first sexp within that macro, the READ section, calls a
-    function that opens the minibuffer or a recursive-edit and waits
-    for user interactions. When this function returns, the macro ends
-    and returns whatever READ evaluates to.
+    The BODY section of the macro is executed while the command loop
+    is active. When control exits the BODY section, it goes back to
+    the ERT test.
 
-    The first sexp within that macro, the READ section, calls a
-    function that opens the minibuffer or a recursive-edit and waits
-    for user interactions. When this function returns, the macro ends
-    and returns whatever READ evaluates to.
-
-    The rest of the sexp within the macro, the BODY section, are
-    executed *while the READ section runs*. This isn't
-    multi-threading, as ``turtles-with-minibuffer`` waits for the READ
-    sections to call ``recursive-edit``, usually indirectly through
-    ``read-from-minibuffer``, and then BODY within that interactive
-    session.
-
-    BODY is usually a mix of:
+    BODY should be a mix of:
 
     - calls to ``turtles-with-grab-buffer`` to test the content of
-      the minibuffer or any other window.
+      the interaction or any other window.
 
-    - keys passed to the minibuffer, with (execute-kbd-macro) or :keys (see
+    - keys passed to the interaction, with (execute-kbd-macro) or :keys (see
       below for :keys).
 
-    - commands that manipulate the minibuffer, called directly, using
+    - commands that manipulate the Emacs state, called directly, using
       (ert-simulate-command) or using :command (see below for :command).
-
-    At the end of BODY, the minibuffer is closed, if needed, and
-    control returns to READ, which checks the result of running BODY.
 
     Special forms are available within BODY to simulate the user inputing
     events using the command loop. In contrast to ``execute-kbd-macro``,
@@ -316,37 +311,88 @@ Minibuffer
     function use the real event loop, triggered by real, external events
     (terminal keys). This isn't as simulation.
 
+    There's nothing wrong with using ``execute-kbd-macro`` and other
+    simulations, when it works. It is also usually faster.
+
     You can't use these special form except directly in BODY. The
     following won't work, for example: ``(if cond :keys "abc")``
-
-    :keys keys
-        This expression provides KEYS as user input to the minibuffer.
-
-        KEYS is in the same format as passed to ``kbd``.
-
-        Prefer ``(execute-kbd-macro)``, when it works.
-
-    :events events
-        This expression provides a vector of events as the user input
-        to the minibuffer.
-
-        This is more general than the previous function as the events
-        can be any kind of UI events.
-
-        Prefer ``(execute-kbd-macro)``, when it works.
 
     :command command
         This expression runs the given interactive command in the event
         loop, triggered by a key stroke.
 
-        Prefer calling the command directly or through
+        T calling the command directly or through
         ``(ert-simulate-command)``, when it works.
 
     :command-with-keybinding keybinding command
         This expression works as above, but makes sure that the command
         will find in ``(this-command-keys)``, if it asks.
 
+    :keys keys
+        This expression provides KEYS as user input to the interaction.
+
+        KEYS is in the same format as passed to ``kbd``.
+
+    :events events
+        This expression provides a vector of events as the user input
+        to the interaction.
+
+        This is more general than the previous function as the events
+        can be any kind of UI events.
+
+    :mouse-ev event-type x y
+        This expression provides a single mouse event. This is a real
+        event, created by Emacs by simulating user input.
+
+        X and Y are 0-based frame coordinates.
+        `(mistty-grab-buffer :frame t ...)` provides a convenient
+        way of figuring out where the elements you're interested
+        in are on the frame.
+        
+        EVENT-TYPE is an Emacs mouse event type, such as:
+        
+          - click event: ``'mouse-<num>`` for example ``'mouse-1`` or ``'mouse-2``
+          
+          - button down event: ``'down-mouse-<num>`` for example ``'down-mouse-1``
+          
+          - button release event: ``'drag-mouse-<num>`` for example ``'drag-mouse-1``
+          
+          - movement events: ``'mouse-movement``
+
+        These events can be prefixed with ``C-``, ``M-``, and
+        ``S-`` to report the control, meta/alt or shift key
+        being pressed during the event.
+
+    :mouse-ev-list events
+        This expression provides one or more mouse events.
+        EVENTS is a list of the form
+        ``((event-type x y) (event-type x y) ...)``
+
+        See the description of `:mouse-ev` above for the meaning 
+        of EVENT X and Y.
+    
+      
+.. _minibuffer:
+
+(turtles-with-minibuffer READ &rest BODY) : macro
+    This macro tests minibuffer or recursive-edit interactions.
+    It is meant to be called from within a secondary instance,
+    that is, inside of a ``(turtles-ert-deftest)``.
+
     Usage examples: :ref:`tut_minibuffer` and :ref:`tut_isearch`
+
+    The first sexp within that macro, the READ section, calls a
+    function that opens the minibuffer or a recursive-edit and waits
+    for user interactions. When this function returns, the macro ends
+    and returns whatever READ evaluates to.
+
+    The first sexp within that macro, the READ section, calls a
+    function that opens the minibuffer or a recursive-edit and waits
+    for user interactions. When this function returns, the macro ends
+    and returns whatever READ evaluates to.
+
+    The rest of the sexp within the macro, the BODY section is identical
+    to the BODY section of ``turtles-interaction``, described above.
 
 .. _instances:
 
