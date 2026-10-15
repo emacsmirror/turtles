@@ -937,7 +937,8 @@ BODY can be a mix of:
  - :events [...]
  - :command #\\='mycommand
  - :command-with-keybinding keybinding #\\='mycommand
- - :click button x y
+ - :mouse-ev event x y
+ - :mouse-ev-list \\='((event x y) (event x y) ... )
 
 :keys must be followed by a string in the same format as accepted
 by `kbd'. It tells Turtles to feed some input to Emacs to be
@@ -948,6 +949,18 @@ contrary to `execute-kbd-macro' or `ert-simulate-keys'.
 can be useful to feed non-keyboard events to the current
 instance.
 
+:mouse-ev and :mouse-ev-list send actual mouse events, so you don't have
+to re-create these specific events.  x and y are 0-based frame
+coordinates. event is the event name, as
+understood by Emacs, such as:
+ - \\='mouse-1 or \\='mouse-2 , for a click,
+ - \\='down-mouse-1 for a button press,
+ - \\='down-mouse-1 then \\='mouse-movement, then \\='drag-mouse-1 for
+   a mouse drag or selection.
+
+You can also add modifiers control, shift or meta/alt to event, so for
+example the event for a control click is \\='C-mouse-1.
+
 :command must be followed by a command. It tells turtle to make
 Emacs execute that command in the normal command loop.
 
@@ -955,9 +968,6 @@ Emacs execute that command in the normal command loop.
 command. The command is executed in the normal command loop, with
 `this-command-keys' reporting it to have been triggered by the
 given keybinding.
-
-:click is followed by a button number and the coordinates within
-the frame where the click should be sent
 
 It most cases, the difference between sending keys or launching a
 command directly or interactively doesn't matter and it's just
@@ -1116,12 +1126,17 @@ cmd, into a list of lambdas that can be fed to
           (push `(turtles--send-command ,command ,keybinding)
                 current-lambda))
         (funcall close-current-lambda))
-       ((eq :click (car rest))
+       ((eq :mouse-ev (car rest))
         (pop rest)
         (let ((button (pop rest))
               (x (pop rest))
               (y (pop rest)))
-          (push `(turtles--send-click ,button ,x ,y) current-lambda))
+          (push `(turtles--send-mouse-ev-list (list (list ,button ,x ,y)))
+                current-lambda))
+        (funcall close-current-lambda))
+       ((eq :mouse-ev-list (car rest))
+        (pop rest)
+        (push `(turtles--send-mouse-ev-list ,(pop rest)) current-lambda)
         (funcall close-current-lambda))
        ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
         (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))

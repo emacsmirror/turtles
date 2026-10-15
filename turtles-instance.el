@@ -1,6 +1,6 @@
 ;;; turtles-instance.el --- Manage turtles subprocesses -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024, 2025 Stephane Zermatten
+;; Copyright (C) 2024-2026 Stephane Zermatten
 
 ;; This program is free software: you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -778,30 +778,33 @@ loop again to process the sequence."
                           'send-term-seq
                           (list (turtles-this-instance) seq)))
 
-(defun turtles--send-click (button x y)
-  "Feed mouse click with BUTTON at X and Y to the current instance.
+(defun turtles--send-mouse-ev-list (events)
+  "Feed mouse EVENTS to the current instance.
 
-BUTTON is the mouse button as used in click events \\='mouse-1
-\\='mouse-2 ...
+EVENTS is of the form ((event-type1 x1 y1) (event-type x2 y2) ...)
 
-X and Y are frame coordinates with (0, 0) at the top left corner of the
+With event-typeN the symbol of an Emacs mouse events \\='mouse-1
+\\='mouse-2, \\='down-mouse-1, \\='drag-mouse-1 \\='mouse-movement...
+
+As in Emacs events, mouse-<num> is a click, that is a press and release,
+down-mouse-<num> is a press, drag-mouse-<num> is a release and
+mouse-movements are movements.
+
+Modifiers shift, meta/alt and control are supported as S- M- and C-.
+
+X and Y are frame coordinates with (0, 0) as the top left corner of the
 screen."
-  (let* ((fake-event (list button))
-         (button (pcase (event-basic-type fake-event)
-                     ('mouse-1 0)
-                     ('mouse-2 1)
-                     ('mouse-3 2)
-                     ('mouse-4 64)
-                     ('mouse-5 65)
-                     (_ (error "Unsupported mouse button %s" button))))
-         (x (1+ x))
-         (y (1+ y))
-         (seq (format "\e[<%d;%d;%dM\e[<%d;%d;%dm" button x y button x y)))
+  (let ((seq
+         (mapconcat
+          (lambda (ev)
+            (pcase ev
+              (`(,event-type ,x ,y)
+               (turtles--mouse-event-to-sgr event-type x y))
+              (_ (error "Invalid mouse event: %S" ev))))
+          events)))
     (setq turtles--processing-key-stack
           (append turtles--processing-key-stack (list [])))
     (turtles--send-term-seq (concat seq turtles--magic-key))))
-
-(defalias 'turtles-send-click #'turtles--send-click)
 
 (defun turtles--run-once-input-processed (set-timer funclist)
   "Wait until Emacs has process the key stack then from FUNCLIST.
@@ -839,6 +842,50 @@ Throws \\='turtles-with-minibuffer-return when done, with value (list
       ;; Emacs 29 and earlier forward errors.
       (funcall (car funclist)))
     (turtles--run-once-input-processed set-timer (cdr funclist)))))
+
+(defun turtles--mouse-event-to-sgr (event-type x y)
+  "Generate a SGR terminal sequence for the given event.
+
+EVENT-TYPE is an mouse event type such as the ones sent by Emacs
+\\='mouse-1 \\='mouse-2 \\='down-mouse-1 \\='drag-mouse-1
+\\='mouse-movement possibly with S- C- or M- modifiers."
+  (let* ((ev (list event-type))
+         (basic-type (event-basic-type ev))
+         (mods (event-modifiers ev))
+         (x (1+ x))
+         (y (1+ y))
+         (code 0)
+         (cmds nil))
+    (pcase basic-type
+      ('mouse-1 (setq code 0))
+      ('mouse-2 (setq code 1))
+      ('mouse-3 (setq code 2))
+      ('mouse-4 (setq code 64))
+      ('mouse-5 (setq code 65))
+      ('mouse-6 (setq code 66))
+      ('mouse-7 (setq code 67))
+      ('mouse-8 (setq code 68))
+      ('mouse-9 (setq code 69))
+      ('mouse-10 (setq code 70))
+      ('mouse-movement (setq code 32 cmds '(?m)))
+      (_ (error "Unsupported mouse event: %s (event-basic-type: %s)"
+                event-type basic-type)))
+
+    (dolist (mod mods)
+      (pcase mod
+        ('shift (setq code (logior code 4)))
+        ((or 'meta 'alt) (setq code (logior code 8)))
+        ('control (setq code (logior code 16)))
+        ('click (setq cmds '(?M ?m)))
+        ('down (setq cmds '(?M)))
+        ('drag (setq cmds '(?m)))
+        (_ (error "Unsupported mouse event modifier %s in %s"
+                  mod event-type))))
+
+    (mapconcat
+     (lambda (cmd)
+       (format "\e[<%d;%d;%d%c" code x y cmd))
+     cmds)))
 
 (provide 'turtles-instance)
 

@@ -1282,8 +1282,7 @@
                  (turtles--ert-test-body-split '("should fail"
                                                  :expected-result :failed
                                                  (should t))))))
-
-(turtles-ert-deftest turtles-send-click ()
+(turtles-ert-deftest turtles-send-mouse-ev ()
   (ert-with-test-buffer ()
     (let ((testbuf (current-buffer))
           click-pos)
@@ -1302,11 +1301,43 @@
           (goto-char (match-beginning 0))
           (setq click-pos (cons (current-column) (1- (line-number-at-pos)))))
 
-        :click 'mouse-1 (car click-pos) (cdr click-pos)
+        :mouse-ev 'mouse-1 (car click-pos) (cdr click-pos)
 
         (turtles-with-grab-buffer (:buf testbuf :point "><")
           ;; the point should have been to just before sheep
           (should (equal "Baa, baa, black ><sheep, have you any wool?"
+                         (buffer-string))))
+
+        (exit-recursive-edit)))))
+
+(turtles-ert-deftest turtles-send-mouse-ev-list ()
+  (ert-with-test-buffer ()
+    (let ((testbuf (current-buffer)))
+      (select-window (display-buffer testbuf))
+      (delete-other-windows)
+
+      (insert "Baa, baa, black sheep, have you any wool?")
+      (goto-char (point-min))
+
+      (turtles-with-minibuffer
+          (recursive-edit)
+
+        :mouse-ev-list (turtles-with-grab-buffer (:frame t)
+          (goto-char (point-min))
+          (search-forward "sheep")
+          (goto-char (match-beginning 0))
+          (let ((start-x (save-excursion
+                           (goto-char (match-beginning 0))
+                           (current-column)))
+                (end-x (save-excursion
+                         (goto-char (match-end 0))
+                         (current-column)))
+                (y (1- (line-number-at-pos))))
+            `((down-mouse-1 ,start-x ,y)
+              (drag-mouse-1 ,(1- end-x) ,y))))
+
+        (turtles-with-grab-buffer (:buf testbuf :faces '((region "<>")))
+          (should (equal "Baa, baa, black <sheep>, have you any wool?"
                          (buffer-string))))
 
         (exit-recursive-edit)))))

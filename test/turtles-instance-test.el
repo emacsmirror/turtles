@@ -238,5 +238,54 @@
      ;; Select restart
      (execute-kbd-macro "turtles--restart"))))
 
+(ert-deftest turtles--mouse-event-to-sgr ()
+  ;; click (press and release)
+  (should (equal "\e[<0;1;1M\e[<0;1;1m" (turtles--mouse-event-to-sgr 'mouse-1 0 0)))
+  (should (equal "\e[<1;1;1M\e[<1;1;1m" (turtles--mouse-event-to-sgr 'mouse-2 0 0)))
+  (should (equal "\e[<2;1;1M\e[<2;1;1m" (turtles--mouse-event-to-sgr 'mouse-3 0 0)))
+  (should (equal "\e[<64;1;1M\e[<64;1;1m" (turtles--mouse-event-to-sgr 'mouse-4 0 0)))
+  (should (equal "\e[<65;1;1M\e[<65;1;1m" (turtles--mouse-event-to-sgr 'mouse-5 0 0)))
+  (should (equal "\e[<66;1;1M\e[<66;1;1m" (turtles--mouse-event-to-sgr 'mouse-6 0 0)))
+  (should (equal "\e[<67;1;1M\e[<67;1;1m" (turtles--mouse-event-to-sgr 'mouse-7 0 0)))
 
-(require 'turtles-instance)
+  ;; press
+  (should (equal "\e[<0;1;1M" (turtles--mouse-event-to-sgr 'down-mouse-1 0 0)))
+  (should (equal "\e[<1;1;1M" (turtles--mouse-event-to-sgr 'down-mouse-2 0 0)))
+
+  ;; release
+  (should (equal "\e[<0;1;1m" (turtles--mouse-event-to-sgr 'drag-mouse-1 0 0)))
+  (should (equal "\e[<1;1;1m" (turtles--mouse-event-to-sgr 'drag-mouse-2 0 0)))
+
+  ;; motion
+  (should (equal "\e[<32;1;1m" (turtles--mouse-event-to-sgr 'mouse-movement 0 0)))
+
+  ;; coordinates
+  (should (equal "\e[<0;11;21M\e[<0;11;21m" (turtles--mouse-event-to-sgr 'mouse-1 10 20)))
+  (should (equal "\e[<0;80;24M" (turtles--mouse-event-to-sgr 'down-mouse-1 79 23)))
+  (should (equal "\e[<32;43;18m" (turtles--mouse-event-to-sgr 'mouse-movement 42 17)))
+
+  ;; modifiers: shift
+  (should (equal "\e[<4;1;1M\e[<4;1;1m" (turtles--mouse-event-to-sgr 'S-mouse-1 0 0)))
+  (should (equal "\e[<4;1;1M" (turtles--mouse-event-to-sgr 'S-down-mouse-1 0 0)))
+  (should (equal "\e[<4;1;1m" (turtles--mouse-event-to-sgr 'S-drag-mouse-1 0 0)))
+  (should (equal "\e[<5;1;1M\e[<5;1;1m" (turtles--mouse-event-to-sgr 'S-mouse-2 0 0)))
+  (should (equal "\e[<6;1;1M\e[<6;1;1m" (turtles--mouse-event-to-sgr 'S-mouse-3 0 0)))
+
+  ;; modifiers: alt or meta
+  (should (equal "\e[<8;1;1M\e[<8;1;1m" (turtles--mouse-event-to-sgr 'M-mouse-1 0 0)))
+  (should (equal "\e[<8;1;1M" (turtles--mouse-event-to-sgr 'M-down-mouse-1 0 0)))
+
+  ;; modifiers: control
+  (should (equal "\e[<16;1;1M\e[<16;1;1m" (turtles--mouse-event-to-sgr 'C-mouse-1 0 0)))
+  (should (equal "\e[<16;1;1M" (turtles--mouse-event-to-sgr 'C-down-mouse-1 0 0)))
+
+  ;; combined modifiers
+  (should (equal "\e[<24;1;1M\e[<24;1;1m" (turtles--mouse-event-to-sgr 'C-M-mouse-1 0 0))))
+
+(ert-deftest turtles--mouse-event-to-sgr-errors ()
+  (should-error (turtles--mouse-event-to-sgr 'mouse-99 0 0))
+  (should-error (turtles--mouse-event-to-sgr 'unknown 0 0))
+  (should-error (turtles--mouse-event-to-sgr 's-mouse-1 0 0))
+  (should-error (turtles--mouse-event-to-sgr 'H-mouse-1 0 0))
+  (should-error (turtles--mouse-event-to-sgr 'double-mouse-1 0 0))
+  (should-error (turtles--mouse-event-to-sgr 'triple-mouse-1 0 0)))
