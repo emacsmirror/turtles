@@ -940,6 +940,29 @@ BODY can be a mix of:
  - :mouse-ev event x y
  - :mouse-ev-list \\='((event x y) (event x y) ... )
 
+See `turtles-interaction' for details on BODY elements.
+
+Return whatever READ eventually evaluates to."
+  (declare (indent 1))
+  `(turtles--with-minibuffer-internal
+    (lambda () ,read)
+    ,(turtles--split-with-minibuffer-body body)))
+
+(defmacro turtles-interaction (&rest body)
+  "Run BODY while interacting with Emacs.
+
+This macro works like `turtles-with-minibuffer' with `recursive-edit'
+and an `exit-recursive-edit' at the end.
+
+BODY can be a mix of:
+ - Lisp expressions
+ - :keys \"...\"
+ - :events [...]
+ - :command #\\='mycommand
+ - :command-with-keybinding keybinding #\\='mycommand
+ - :mouse-ev event x y
+ - :mouse-ev-list \\='((event x y) (event x y) ... )
+
 :keys must be followed by a string in the same format as accepted
 by `kbd'. It tells Turtles to feed some input to Emacs to be
 executed in the normal command loop. This is the real thing,
@@ -983,11 +1006,13 @@ the approach taken by `ert-simulate-keys' doesn't allow grabbing
 intermediate states, because Emacs won't redisplay as long as
 there's pending input.
 
-Return whatever READ eventually evaluates to."
-  (declare (indent 1))
-  `(turtles--with-minibuffer-internal
-    (lambda () ,read)
-    ,(turtles--split-with-minibuffer-body body)))
+Does not return anything."
+  (declare (indent 0))
+  `(turtles-with-minibuffer
+       (prog1 nil
+         (recursive-edit))
+     ,@body
+     (exit-recursive-edit)))
 
 (defun turtles--with-minibuffer-internal (readfunc bodyfunclist)
   "Implementation of `turtles-with-minibuffer'.

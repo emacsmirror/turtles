@@ -1282,6 +1282,26 @@
                  (turtles--ert-test-body-split '("should fail"
                                                  :expected-result :failed
                                                  (should t))))))
+
+(turtles-ert-deftest turtles-interaction ()
+  (ert-with-test-buffer ()
+    (let ((initial-depth (recursion-depth)))
+      (select-window (display-buffer (current-buffer)))
+      (delete-other-windows)
+
+      (insert "Hello")
+      (goto-char (point-max))
+
+      (turtles-interaction
+        (should (> (recursion-depth) initial-depth))
+        :keys ", SPC world"
+        (should (equal "Hello, world" (turtles-to-string)))
+        :command #'delete-backward-char
+        (should (equal "Hello, worl" (turtles-to-string))))
+
+      (should (= (recursion-depth) initial-depth))
+      (should (equal "Hello, worl" (buffer-string))))))
+
 (turtles-ert-deftest turtles-send-mouse-ev ()
   (ert-with-test-buffer ()
     (let ((testbuf (current-buffer))
@@ -1292,9 +1312,7 @@
       (insert "Baa, baa, black sheep, have you any wool?")
       (goto-char (point-min))
 
-      (turtles-with-minibuffer
-          (recursive-edit)
-
+      (turtles-interaction
         (turtles-with-grab-buffer (:frame t)
           (goto-char (point-min))
           (search-forward "sheep")
@@ -1306,22 +1324,19 @@
         (turtles-with-grab-buffer (:buf testbuf :point "><")
           ;; the point should have been to just before sheep
           (should (equal "Baa, baa, black ><sheep, have you any wool?"
-                         (buffer-string))))
-
-        (exit-recursive-edit)))))
+                         (buffer-string))))))))
 
 (turtles-ert-deftest turtles-send-mouse-ev-list ()
   (ert-with-test-buffer ()
-    (let ((testbuf (current-buffer)))
+    (let ((testbuf (current-buffer))
+          (double-click-time nil))
       (select-window (display-buffer testbuf))
       (delete-other-windows)
 
       (insert "Baa, baa, black sheep, have you any wool?")
       (goto-char (point-min))
 
-      (turtles-with-minibuffer
-          (recursive-edit)
-
+      (turtles-interaction
         :mouse-ev-list (turtles-with-grab-buffer (:frame t)
           (goto-char (point-min))
           (search-forward "sheep")
@@ -1334,10 +1349,8 @@
                          (current-column)))
                 (y (1- (line-number-at-pos))))
             `((down-mouse-1 ,start-x ,y)
-              (drag-mouse-1 ,(1- end-x) ,y))))
+              (drag-mouse-1 ,end-x ,y))))
 
         (turtles-with-grab-buffer (:buf testbuf :faces '((region "<>")))
           (should (equal "Baa, baa, black <sheep>, have you any wool?"
-                         (buffer-string))))
-
-        (exit-recursive-edit)))))
+                         (buffer-string))))))))
