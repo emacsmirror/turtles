@@ -944,15 +944,16 @@ See `turtles-interaction' for details on BODY elements.
 
 Return whatever READ eventually evaluates to."
   (declare (indent 1))
-  `(turtles--with-minibuffer-internal
+  `(turtles--interaction-internal
     (lambda () ,read)
-    ,(turtles--split-with-minibuffer-body body)))
+    ,(turtles--split-interaction-body body '(turtles--with-minibuffer-body-end))
+    nil))
 
 (defmacro turtles-interaction (&rest body)
   "Run BODY while interacting with Emacs.
 
-This macro works like `turtles-with-minibuffer' with `recursive-edit'
-and an `exit-recursive-edit' at the end.
+Starts a `recursive-edit' and runs BODY to interact with the Emacs
+interface.
 
 BODY can be a mix of:
  - Lisp expressions
@@ -1008,19 +1009,21 @@ there's pending input.
 
 Does not return anything."
   (declare (indent 0))
-  `(turtles-with-minibuffer
-       (prog1 nil
-         (recursive-edit))
-     ,@body
-     (exit-recursive-edit)))
+  `(turtles--interaction-internal
+    #'recursive-edit
+    ,(turtles--split-interaction-body body nil)
+    'force-exit))
 
-(defun turtles--with-minibuffer-internal (readfunc bodyfunclist)
-  "Implementation of `turtles-with-minibuffer'.
+(defun turtles--interaction-internal (readfunc bodyfunclist force-exit)
+  "Implementation of `turtles-interaction'.
 
 READFUNC is a function created from the READ argument of the macro.
 
 BODYFUNCLIST is created from the BODY argument of the macro, by
-`turtles--split-with-minibuffer-body'."
+`turtles--split-interaction-body'.
+
+If FORCE-EXIT, forcibly exit all recursive edits after running
+BODYFUNCLIST."
   (when noninteractive
     (error "Cannot work in noninteractive mode. Did you forget to use (turtles-ert-deftest)?"))
   (let ((read-timer nil)
@@ -1031,7 +1034,7 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
     (unwind-protect
         (progn
           (pcase
-              (catch 'turtles-with-minibuffer-return
+              (catch 'turtles-interaction-return
                 (setq read-timer
                       (run-with-timer
                        0 nil
@@ -1042,19 +1045,20 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                                    (setf (nth 2 result) (funcall readfunc))
                                  (t (setf (nth 1 result) err)))
                              (setf (nth 2 result) (funcall readfunc)))
-                           (throw 'turtles-with-minibuffer-return result)))))
+                           (throw 'turtles-interaction-return result)))))
                 (setq body-timer
                       (run-with-timer
                        0 nil
                        (lambda ()
                          (setq body-started t)
-                         ;; May throw turtles-with-minibuffer-return
+                         ;; May throw turtles-interaction-return
                          ;; '(body err) when done, but more often ends
                          ;; up throwing 'exit to exit the minibuffer.
                          (turtles--run-once-input-processed
                           (lambda (newtimer)
                             (setq body-timer newtimer))
-                          bodyfunclist))))
+                          bodyfunclist
+                          force-exit))))
 
                 ;; We use a timer that throws for timeout, as
                 ;; sleep-for usually just gets stuck on running
@@ -1063,13 +1067,13 @@ BODYFUNCLIST is created from the BODY argument of the macro, by
                       (run-with-timer
                        (turtles-io--remaining-seconds end-time) nil
                        (lambda ()
-                         (throw 'turtles-with-minibuffer-return 'timeout))))
+                         (throw 'turtles-interaction-return 'timeout))))
 
                 (sleep-for (max 0.0 (turtles-io--remaining-seconds end-time)))
                 (error "Timed out"))
 
             ('timeout
-             (error "Timed out. The BODY section failed to exit the minibuffer"))
+             (error "Timed out. The BODY section failed to exit the recursive edit or minibuffer"))
 
             ;; The read section ended. The BODY section might not have
             ;; run fully, but it must have started, since it's what
@@ -1113,15 +1117,15 @@ This closes the minibuffer, in case the body left it open."
     (with-current-buffer (window-buffer win)
       (exit-minibuffer))))
 
-(defun turtles--split-with-minibuffer-body (body)
+(defun turtles--split-interaction-body (body body-end)
   "Interpret :keys and others in BODY.
 
-This is the core code-generation logic of `turtles-read-from-minibuffer'.
+This is the core code-generation logic of `turtles-interaction'.
 
 This function splits a BODY containing a mix of Lisp expressions,
 :keys string, :command cmd, :command-with-keybinding keybinding
 cmd, into a list of lambdas that can be fed to
-`turtles--run-with-minibuffer'."
+`turtles--interaction-internal'."
   (let* ((rest body)
          (lambdas nil)
          (current-lambda nil)
@@ -1164,9 +1168,10 @@ cmd, into a list of lambdas that can be fed to
         (push `(turtles--send-mouse-ev-list ,(pop rest)) current-lambda)
         (funcall close-current-lambda))
        ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
-        (error "Unknown symbol in read-from-minibuffer: %s" (pop rest)))
+        (error "Unknown symbol for interaction: %s" (pop rest)))
        (t (push (pop rest) current-lambda))))
-    (push '(turtles--with-minibuffer-body-end) current-lambda)
+    (when body-end
+      (push body-end current-lambda))
     (funcall close-current-lambda)
 
     `(list . ,(nreverse lambdas))))

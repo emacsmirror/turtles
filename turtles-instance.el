@@ -806,7 +806,7 @@ screen."
           (append turtles--processing-key-stack (list [])))
     (turtles--send-term-seq (concat seq turtles--magic-key))))
 
-(defun turtles--run-once-input-processed (set-timer funclist)
+(defun turtles--run-once-input-processed (set-timer funclist force-exit)
   "Wait until Emacs has process the key stack then from FUNCLIST.
 
 Any timer that's created should be passed to SET-TIMER.
@@ -815,13 +815,26 @@ This function waits for `turtles--processing-key-stack' to be
 emptied, runs the head of FUNCLIST, and repeat until FUNCLIST is
 empty.
 
-Throws \\='turtles-with-minibuffer-return when done, with value (list
+Throws \\='turtles-interaction-return when done, with value (list
 \\='body err). If non-nil, err is the kind of error captured by
 `condition-case'."
   (cond
-   ;; We're done
+   ;; Exit recursive-edits
+   ((and (null funclist) force-exit (> (recursion-depth) 0))
+    (funcall set-timer
+             (run-with-timer
+              0 nil
+              (lambda ()
+                (funcall set-timer
+                         (run-with-timer
+                          0 nil
+                          #'turtles--run-once-input-processed set-timer nil t))
+                (when (> (recursion-depth) 0)
+                  (ignore-errors (exit-recursive-edit)))))))
+
+   ;; We're done report the result
    ((null funclist)
-    (throw 'turtles-with-minibuffer-return '(body nil)))
+    (throw 'turtles-interaction-return '(body nil)))
 
    ;; Waiting for a key to finish to be process, it seems that an
    ;; idle timer would be more appropriate. However, an idle
@@ -831,17 +844,18 @@ Throws \\='turtles-with-minibuffer-return when done, with value (list
    (turtles--processing-key-stack
     (funcall set-timer
              (run-with-timer 0 nil #'turtles--run-once-input-processed
-                             set-timer funclist)))
+                             set-timer funclist force-exit)))
    (t
     (if (>= emacs-major-version 30)
         ;; Emacs 30 swallows errors. Intercept them and throw them.
         (condition-case-unless-debug err
             (funcall (car funclist))
-          (t (throw 'turtles-with-minibuffer-return
+          (t
+           (throw 'turtles-interaction-return
                     (list 'body err))))
       ;; Emacs 29 and earlier forward errors.
       (funcall (car funclist)))
-    (turtles--run-once-input-processed set-timer (cdr funclist)))))
+    (turtles--run-once-input-processed set-timer (cdr funclist) force-exit))))
 
 (defun turtles--mouse-event-to-sgr (event-type x y)
   "Generate a SGR terminal sequence for the given event.

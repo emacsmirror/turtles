@@ -1087,12 +1087,13 @@
       (lambda nil
         (should (equal "Prompt: hello" (turtles-to-string)))
         (turtles--with-minibuffer-body-end)))
-    (turtles--split-with-minibuffer-body
+    (turtles--split-interaction-body
      `((should (equal "Prompt:" (turtles-to-string)))
        :keys "he"
        (should (equal "Prompt: he" (turtles-to-string)))
        :keys "llo"
-       (should (equal "Prompt: hello" (turtles-to-string))))))))
+       (should (equal "Prompt: hello" (turtles-to-string))))
+     '(turtles--with-minibuffer-body-end)))))
 
 (turtles-ert-deftest turtles-with-minibuffer-with-keys ()
   (ert-with-test-buffer ()
@@ -1322,7 +1323,6 @@
         :mouse-ev 'mouse-1 (car click-pos) (cdr click-pos)
 
         (turtles-with-grab-buffer (:buf testbuf :point "><")
-          ;; the point should have been to just before sheep
           (should (equal "Baa, baa, black ><sheep, have you any wool?"
                          (buffer-string))))))))
 
@@ -1354,3 +1354,13 @@
         (turtles-with-grab-buffer (:buf testbuf :faces '((region "<>")))
           (should (equal "Baa, baa, black <sheep>, have you any wool?"
                          (buffer-string))))))))
+
+(turtles-ert-deftest turtles-use-file-menu ()
+  (ert-with-test-buffer ()
+    (menu-bar-mode)
+
+    (turtles-interaction
+      :mouse-ev-list '((mouse-1 1 0) (mouse-1 3 1))
+      (turtles-with-grab-buffer (:minibuffer t)
+        (should (string-prefix-p "Find file: " (buffer-string)))))))
+
