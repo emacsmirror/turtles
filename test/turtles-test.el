@@ -601,6 +601,26 @@
                  (delete-trailing-whitespace)
                  (buffer-string)))))))
 
+(turtles-ert-deftest turtles-grab-menu-bar ()
+  (ert-with-test-buffer ()
+    (turtles-display-buffer-full-frame (current-buffer))
+    (unwind-protect
+        (progn
+          (menu-bar-mode 1)
+          (should (equal
+                   "File Edit Options Buffers Tools Help\n"
+                   (with-temp-buffer
+                     (turtles-grab-menu-bar)
+                     (delete-trailing-whitespace)
+                     (buffer-string)))))
+      (menu-bar-mode -1))))
+
+(turtles-ert-deftest turtles-grab-menu-bar-disabled ()
+  (ert-with-test-buffer ()
+    (menu-bar-mode -1)
+    (with-temp-buffer
+      (should-error (turtles-grab-menu-bar)))))
+
 (ert-deftest turtles-mark-point ()
   (ert-with-test-buffer ()
    (insert "Time is a drug. Too much of it kills you.")
@@ -796,6 +816,18 @@
       "baa, baa, black>< sheep, have you any wool?"
       (turtles-to-string :point "><")))))
 
+(turtles-ert-deftest turtles-to-string-menu-bar ()
+  (ert-with-test-buffer ()
+    (turtles-display-buffer-full-frame (current-buffer))
+    (menu-bar-mode -1)
+    (should-error (turtles-to-string :menu-bar t))
+    (unwind-protect
+        (progn
+          (menu-bar-mode 1)
+          (should (equal "File Edit Options Buffers Tools Help"
+                         (turtles-to-string :menu-bar t))))
+      (menu-bar-mode -1))))
+
 (turtles-ert-deftest turtles-with-grab-buffer-noarg ()
   (ert-with-test-buffer ()
     (insert "hello, world")
@@ -904,6 +936,18 @@
     (setq-local header-line-format "My header line")
     (turtles-with-grab-buffer (:header-line t)
       (should (equal "My header line" (buffer-string))))))
+
+(turtles-ert-deftest turtles-with-grab-menu-bar ()
+  (ert-with-test-buffer ()
+    (turtles-display-buffer-full-frame (current-buffer))
+    (menu-bar-mode -1)
+    (should-error (turtles-with-grab-buffer (:menu-bar t)))
+    (unwind-protect
+        (progn
+          (menu-bar-mode 1)
+          (turtles-with-grab-buffer (:menu-bar t)
+            (should (equal "File Edit Options Buffers Tools Help" (buffer-string)))))
+      (menu-bar-mode -1))))
 
 (turtles-ert-deftest turtles-with-minibuffer ()
   (ert-with-test-buffer ()
