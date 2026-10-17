@@ -1011,7 +1011,7 @@ Does not return anything."
   (declare (indent 0))
   `(turtles--interaction-internal
     #'recursive-edit
-    ,(turtles--split-interaction-body body nil)
+    ,(turtles--split-interaction-body body '(ignore))
     'force-exit))
 
 (defun turtles--interaction-internal (readfunc bodyfunclist force-exit)
@@ -1170,8 +1170,7 @@ cmd, into a list of lambdas that can be fed to
        ((and (symbolp (car rest)) (string-prefix-p ":" (symbol-name (car rest))))
         (error "Unknown symbol for interaction: %s" (pop rest)))
        (t (push (pop rest) current-lambda))))
-    (when body-end
-      (push body-end current-lambda))
+    (push body-end current-lambda)
     (funcall close-current-lambda)
 
     `(list . ,(nreverse lambdas))))
