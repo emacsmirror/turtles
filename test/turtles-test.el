@@ -1383,7 +1383,14 @@
     (menu-bar-mode)
 
     (turtles-interaction
-      :mouse-ev-list '((mouse-1 1 0) (mouse-1 3 1))
+      :mouse-ev 'mouse-1 1 0
+      :mouse-ev 'mouse-1 3 (turtles-with-grab-buffer (:menu t)
+                             (should (equal " File >"
+                                            (buffer-substring (point-min) (pos-eol))))
+                             (search-forward "Visit New File...")
+
+                             (1- (line-number-at-pos)))
+
       (turtles-with-grab-buffer (:minibuffer t)
         (should (string-prefix-p "Find file: " (buffer-string)))))))
 

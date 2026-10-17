@@ -133,7 +133,7 @@ rougher and available in Emacs 26."
   (set-window-buffer (frame-root-window) buf))
 
 (defun turtles-grab-frame (&optional win grab-faces)
-  "Grab a snapshot current frame into the current buffer.
+  "Grab a snapshot of the current frame into the current buffer.
 
 This includes all windows and decorations. Unless that's what you
 want to test, it's usually better to call `turtles-grab-buffer'
@@ -168,12 +168,60 @@ so any other face not in GRAB-FACE are absent."
             (setq grabbed (turtles-io-call-method
                            (turtles-upstream)
                            'grab (turtles-this-instance))))
+          (when (length= grabbed 0)
+            (error "No frame data. If a menu is active, grab the menu instead."))
           (delete-region (point-min) (point-max))
           (insert (car grabbed))
           (goto-char (or (cdr grabbed) (point-min)))
           (when grab-faces
             (turtles--faces-from-color grab-face-alist)))
       (turtles--teardown-grab-faces cookies))))
+
+(defun turtles-grab-menu ()
+  "Grab a snapshot of the displayed menu into the current buffer.
+
+This works for both menu-bar menu and pop-up menus."
+  (unless (turtles-io-conn-live-p (turtles-upstream))
+    (error "No upstream connection"))
+  (let (grabbed)
+    (setq grabbed (turtles-io-call-method
+                   (turtles-upstream)
+                   'grab (turtles-this-instance)))
+    (delete-region (point-min) (point-max))
+    (insert (car grabbed)))
+
+  ;; Identify menus by color and remove everything else
+  (let ((colors (mapcar (lambda (spec)
+                          (color-name-to-rgb
+                           (turtles--face-attr spec :background)))
+                        '(menu
+                          tty-menu-enabled-face
+                          tty-menu-disabled-face
+                          tty-menu-selected-face)))
+        (next (point-min)))
+    (while
+        (progn
+          (goto-char next)
+          (let* ((spec (get-text-property (point) 'face))
+                 (col (when spec
+                        (color-name-to-rgb
+                         (turtles--face-attr spec :background))))
+                 (keep (when col (member col colors))))
+            (setq next (or (next-property-change (point)) (point-max)))
+            (unless keep
+              (let ((newlines 0))
+                (save-excursion
+                  (while (search-forward "\n" next 'noerror)
+                    (cl-incf newlines)))
+                (delete-region (point) next)
+                (when (> newlines 0)
+                  (insert (make-string newlines ?\n))))
+              (setq next (point))))
+
+          (< next (point-max))))
+    (goto-char (point-min))
+    (when (= (point-min) (point-max))
+        (error "No menu"))))
 
 (defun turtles--all-displayed-buffers ()
   "Return a list of all buffers shown in a window."
@@ -762,6 +810,7 @@ whatever other argument need to be forwarded to FUNC."
 
 (cl-defun turtles-to-string (&key (name "grab")
                                    frame win buf minibuffer mode-line header-line
+                                   menu
                                    margins faces point (trim t))
   "Grab a section of the terminal and return the result as a string.
 
@@ -797,6 +846,9 @@ The following keyword arguments modify what is grabbed:
   - If key argument MARGINS is non-nil, include the left and
     right margin when grabbing the content of a window or buffer.
 
+  - If key argument MENU is non-nil, grab the menu currently
+    shown of the frame. This will fail if no menu is active.
+
 The following keyword arguments post-process what was grabbed:
 
   - Set the key argument TRIM to nil to not trim the newlines
@@ -819,12 +871,14 @@ The following keyword arguments post-process what was grabbed:
   (let ((calling-buf (current-buffer)))
     (ert-with-test-buffer (:name name)
       (turtles--internal-grab
-       frame win buf calling-buf minibuffer mode-line header-line faces margins)
+       frame win buf calling-buf minibuffer mode-line header-line
+       menu faces margins)
       (turtles--internal-postprocess point faces trim)
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (cl-defmacro turtles-with-grab-buffer ((&key (name "grab")
                                               frame win buf minibuffer mode-line header-line
+                                              menu
                                               margins faces point (trim t))
                                         &rest body)
   "Grab a section of the terminal and store it into a test buffer.
@@ -869,6 +923,9 @@ before BODY, to modify what is grabbed:
 
   - Set the key argument FRAME to t to capture the whole frame.
 
+  - If key argument MENU is non-nil, grab the menu currently
+    shown of the frame. This will fail if no menu is active.
+
 The following keyword arguments can be specified in parentheses,
 before BODY, to customize how what is grabbed is post-processed:
 
@@ -897,7 +954,7 @@ before BODY, to customize how what is grabbed is post-processed:
        (ert-with-test-buffer (:name ,name)
          (turtles--internal-grab
           ,frame ,win ,buf ,calling-buf ,minibuffer
-          ,mode-line ,header-line ,faces-var ,margins)
+          ,mode-line ,header-line ,menu ,faces-var ,margins)
          (turtles--internal-postprocess ,point ,faces-var ,trim)
          ,@body))))
 
@@ -1176,7 +1233,8 @@ cmd, into a list of lambdas that can be fed to
     `(list . ,(nreverse lambdas))))
 
 (defun turtles--internal-grab (frame win buf calling-buf minibuffer
-                                     mode-line header-line grab-faces margins)
+                                     mode-line header-line menu
+                                     grab-faces margins)
   "Internal macro implementation for grabbing into the current buffer.
 
 Do not call this function outside of this file.
@@ -1187,6 +1245,7 @@ if BUF is set, pass it to `turtles-grab-buffer'.
 If MINIBUFFER is non-nil, grab the minibuffer.
 If MODE-LINE is non nil, pass it to `turtles-grab-mode-line'.
 If HEADER-LINE is non nil, pass it to `turtles-grab-header-line'.
+If MENU is non nil, pass it to `turtles-grab-menu'.
 Otherwise, pass CALLING-BUF to `turtles-grab-buffer'.
 
 Pass GRAB-FACES and MARGIN to whatever grab function is called,
@@ -1200,6 +1259,7 @@ Pass GRAB-FACES and MARGIN to whatever grab function is called,
                  (if (eq t mode-line) calling-buf mode-line) grab-faces))
      (header-line (turtles-grab-header-line
                    (if (eq t header-line) calling-buf header-line) grab-faces))
+     (menu (turtles-grab-menu))
      (frame (turtles-grab-frame nil grab-faces))
      (t (turtles-grab-buffer calling-buf grab-faces margins)))))
 
