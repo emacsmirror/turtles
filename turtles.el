@@ -1017,7 +1017,7 @@ BODY can be a mix of:
  - :events [...]
  - :command #\\='mycommand
  - :command-with-keybinding keybinding #\\='mycommand
- - :mouse-ev event x y
+ - :mouse-ev \\='(event x y)
  - :mouse-ev-list \\='((event x y) (event x y) ... )
 
 See `turtles-interaction' for details on BODY elements.
@@ -1041,7 +1041,7 @@ BODY can be a mix of:
  - :events [...]
  - :command #\\='mycommand
  - :command-with-keybinding keybinding #\\='mycommand
- - :mouse-ev event x y
+ - :mouse-ev \\='(event x y)
  - :mouse-ev-list \\='((event x y) (event x y) ... )
 
 :keys must be followed by a string in the same format as accepted
@@ -1237,11 +1237,8 @@ cmd, into a list of lambdas that can be fed to
         (funcall close-current-lambda))
        ((eq :mouse-ev (car rest))
         (pop rest)
-        (let ((button (pop rest))
-              (x (pop rest))
-              (y (pop rest)))
-          (push `(turtles--send-mouse-ev-list (list (list ,button ,x ,y)))
-                current-lambda))
+        (push `(turtles--send-mouse-ev-list (list ,(pop rest)))
+              current-lambda)
         (funcall close-current-lambda))
        ((eq :mouse-ev-list (car rest))
         (pop rest)

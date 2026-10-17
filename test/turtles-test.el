@@ -1364,7 +1364,7 @@
           (goto-char (match-beginning 0))
           (setq click-pos (cons (current-column) (1- (line-number-at-pos)))))
 
-        :mouse-ev 'mouse-1 (car click-pos) (cdr click-pos)
+        :mouse-ev `(mouse-1 ,(car click-pos) ,(cdr click-pos))
 
         (turtles-with-grab-buffer (:buf testbuf :point "><")
           (should (equal "Baa, baa, black ><sheep, have you any wool?"
@@ -1387,7 +1387,7 @@
         (setq click-pos (cons (current-column) (1- (line-number-at-pos)))))
 
       (turtles-interaction
-        :mouse-ev 'mouse-1 (car click-pos) (cdr click-pos))
+        :mouse-ev `(mouse-1 ,(car click-pos) ,(cdr click-pos)))
 
       (turtles-with-grab-buffer (:buf testbuf :point "><")
         (should (equal "Baa, baa, black ><sheep, have you any wool?"
@@ -1427,13 +1427,13 @@
     (menu-bar-mode)
 
     (turtles-interaction
-      :mouse-ev 'mouse-1 1 0
-      :mouse-ev 'mouse-1 3 (turtles-with-grab-buffer (:menu t)
-                             (should (equal " File >"
-                                            (buffer-substring (point-min) (pos-eol))))
-                             (search-forward "Visit New File...")
+      :mouse-ev '(mouse-1 1 0)
+      :mouse-ev `(mouse-1 3 ,(turtles-with-grab-buffer (:menu t)
+                               (should (equal " File >"
+                                              (buffer-substring (point-min) (pos-eol))))
+                               (search-forward "Visit New File...")
 
-                             (1- (line-number-at-pos)))
+                               (1- (line-number-at-pos))))
 
       (turtles-with-grab-buffer (:minibuffer t)
         (should (string-prefix-p "Find file: " (buffer-string)))))))
