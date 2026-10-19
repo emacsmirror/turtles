@@ -1238,7 +1238,7 @@ arguments set, the whole frame is searched."
          ('center (/ (+ (match-beginning 0) (match-end 0)) 2))
          (_ (error "Unsupported :at value: %s" at)))))))
 
-(defun turtles-grab (start end &optional steps)
+(defun turtles-mouse-selection (start end &optional steps)
   "Generate a list of mouse events to drag from START to END.
 
 START and END are frame coordinates as (cons X Y), as returned by

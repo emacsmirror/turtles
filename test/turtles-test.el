@@ -1389,7 +1389,7 @@
       (goto-char (point-min))
 
       (turtles-interaction
-        :mouse-ev-list (turtles-grab
+        :mouse-ev-list (turtles-mouse-selection
                         (turtles-coords "sheep" :at 'beginning :buf testbuf)
                         (turtles-coords "sheep" :at 'end :buf testbuf)
                         3)
@@ -1457,16 +1457,16 @@
         (should (equal '(2 . 4) (turtles-coords "world" :mode-line buf1)))
         (should (equal '(2 . 22) (turtles-coords "world" :mode-line win2)))))))
 
-(ert-deftest turtles-grab ()
+(ert-deftest turtles-mouse-selection ()
   (should (equal '((down-mouse-1 (10 . 5))
                    (drag-mouse-1 (20 . 5)))
-                 (turtles-grab '(10 . 5) '(20 . 5))))
+                 (turtles-mouse-selection '(10 . 5) '(20 . 5))))
   (should (equal '((down-mouse-1 (10 . 5))
                    (mouse-movement (12 . 6))
                    (mouse-movement (15 . 7))
                    (mouse-movement (18 . 8))
                    (drag-mouse-1 (20 . 9)))
-                 (turtles-grab '(10 . 5) '(20 . 9) 3))))
+                 (turtles-mouse-selection '(10 . 5) '(20 . 9) 3))))
 
 (ert-deftest turtles-compute-menu-clip ()
   (ert-with-test-buffer ()
