@@ -473,12 +473,19 @@ Mouse Events
       - :frame t 
       
 
-(turtles-mouse-selection FROM TO &optional STEPS) : function
+(turtles-mouse-selection FROM TO &key STEPS BUTTON) : function
 
-      This is meant to be passed to :mouse-ev (:ref:`interaction`)
+      This is meant to be passed to :mouse-ev-list (:ref:`interaction`)
 
       This simulates a mouse press on FROM, STEPS number of mouse
       movement events, then a mouse release on TO.
+
+      :steps specifies the number of intermediate ``'mouse-movement``
+      events to generate between FROM and TO.
+
+      :button specifies the mouse button event to use, ``'mouse-1`` by
+      default. It specifies the mouse and any modifiers (C- M- S-) to
+      be applied, such as ``'mouse-2`` or ``'C-mouse-1``.
 
 .. _instances:
 
