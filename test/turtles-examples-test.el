@@ -17,6 +17,7 @@
 ;; `http://www.gnu.org/licenses/'.
 
 (require 'compat)
+(require 'easymenu)
 (require 'ert)
 (require 'ert-x)
 (require 'hideshow)
@@ -116,3 +117,69 @@
       (turtles-with-grab-buffer (:name "final position" :point "<>")
         (should (equal "Baa, baa<>, black sheep, have you any wool?"
                        (buffer-string)))))))
+
+(turtles-ert-deftest turtles-example-menu ()
+  (menu-bar-mode)
+
+  (ert-with-test-buffer ()
+    (turtles-example-mode)
+    (pop-to-buffer (current-buffer))
+    (turtles-interaction
+      ;; Find and click on menu in the menu bar
+      :mouse-ev 'mouse-1 (turtles-coords
+                          "Turtle!" :menu-bar t)
+      (turtles-with-grab-buffer (:menu t)
+        (should
+         (equal
+          (concat
+           " Turtle! >\n"
+           " Swim\n"
+           " Eat Lettuce\n"
+           " Hide in Shell")
+          (buffer-string))))
+
+      ;; Click on item to select it
+      :mouse-ev 'mouse-1 (turtles-coords
+                          "Swim" :menu t))
+
+    ;; Swim was executed
+    (should (equal "weee!" (buffer-string)))))
+
+(turtles-ert-deftest turtles-example-mode-line-menu ()
+  (ert-with-test-buffer ()
+    ;; Keep the buffer name short, on the mode won't appear on the
+    ;; mode line.
+    (rename-buffer "turtle" 'unique)
+
+    (turtles-example-mode)
+    (pop-to-buffer (current-buffer))
+    (turtles-interaction
+      ;; Find and press mouse button on menu in the mode line
+      :mouse-ev 'down-mouse-1 (turtles-coords
+                               "Turtle!" :mode-line (current-buffer))
+      (turtles-with-grab-buffer (:menu t)
+        (should
+         (equal
+          (concat
+           " Turtle! Mode >\n"
+           " Swim\n"
+           " Eat Lettuce\n"
+           " Hide in Shell")
+          (buffer-string))))
+
+      ;; Release button over item to select it.
+      :mouse-ev 'up-mouse-1 (turtles-coords
+                             "Eat Lettuce" :menu t))
+
+    ;; Eat Lettuce was executed
+    (should (equal "*chomp* *chomp*" (buffer-string)))))
+
+(define-derived-mode turtles-example-mode fundamental-mode "Turtle!"
+  "Sample major mode with a menu.")
+
+(easy-menu-define turtles-example-mode-menu turtles-example-mode-map
+  "Menu for `turtles-example-mode'."
+  '("Turtle!"
+    ["Swim" (lambda () (interactive) (insert "weee!"))]
+    ["Eat Lettuce" (lambda () (interactive) (insert "*chomp* *chomp*"))]
+    ["Hide in Shell" (lambda () (interactive) (insert "..."))]))
