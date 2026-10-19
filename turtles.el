@@ -252,7 +252,7 @@ appropriate for passing to `turtles--clip'."
                  (eol (pos-eol))
                  (beg (text-property-any bol eol 'turtles--menu t))
                  (end (when beg
-                        (if (get-text-property  eol 'turtles--menu)
+                        (if (get-text-property (1- eol) 'turtles--menu)
                             eol
                           (previous-single-property-change
                            eol 'turtles--menu nil beg)))))

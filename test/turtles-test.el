@@ -1508,6 +1508,33 @@
              "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n")
             (buffer-substring-no-properties (point-min) (point-max))))))
 
+(ert-deftest turtles-compute-menu-clip-popup ()
+  (ert-with-test-buffer ()
+    (insert "$                                                    \n")
+    (insert "                                                     \n")
+    (insert "                                                     \n")
+    (insert "                                                     \n")
+    (insert "                                                     \n")
+    (insert "                      XXXXXXXXXX                     \n")
+    (insert "                      X.........XXXXXXXXXXXXXXXXXXXXX\n")
+    (insert "                      X.............................X\n")
+    (insert "                      X.............................X\n")
+    (insert "                      XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n")
+    (insert "-UUU:**- F1  test           All  --------------------\n")
+    (turtles-test-set-property-on-char
+     (lambda (c) (memq c '(?. ?X))) 'turtles--menu t)
+
+    (turtles--clip-menu)
+
+    (should
+     (equal (concat
+             "XXXXXXXXXX                     \n"
+             "X.........XXXXXXXXXXXXXXXXXXXXX\n"
+             "X.............................X\n"
+             "X.............................X\n"
+             "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n")
+            (buffer-substring-no-properties (point-min) (point-max))))))
+
 (ert-deftest turtles-clear-non-menu ()
   (ert-with-test-buffer ()
 
