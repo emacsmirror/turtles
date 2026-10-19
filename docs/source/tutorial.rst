@@ -311,3 +311,115 @@ Faces aren't really available when grabbing a terminal screen. To make
 this work, Turtles uses colors to highlight the faces it's interested
 in, then recognize the faces it wants in the grabbed data from these
 colors it has assigned.
+
+.. _tut_top_bar_menu:
+
+Top Bar Menu with the Mouse
+---------------------------
+
+This example generates mouse events to click on the top bar menu, look
+at the menu and select an item. `'mouse-1` corresponds to a mouse
+click; this is using the same even ID as Emacs mouse events.
+
+In this example `(turtles-coords "Turtle!" :menu-bar t)` grabs the
+text of the menu bar, looks for "Turtles!" and returns its position,
+in frame coordinates.
+
+For that to work, the "Turtles!" menu defined for the example major
+mode must be active, which is why the `turtles-example-mode` buffer is
+made visible and selected with `pop-to-buffer`.`
+
+This is then used as position in `(turtles-interact :mouse-ev 'mouse-1
+pos ...` which generates a click event at that position which opens
+the menu. The menu can be checked out with turtles-with-grab-buffer,
+as shown in the next step.
+
+The last :mouse-ev call click on "Swim" in the menu, which closes it
+and inserts a string into the buffer.
+
+.. code-block:: elisp
+
+  (turtles-ert-deftest turtles-example-menu ()
+    (menu-bar-mode)
+
+    (ert-with-test-buffer ()
+      (turtles-example-mode)
+      (pop-to-buffer (current-buffer))
+      (turtles-interaction
+        ;; Find and click on menu in the menu bar
+        :mouse-ev 'mouse-1 (turtles-coords
+                            "Turtle!" :menu-bar t)
+        (turtles-with-grab-buffer (:menu t)
+          (should
+           (equal
+            (concat
+             " Turtle! >\n"
+             " Swim\n"
+             " Eat Lettuce\n"
+             " Hide in Shell")
+            (buffer-string))))
+
+        ;; Click on item to select it
+        :mouse-ev 'mouse-1 (turtles-coords
+                            "Swim" :menu t))
+
+      ;; Swim was executed
+      (should (equal "weee!" (buffer-string)))))
+
+  (define-derived-mode turtles-example-mode fundamental-mode "Turtle!"
+    "Sample major mode with a menu.")
+
+  (easy-menu-define turtles-example-mode-menu turtles-example-mode-map
+    "Menu for `turtles-example-mode'."
+    '("Turtle!"
+      ["Swim" (lambda () (interactive) (insert "weee!"))]
+      ["Eat Lettuce" (lambda () (interactive) (insert "*chomp* *chomp*"))]
+      ["Hide in Shell" (lambda () (interactive) (insert "..."))]))
+
+
+.. _tut_popup_menu:
+
+Popup Menu with the Mouse
+-------------------------
+
+This example extends on the previous example with more mouse events,
+`'down-mouse-1` and `'up-mouse-1`. While `'mouse-1` generates a click,
+that is, a press and release at the same position, `'down-mouse-1`
+generates only a button press and `'up-mouse-1` only a button release.
+
+There might be `'mouse-movement` events between the two, but they're
+not included here, because it doesn't matter for a menu.
+
+Instead of clicking on the top bar, this example click on the buffer's
+mode line, which must be visible on the frame.
+
+.. code-block:: elisp
+
+  (turtles-ert-deftest turtles-example-mode-line-menu ()
+    (ert-with-test-buffer ()
+      ;; Keep the buffer name short, on the mode won't appear on the
+      ;; mode line.
+      (rename-buffer "turtle" 'unique)
+
+      (turtles-example-mode)
+      (pop-to-buffer (current-buffer))
+      (turtles-interaction
+        ;; Find and press mouse button on menu in the mode line
+        :mouse-ev 'down-mouse-1 (turtles-coords
+                                 "Turtle!" :mode-line (current-buffer))
+        (turtles-with-grab-buffer (:menu t)
+          (should
+           (equal
+            (concat
+             " Turtle! Mode >\n"
+             " Swim\n"
+             " Eat Lettuce\n"
+             " Hide in Shell")
+            (buffer-string))))
+
+        ;; Release button over item to select it.
+        :mouse-ev 'up-mouse-1 (turtles-coords
+                               "Eat Lettuce" :menu t))
+
+      ;; Eat Lettuce was executed
+      (should (equal "*chomp* *chomp*" (buffer-string)))))

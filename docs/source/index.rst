@@ -20,6 +20,8 @@ Turtles is especially suited to test:
 
 - complex minibuffer interactions
 
+- mouse, menu and button interactions
+
 *This program is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 3 of the

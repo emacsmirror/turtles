@@ -73,6 +73,9 @@ mode lines
 
 @item 
 complex minibuffer interactions
+
+@item 
+mouse, menu and button interactions
 @end itemize
 
 `This program is free software: you can redistribute it and/or
@@ -107,12 +110,15 @@ Tutorial
 * Screen Grabbing with Hello World:: 
 * Minibuffer with completing-read:: 
 * Faces with Isearch:: 
+* Top Bar Menu with the Mouse:: 
+* Popup Menu with the Mouse:: 
 
 Reference
 
 * ERT Integration:: 
 * Screen Grab:: 
 * Interaction:: 
+* Mouse Events:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -250,6 +256,8 @@ in this tutorial in the file test/turtles-example-test.el@footnote{https://githu
 * Screen Grabbing with Hello World:: 
 * Minibuffer with completing-read:: 
 * Faces with Isearch:: 
+* Top Bar Menu with the Mouse:: 
+* Popup Menu with the Mouse:: 
 
 @end menu
 
@@ -466,7 +474,7 @@ write:
   (should (equal "Choose: Choice <>" (buffer-string))))
 @end example
 
-@node Faces with Isearch,,Minibuffer with completing-read,Tutorial
+@node Faces with Isearch,Top Bar Menu with the Mouse,Minibuffer with completing-read,Tutorial
 @anchor{tutorial faces-with-isearch}@anchor{10}@anchor{tutorial tut-isearch}@anchor{11}
 @subsection Faces with Isearch
 
@@ -529,8 +537,118 @@ this work, Turtles uses colors to highlight the faces it’s interested
 in, then recognize the faces it wants in the grabbed data from these
 colors it has assigned.
 
+@node Top Bar Menu with the Mouse,Popup Menu with the Mouse,Faces with Isearch,Tutorial
+@anchor{tutorial top-bar-menu-with-the-mouse}@anchor{12}@anchor{tutorial tut-top-bar-menu}@anchor{13}
+@subsection Top Bar Menu with the Mouse
+
+
+This example generates mouse events to click on the top bar menu, look
+at the menu and select an item. @cite{‘mouse-1} corresponds to a mouse
+click; this is using the same even ID as Emacs mouse events.
+
+In this example @cite{(turtles-coords “Turtle!” :menu-bar t)} grabs the
+text of the menu bar, looks for “Turtles!” and returns its position,
+in frame coordinates.
+
+For that to work, the “Turtles!” menu defined for the example major
+mode must be active, which is why the @cite{turtles-example-mode} buffer is
+made visible and selected with @cite{pop-to-buffer}.`
+
+This is then used as position in @cite{(turtles-interact :mouse-ev ‘mouse-1 pos …} which generates a click event at that position which opens
+the menu. The menu can be checked out with turtles-with-grab-buffer,
+as shown in the next step.
+
+The last :mouse-ev call click on “Swim” in the menu, which closes it
+and inserts a string into the buffer.
+
+@example
+(turtles-ert-deftest turtles-example-menu ()
+  (menu-bar-mode)
+
+  (ert-with-test-buffer ()
+    (turtles-example-mode)
+    (pop-to-buffer (current-buffer))
+    (turtles-interaction
+      ;; Find and click on menu in the menu bar
+      :mouse-ev 'mouse-1 (turtles-coords
+                          "Turtle!" :menu-bar t)
+      (turtles-with-grab-buffer (:menu t)
+        (should
+         (equal
+          (concat
+           " Turtle! >\n"
+           " Swim\n"
+           " Eat Lettuce\n"
+           " Hide in Shell")
+          (buffer-string))))
+
+      ;; Click on item to select it
+      :mouse-ev 'mouse-1 (turtles-coords
+                          "Swim" :menu t))
+
+    ;; Swim was executed
+    (should (equal "weee!" (buffer-string)))))
+
+(define-derived-mode turtles-example-mode fundamental-mode "Turtle!"
+  "Sample major mode with a menu.")
+
+(easy-menu-define turtles-example-mode-menu turtles-example-mode-map
+  "Menu for `turtles-example-mode'."
+  '("Turtle!"
+    ["Swim" (lambda () (interactive) (insert "weee!"))]
+    ["Eat Lettuce" (lambda () (interactive) (insert "*chomp* *chomp*"))]
+    ["Hide in Shell" (lambda () (interactive) (insert "..."))]))
+@end example
+
+@node Popup Menu with the Mouse,,Top Bar Menu with the Mouse,Tutorial
+@anchor{tutorial popup-menu-with-the-mouse}@anchor{14}@anchor{tutorial tut-popup-menu}@anchor{15}
+@subsection Popup Menu with the Mouse
+
+
+This example extends on the previous example with more mouse events,
+@cite{‘down-mouse-1} and @cite{‘up-mouse-1}. While @cite{‘mouse-1} generates a click,
+that is, a press and release at the same position, @cite{‘down-mouse-1}
+generates only a button press and @cite{‘up-mouse-1} only a button release.
+
+There might be @cite{‘mouse-movement} events between the two, but they’re
+not included here, because it doesn’t matter for a menu.
+
+Instead of clicking on the top bar, this example click on the buffer’s
+mode line, which must be visible on the frame.
+
+@example
+(turtles-ert-deftest turtles-example-mode-line-menu ()
+  (ert-with-test-buffer ()
+    ;; Keep the buffer name short, on the mode won't appear on the
+    ;; mode line.
+    (rename-buffer "turtle" 'unique)
+
+    (turtles-example-mode)
+    (pop-to-buffer (current-buffer))
+    (turtles-interaction
+      ;; Find and press mouse button on menu in the mode line
+      :mouse-ev 'down-mouse-1 (turtles-coords
+                               "Turtle!" :mode-line (current-buffer))
+      (turtles-with-grab-buffer (:menu t)
+        (should
+         (equal
+          (concat
+           " Turtle! Mode >\n"
+           " Swim\n"
+           " Eat Lettuce\n"
+           " Hide in Shell")
+          (buffer-string))))
+
+      ;; Release button over item to select it.
+      :mouse-ev 'up-mouse-1 (turtles-coords
+                             "Eat Lettuce" :menu t))
+
+    ;; Eat Lettuce was executed
+    (should (equal "*chomp* *chomp*" (buffer-string)))))
+@end example
+
 @node Reference,Contributing,Tutorial,Contents
-@anchor{reference doc}@anchor{12}@anchor{reference ref}@anchor{13}@anchor{reference reference}@anchor{14}
+@anchor{reference doc}@anchor{16}@anchor{reference ref}@anchor{17}@anchor{reference reference}@anchor{18}
 @section Reference
 
 
@@ -538,6 +656,7 @@ colors it has assigned.
 * ERT Integration:: 
 * Screen Grab:: 
 * Interaction:: 
+* Mouse Events:: 
 * Instance Management:: 
 * Visiting Instance Buffers:: 
 * RPC (turtles-io): RPC turtles-io. 
@@ -545,7 +664,7 @@ colors it has assigned.
 @end menu
 
 @node ERT Integration,Screen Grab,,Reference
-@anchor{reference ert}@anchor{15}@anchor{reference ert-integration}@anchor{16}
+@anchor{reference ert}@anchor{19}@anchor{reference ert-integration}@anchor{1a}
 @subsection ERT Integration
 
 
@@ -604,14 +723,14 @@ a secondary instance started by Turtles.
 
 When called from a secondary Emacs instance, this function
 returns the connection to the main Emacs process, a
-@code{turtles-io-conn} struct. (@ref{17,,RPC (turtles-io)})
+@code{turtles-io-conn} struct. (@ref{1b,,RPC (turtles-io)})
 
 When called from the main Emacs process, this function returns
 nil.
 @end table
 
 @node Screen Grab,Interaction,ERT Integration,Reference
-@anchor{reference grab}@anchor{b}@anchor{reference screen-grab}@anchor{18}
+@anchor{reference grab}@anchor{b}@anchor{reference screen-grab}@anchor{1c}
 @subsection Screen Grab
 
 
@@ -626,6 +745,8 @@ nil.
 @geindex function; turtles-grab-mode-line
 @geindex function; turtles-grab-header-line
 @geindex function; turtles-grab-window
+@geindex function; turtles-grab-menu-bar
+@geindex function; turtles-grab-menu
 
 Two macros are provided that fully control how the terminal frame is
 grabbed and fully-processed: @code{turtles-with-grab-buffer} and
@@ -688,7 +809,13 @@ grabbing.
 :margins t grabs the left and right margin. This only has an
 effect when grabbing a buffer or a window.
 
-:frame t grabs the whole frame.
+:menu-bar t grabs the menu bar. Make sure @cite{(menu-bar-mode)} is enabled.
+
+:menu t grabs a menu. There must be a menu shown on the screen or
+it will fail.
+
+:frame t grabs the whole frame. There must not be a menu shown
+on the screen or it will fail to grab anything.
 @end quotation
 
 Key arguments that control how to post-process what is grabbed:
@@ -701,6 +828,8 @@ Key arguments that control how to post-process what is grabbed:
 do that, Turtles assigns specific color to each face, grabs the
 result, then detects faces in the gabbed data from colors. This
 means that color data isn’t available when this option is used.
+
+:faces is ignored when grabbing a menu.
 
 The face data can be recovered in the grabbed buffer in the text
 property ‘face.
@@ -774,6 +903,11 @@ GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
 @code{turtles-with-grab-buffer}. (@ref{b,,Screen Grab})
 
+It is possible for this function to fail to grab anything if
+Emacs is in a special mode that prevents normal interactions,
+such as when showing menu. If Emacs is showing a menu, use
+@code{turtles-grab-menu} instead.
+
 @item (turtles-grab-window win &optional grab-faces margin) : function
 
 This function puts the content of WIN into the current buffer
@@ -814,6 +948,29 @@ a window or buffer.
 GRAB-FACES is a list of face symbols to grab. See the
 description of the :faces argument on
 @code{turtles-with-grab-buffer}. (@ref{b,,Screen Grab})
+
+@item (turtles-grab-menu-bar &optional grab-faces) : function
+
+This function grabs the frame’s menu bar.
+
+Make sure there is a menu bar by enabling the menu bar mode
+first with @cite{(menu-bar-mode)}, as turtles disables it by default.
+
+GRAB-FACES is a list of face symbols to grab. See the
+description of the :faces argument on
+@code{turtles-with-grab-buffer}. (@ref{b,,Screen Grab})
+
+@item (turtles-grab-menu) : function
+
+This function grabs the menu currently shown on the screen.
+
+Menu are recognized based on background color. Make sure you’re
+using a theme with well-recognizable menu, such as Emacs default
+time.
+
+This function will fail if there is no menu shown on the screen,
+in which case you should grab the frame or one of its
+sub-elements instead.
 
 @item (turtles-mark-text-with-faces alist) : function
 
@@ -861,8 +1018,8 @@ This function deletes trailing whitespaces on all lines and
 trailing newlines at the end of the current buffer.
 @end table
 
-@node Interaction,Instance Management,Screen Grab,Reference
-@anchor{reference id1}@anchor{19}@anchor{reference interaction}@anchor{1a}
+@node Interaction,Mouse Events,Screen Grab,Reference
+@anchor{reference id1}@anchor{1d}@anchor{reference interaction}@anchor{1e}
 @subsection Interaction
 
 
@@ -953,15 +1110,14 @@ to the interaction.
 This is more general than the previous function as the events
 can be any kind of UI events.
 
-@item :mouse-ev event-type x y
+@item :mouse-ev event-type (x . y)
 
 This expression provides a single mouse event. This is a real
 event, created by Emacs by simulating user input.
 
-X and Y are 0-based frame coordinates.
-@cite{(mistty-grab-buffer :frame t …)} provides a convenient
-way of figuring out where the elements you’re interested
-in are on the frame.
+X and Y are 0-based frame coordinates. (turtles-coords`
+provides a convenient way of figuring out where the elements
+you’re interested in are on the frame. (@ref{1f,,Mouse Events})
 
 EVENT-TYPE is an Emacs mouse event type, such as:
 
@@ -996,6 +1152,10 @@ EVENTS is a list of the form
 
 See the description of @cite{:mouse-ev} above for the meaning
 of EVENT X and Y.
+
+To generate a list of press, move and release events, you
+might want to call @code{mistty-mouse-selection} and pass
+positions generated by @code{mistty-coords}. (@ref{1f,,Mouse Events})
 @end table
 @end table
 @anchor{reference minibuffer}@anchor{f}
@@ -1024,8 +1184,79 @@ The rest of the sexp within the macro, the BODY section is identical
 to the BODY section of @code{turtles-interaction}, described above.
 @end table
 
-@node Instance Management,Visiting Instance Buffers,Interaction,Reference
-@anchor{reference instance-management}@anchor{1b}@anchor{reference instances}@anchor{c}
+@node Mouse Events,Instance Management,Interaction,Reference
+@anchor{reference events}@anchor{1f}@anchor{reference mouse-events}@anchor{20}
+@subsection Mouse Events
+
+
+@geindex function; turtles-coords
+@geindex function; turtles-mouse-selection
+
+(turtles-coords NEEDLE &key at …) : function
+
+@quotation
+
+This function grabs the frame, buffer or menu as
+@code{turtles-with-grab-buffer} does, then looks for the string NEEDLE
+and reports its position in frame coordinates as a (cons X Y).
+
+This is meant to be passed to :mouse-ev (@ref{1e,,Interaction})
+
+:at specifies where exactly to set the position on NEEDLE. In
+the @cite{‘center}, which is the default, at the @cite{‘beginning} or at
+the @cite{‘end}.
+
+The other key arguments specify the part of the frame to grab,
+defaulting to a window showing the current buffer. This works
+exactly like @code{turtles-with-grab-buffer}. See
+@ref{1e,,Interaction}
+
+The available keys are, just like in @code{turtles-with-grab-buffer}:
+
+
+@itemize -
+
+@item 
+:buf BUFFER-OR-NAME
+
+@item 
+:win WINDOW
+
+@item 
+:mode-line WIN-OR-BUF
+
+@item 
+:header-line WIN-OR-BUF
+
+@item 
+:minibuffer t
+
+@item 
+:margins t
+
+@item 
+:menu-bar t
+
+@item 
+:menu t
+
+@item 
+:frame t
+@end itemize
+@end quotation
+
+(turtles-mouse-selection FROM TO &optional STEPS) : function
+
+@quotation
+
+This is meant to be passed to :mouse-ev (@ref{1e,,Interaction})
+
+This simulates a mouse press on FROM, STEPS number of mouse
+movement events, then a mouse release on TO.
+@end quotation
+
+@node Instance Management,Visiting Instance Buffers,Mouse Events,Reference
+@anchor{reference instance-management}@anchor{21}@anchor{reference instances}@anchor{c}
 @subsection Instance Management
 
 
@@ -1057,12 +1288,12 @@ in hidden buffers.
 
 While secondary instances can be interacted with from that buffer, it
 is awkward, as the two Emacs instances use the same keybindings. You
-might be happier calling @code{turtles-new-frame-in-instance} (@ref{1c,,Visiting Instance Buffers})
+might be happier calling @code{turtles-new-frame-in-instance} (@ref{22,,Visiting Instance Buffers})
 if you’re running in a windowing environment, or otherwise
 @code{turtles-instance-eval}. (@ref{c,,Instance Management})
 
 The main Emacs process communicates with the secondary instances using
-socket communication described in the next section @ref{17,,RPC (turtles-io)}. On
+socket communication described in the next section @ref{1b,,RPC (turtles-io)}. On
 startup, the instances connect to the server, and, from then on,
 communicate with the server through RPCs.
 
@@ -1086,7 +1317,7 @@ case, the simplest thing to do is to restart all live instances with
 
 @item (turtles-start-server) : function
 
-This function creates a @code{turtles-io-server} (@ref{17,,RPC (turtles-io)})
+This function creates a @code{turtles-io-server} (@ref{1b,,RPC (turtles-io)})
 for instances to connect to. It doesn’t start any instances.
 
 Calling this function is usually not necessary, as the server is
@@ -1095,7 +1326,7 @@ started automatically before starting the first instance.
 @item (turtles-shutdown) : command
 
 This function stops the current @code{turtles-io-server}
-(@ref{17,,RPC (turtles-io)}) if it is running, as well as all instances connected
+(@ref{1b,,RPC (turtles-io)}) if it is running, as well as all instances connected
 to it.
 
 @item (turtles-restart) : command
@@ -1113,7 +1344,7 @@ instance by its ID.
 
 ID is the instance ID.
 
-CONN is a @code{turtles-io-conn} (@ref{17,,RPC (turtles-io)}) to use to communicate
+CONN is a @code{turtles-io-conn} (@ref{1b,,RPC (turtles-io)}) to use to communicate
 with the instance.
 
 WIDTH, WEIGHT, FORWARD and SETUP are as passed to
@@ -1127,7 +1358,7 @@ running, if it is running.
 Define a new instance with the given ID.
 
 Turtles defines a shared instance with ID @code{default}. This is
-the instance used by @ref{15,,turtle-ert-test} unless a
+the instance used by @ref{19,,turtle-ert-test} unless a
 specific one is given. The default instance starts a 80x24
 terminal with no setup.
 
@@ -1237,7 +1468,7 @@ Return the IDs of all live instances.
 @end table
 
 @node Visiting Instance Buffers,RPC turtles-io,Instance Management,Reference
-@anchor{reference visit}@anchor{1c}@anchor{reference visiting-instance-buffers}@anchor{1d}
+@anchor{reference visit}@anchor{22}@anchor{reference visiting-instance-buffers}@anchor{23}
 @subsection Visiting Instance Buffers
 
 
@@ -1303,7 +1534,7 @@ List of actions that @code{turtles-pop-to-buffer} should consider.
 @end table
 
 @node RPC turtles-io,,Visiting Instance Buffers,Reference
-@anchor{reference rpc}@anchor{17}@anchor{reference rpc-turtles-io}@anchor{1e}
+@anchor{reference rpc}@anchor{1b}@anchor{reference rpc-turtles-io}@anchor{24}
 @subsection RPC (turtles-io)
 
 
@@ -1391,7 +1622,7 @@ Turtles defines placeholders for them:
 @item 
 buffers: (turtles-buffer :name NAME) or (turtles-buffer :live
 nil). Such placeholders can be opened from the main Emacs process
-with @code{pop-to-buffer} (@ref{1c,,Visiting Instance Buffers})
+with @code{pop-to-buffer} (@ref{22,,Visiting Instance Buffers})
 
 @item 
 window: (turtles-buffer :buffer BUFFER-NAME)
@@ -1484,7 +1715,7 @@ Send a result back to the called. Does nothing if the id is nil.
 @end table
 
 @node Contributing,,Reference,Contents
-@anchor{contrib doc}@anchor{1f}@anchor{contrib contributing}@anchor{20}
+@anchor{contrib doc}@anchor{25}@anchor{contrib contributing}@anchor{26}
 @section Contributing
 
 
@@ -1498,7 +1729,7 @@ Send a result back to the called. Does nothing if the id is nil.
 @end menu
 
 @node Reporting issues,Suggesting features,,Contributing
-@anchor{contrib reporting}@anchor{21}@anchor{contrib reporting-issues}@anchor{22}
+@anchor{contrib reporting}@anchor{27}@anchor{contrib reporting-issues}@anchor{28}
 @subsection Reporting issues
 
 
@@ -1512,21 +1743,21 @@ the issue.
 Please include at least the version of turtles you’re using and the version of Emacs you’re running, taken, for example, from @code{M-x about-emacs}.
 
 @node Suggesting features,Asking questions,Reporting issues,Contributing
-@anchor{contrib suggesting-features}@anchor{23}
+@anchor{contrib suggesting-features}@anchor{29}
 @subsection Suggesting features
 
 
 Please add feature suggestions to the Issue Tracker@footnote{https://github.com/szermatt/turtles/issues} or start a discussion@footnote{https://github.com/szermatt/turtles/discussions}.
 
 @node Asking questions,Code contributions,Suggesting features,Contributing
-@anchor{contrib asking-questions}@anchor{24}
+@anchor{contrib asking-questions}@anchor{2a}
 @subsection Asking questions
 
 
 Start a discussion@footnote{https://github.com/szermatt/turtles/discussions} with your question.
 
 @node Code contributions,Documentation contributions,Asking questions,Contributing
-@anchor{contrib code-contributions}@anchor{25}
+@anchor{contrib code-contributions}@anchor{2b}
 @subsection Code contributions
 
 
@@ -1550,7 +1781,7 @@ fixes with “fix: “, refactorings with “refactor: ” and tests with
 “test: “.
 
 @node Documentation contributions,,Code contributions,Contributing
-@anchor{contrib documentation-contributions}@anchor{26}@anchor{contrib eldev}@anchor{27}
+@anchor{contrib documentation-contributions}@anchor{2c}@anchor{contrib eldev}@anchor{2d}
 @subsection Documentation contributions
 
 

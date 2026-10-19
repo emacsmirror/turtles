@@ -17,6 +17,7 @@ It's especially suited to test:
 - status line
 - colors changes
 - complex minibuffer interactions
+- mouse, menu and button interactions
 
 Read the full documentation on
 [turtles-readthedocs.io](https://turtles.readthedocs.io/en/latest/index.html)
