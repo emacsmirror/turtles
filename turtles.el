@@ -1222,12 +1222,11 @@ coordinates for:
 The search can be restricted using the same key arguments as
 `turtles-to-string': FRAME, WIN, BUF, MINIBUFFER, MODE-LINE,
 HEADER-LINE, MENU, MENU-BAR and MARGINS. With none of these
-arguments set, the whole frame is searched."
+arguments set, the current buffer is searched."
   (let ((calling-buf (current-buffer)))
     (with-temp-buffer
       (turtles--internal-grab
-       (or frame (not (or win buf minibuffer mode-line header-line menu menu-bar)))
-       win buf calling-buf minibuffer mode-line header-line
+       frame win buf calling-buf minibuffer mode-line header-line
        menu menu-bar nil margins)
       (goto-char (point-min))
       (search-forward needle)

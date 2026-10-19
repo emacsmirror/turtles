@@ -1415,15 +1415,14 @@
 
 (turtles-ert-deftest turtles-coords-at ()
   (ert-with-test-buffer ()
-    (let ((buf (current-buffer)))
-      (insert "hello!\nworld")
+    (insert "hello!\nworld")
 
-      (should (equal '(2 . 0) (turtles-coords "hello" :buf buf)))
-      (should (equal '(5 . 0) (turtles-coords "!" :buf buf)))
-      (should (equal '(2 . 1) (turtles-coords "world" :buf buf)))
-      (should (equal '(2 . 1) (turtles-coords "world" :at 'center :buf buf)))
-      (should (equal '(0 . 1) (turtles-coords "world" :at 'beginning :buf buf)))
-      (should (equal '(5 . 1) (turtles-coords "world" :at 'end :buf buf))))))
+    (should (equal '(2 . 0) (turtles-coords "hello")))
+    (should (equal '(5 . 0) (turtles-coords "!")))
+    (should (equal '(2 . 1) (turtles-coords "world")))
+    (should (equal '(2 . 1) (turtles-coords "world" :at 'center)))
+    (should (equal '(0 . 1) (turtles-coords "world" :at 'beginning)))
+    (should (equal '(5 . 1) (turtles-coords "world" :at 'end)))))
 
 (turtles-ert-deftest turtles-coords-restriction ()
   (let (buf1 buf2 win1 win2)
@@ -1446,7 +1445,6 @@
         (set-window-buffer win1 buf1)
         (set-window-buffer win2 buf2)
 
-        (should (equal '(2 . 0) (turtles-coords "world")))
         (should (equal '(2 . 0) (turtles-coords "world" :frame t)))
         (should (equal '(2 . 2) (turtles-coords "world" :buf buf1)))
         (should (equal '(2 . 2) (turtles-coords "world" :win win1)))
@@ -1455,7 +1453,11 @@
         (should (equal '(2 . 0) (turtles-coords "world" :header-line buf1)))
         (should (equal '(2 . 5) (turtles-coords "world" :header-line win2)))
         (should (equal '(2 . 4) (turtles-coords "world" :mode-line buf1)))
-        (should (equal '(2 . 22) (turtles-coords "world" :mode-line win2)))))))
+        (should (equal '(2 . 22) (turtles-coords "world" :mode-line win2)))
+
+        ;; default is equivalent to :buf (current-buffer)
+        (with-current-buffer buf2
+          (should (equal '(2 . 7) (turtles-coords "world"))))))))
 
 (ert-deftest turtles-mouse-selection ()
   (should (equal '((down-mouse-1 (10 . 5))
