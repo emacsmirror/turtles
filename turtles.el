@@ -87,6 +87,12 @@ never actually visible.")
 (defvar-local turtles--left-margin-width 0
   "Width of the left margin left by `turtles--clip-in-frame-grab'.")
 
+(defvar-local turtles--origin '(0 . 0)
+  "Coordinates (X . Y) of the top-left corner of the current buffer grab.
+
+This value is updated when the buffer is clipped and can be then used to
+recover the original frame coordinates.")
+
 (defvar turtles--ert-result nil
   "Result of running a test in another Emacs instance.")
 
@@ -190,7 +196,17 @@ This works for both menu-bar menu and pop-up menus."
     (delete-region (point-min) (point-max))
     (insert (car grabbed)))
 
-  ;; Identify menus by color and remove everything else
+  ;; Identify menus by color and remove or clear everything else
+  (turtles--detect-menu)
+  (unless (turtles--clip-menu)
+    (error "No menu"))
+  (turtles--clear-non-menu)
+  (goto-char (point-min)))
+
+(defun turtles--detect-menu ()
+  "Detect the parts of the buffer that show menu.
+
+This function marks menu with the text property \\='turtles--menu t."
   (let ((colors (mapcar (lambda (spec)
                           (color-name-to-rgb
                            (turtles--face-attr spec :background)))
@@ -206,22 +222,95 @@ This works for both menu-bar menu and pop-up menus."
                  (col (when spec
                         (color-name-to-rgb
                          (turtles--face-attr spec :background))))
-                 (keep (when col (member col colors))))
+                 (is-menu (when col (member col colors))))
             (setq next (or (next-property-change (point)) (point-max)))
-            (unless keep
-              (let ((newlines 0))
-                (save-excursion
-                  (while (search-forward "\n" next 'noerror)
-                    (cl-incf newlines)))
-                (delete-region (point) next)
-                (when (> newlines 0)
-                  (insert (make-string newlines ?\n))))
-              (setq next (point))))
+            (when is-menu
+              (put-text-property (point) next 'turtles--menu t))
+            (< next (point-max)))))))
 
-          (< next (point-max))))
+(defun turtles--clip-menu ()
+  "Clip out the region containing the menu."
+  (pcase (turtles--compute-menu-clip)
+    (`(,left ,top ,right ,bottom)
+     (when (and left top right bottom)
+       (prog1 t
+         (turtles--clip left top right bottom))))
+    (_ nil)))
+
+(defun turtles--compute-menu-clip ()
+  "Compute the smallest rectangular region containing the menu.
+
+The menu sections must be marked with text property \\='turtles--menu t.
+
+Returns a list containing the left, top, right and bottom position, as
+appropriate for passing to `turtles--clip'."
+  (let (left top right bottom)
     (goto-char (point-min))
-    (when (= (point-min) (point-max))
-        (error "No menu"))))
+    (let ((y 0))
+      (while
+          (let* ((bol (pos-bol))
+                 (eol (pos-eol))
+                 (beg (text-property-any bol eol 'turtles--menu t))
+                 (end (when beg
+                        (if (get-text-property  eol 'turtles--menu)
+                            eol
+                          (previous-single-property-change
+                           eol 'turtles--menu nil beg)))))
+            (when beg
+              (unless top (setq top y))
+              (setq bottom (1+ y))
+              (let ((beg-x (save-excursion
+                             (goto-char beg)
+                             (current-column)))
+                    (end-x (save-excursion
+                             (goto-char end)
+                             (current-column))))
+                (when (or (not left) (> left beg-x))
+                  (setq left beg-x))
+                (when (or (not right) (< right end-x))
+                  (setq right end-x))))
+
+            (cl-incf y)
+            (zerop (forward-line 1)))))
+
+    (list left top right bottom)))
+
+(defun turtles--clear-non-menu ()
+  "Clear the parts of the buffer not marked \\='turtles--menu t.
+
+This function overwrites the parts before a menu region with spaces and
+clears out the non-menu parts at the end of a line."
+  (goto-char (point-min))
+  (while
+      (progn
+        (skip-chars-forward "\n")
+        (< (point) (point-max)))
+    (if-let* ((pos (text-property-any (point) (pos-eol) 'turtles--menu t)))
+        (progn
+          ;; Fill the non-menu region with spaces, conserving column count.
+          (turtles--clear-columns (point) pos)
+          ;; Skip to the next non-menu character.
+          (goto-char (or (text-property-any (point) (pos-eol) 'turtles--menu nil)
+                         (pos-eol))))
+      ;; This is the last non-menu area of the line, just delete it.
+      (delete-region (point) (pos-eol)))))
+
+(defun turtles--clear-columns (beg end)
+  "Replace text between BEG and END with spaces.
+
+Keeps the column count consistent, even there are special characters,
+such as wide unicode chars.
+
+Leaves the point at the end of the new text."
+  (let (beg-col end-col)
+    (goto-char beg)
+    (setq beg-col (current-column))
+    (goto-char end)
+    (setq end-col (current-column))
+
+    (delete-region beg end)
+    (when (> end-col beg-col)
+      (insert (make-string (- end-col beg-col) ?\ )))))
 
 (defun turtles-grab-menu-bar (&optional grab-faces)
   "Grab the menu bar of the frame into the current buffer.
@@ -348,28 +437,50 @@ If MARGINS is non-nil, include the margins and set
 
 LEFT TOP RIGHT and BOTTOM are coordinate relative to the current
 buffer's origins."
-  (save-excursion
-    (goto-char (point-min))
-    (while (progn
-             (move-to-column right)
-             (delete-region (point) (pos-eol))
-             (= (forward-line 1) 0)))
-
-    (when (> left 0)
+  (let ((origin (or (get-text-property (point-min) 'turtles-origin)
+                    (cons 0 0))))
+    (save-excursion
       (goto-char (point-min))
       (while (progn
-               (move-to-column left)
-               (delete-region (pos-bol) (point))
-               (= (forward-line 1) 0))))
+               (move-to-column right)
+               (delete-region (point) (pos-eol))
+               (= (forward-line 1) 0)))
 
-    (goto-char (point-min))
-    (forward-line bottom)
-    (delete-region (point) (point-max))
+      (when (> left 0)
+        (goto-char (point-min))
+        (while (progn
+                 (move-to-column left)
+                 (delete-region (pos-bol) (point))
+                 (= (forward-line 1) 0))))
 
-    (when (> top 0)
       (goto-char (point-min))
-      (forward-line top)
-      (delete-region (point-min) (point)))))
+      (forward-line bottom)
+      (delete-region (point) (point-max))
+
+      (when (> top 0)
+        (goto-char (point-min))
+        (forward-line top)
+        (delete-region (point-min) (point))))
+
+    (when (> (point-max) (point-min))
+      (put-text-property (point-min) (1+ (point-min))
+                         'turtles-origin
+                         (cons (+ left (car origin))
+                               (+ top (cdr origin)))))))
+
+(defun turtles--to-frame-coordinates (pos)
+  "Get the frame coordinates of POS.
+
+This call reports the original coordinates of buffers clipped by
+`turtles--clip'."
+  (let ((origin (or (get-text-property (point-min) 'turtles-origin)
+                    (cons 0 0))))
+    (save-excursion
+      (goto-char pos)
+
+      (cons (+ (car origin) (current-column))
+            (+ (cdr origin) (1- (line-number-at-pos)))))))
+
 
 (defun turtles--setup-grab-faces (grab-faces buffers)
   "Prepare buffer faces for grabbing GRAB-FACES on BUFFERS.
@@ -1094,6 +1205,69 @@ Does not return anything."
     #'recursive-edit
     ,(turtles--split-interaction-body body '(ignore))
     'force-exit))
+
+(cl-defun turtles-coords (needle &key (at 'center)
+                                 frame win buf minibuffer mode-line header-line
+                                 menu menu-bar margins)
+  "Return the frame coordinates of the first match for NEEDLE.
+
+Returns a (cons X Y) with 0-based frame coordinates.
+
+The key argument AT specifies where in the match to return
+coordinates for:
+  - \\='center (the default): at the center of the match
+  - \\='beginning: on the first character of the match
+  - \\='end: just after the last character of the match
+
+The search can be restricted using the same key arguments as
+`turtles-to-string': FRAME, WIN, BUF, MINIBUFFER, MODE-LINE,
+HEADER-LINE, MENU, MENU-BAR and MARGINS. With none of these
+arguments set, the whole frame is searched."
+  (let ((calling-buf (current-buffer)))
+    (with-temp-buffer
+      (turtles--internal-grab
+       (or frame (not (or win buf minibuffer mode-line header-line menu menu-bar)))
+       win buf calling-buf minibuffer mode-line header-line
+       menu menu-bar nil margins)
+      (goto-char (point-min))
+      (search-forward needle)
+      (turtles--to-frame-coordinates
+       (pcase at
+         ('beginning (match-beginning 0))
+         ('end (match-end 0))
+         ('center (/ (+ (match-beginning 0) (match-end 0)) 2))
+         (_ (error "Unsupported :at value: %s" at)))))))
+
+(defun turtles-click-on (needle &rest args)
+  "Return a mouse-1 click event on NEEDLE to pass to :mouse-ev.
+
+NEEDLE and ARGS are passed to `turtles-coords', which see."
+  (pcase-let ((`(,x . ,y) (apply #'turtles-coords needle args)))
+    (list 'mouse-1 x y)))
+
+(defun turtles-grab (start end &optional steps)
+  "Generate a list of mouse events to drag from START to END.
+
+START and END are frame coordinates as (cons X Y), as returned by
+`turtles-coords'.
+
+STEPS, if specified, is the number of intermediate `mouse-movement'
+events to generate between START and END.
+
+Returns a list of events suitable for passing to :mouse-ev-list."
+  (let ((events (list (list 'down-mouse-1 (car start) (cdr start))))
+        (start-x (car start))
+        (start-y (cdr start))
+        (dx (- (car end) (car start)))
+        (dy (- (cdr end) (cdr start))))
+    (when (and steps (> steps 0))
+      (dotimes (i steps)
+        (push (list 'mouse-movement
+                    (round (+ start-x (/ (* dx (float (1+ i))) (1+ steps))))
+                    (round (+ start-y (/ (* dy (float (1+ i))) (1+ steps)))))
+              events)))
+    (push (list 'drag-mouse-1 (car end) (cdr end)) events)
+    (nreverse events)))
 
 (defun turtles--interaction-internal (readfunc bodyfunclist force-exit)
   "Implementation of `turtles-interaction'.

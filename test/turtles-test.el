@@ -1349,8 +1349,7 @@
 
 (turtles-ert-deftest turtles-send-mouse-ev ()
   (ert-with-test-buffer ()
-    (let ((testbuf (current-buffer))
-          click-pos)
+    (let ((testbuf (current-buffer)))
       (select-window (display-buffer testbuf))
       (delete-other-windows)
 
@@ -1358,45 +1357,31 @@
       (goto-char (point-min))
 
       (turtles-interaction
-        (turtles-with-grab-buffer (:frame t)
-          (goto-char (point-min))
-          (search-forward "sheep")
-          (goto-char (match-beginning 0))
-          (setq click-pos (cons (current-column) (1- (line-number-at-pos)))))
-
-        :mouse-ev `(mouse-1 ,(car click-pos) ,(cdr click-pos))
+        :mouse-ev (turtles-click-on "sheep" :buf testbuf)
 
         (turtles-with-grab-buffer (:buf testbuf :point "><")
-          (should (equal "Baa, baa, black ><sheep, have you any wool?"
+          (should (equal "Baa, baa, black sh><eep, have you any wool?"
                          (buffer-string))))))))
 
 (turtles-ert-deftest turtles-send-mouse-ev-only ()
   (ert-with-test-buffer ()
-    (let ((testbuf (current-buffer))
-          click-pos)
+    (let ((testbuf (current-buffer)))
       (select-window (display-buffer testbuf))
       (delete-other-windows)
 
       (insert "Baa, baa, black sheep, have you any wool?")
       (goto-char (point-min))
 
-      (turtles-with-grab-buffer (:frame t)
-        (goto-char (point-min))
-        (search-forward "sheep")
-        (goto-char (match-beginning 0))
-        (setq click-pos (cons (current-column) (1- (line-number-at-pos)))))
-
       (turtles-interaction
-        :mouse-ev `(mouse-1 ,(car click-pos) ,(cdr click-pos)))
+        :mouse-ev (turtles-click-on "sheep" :buf testbuf))
 
       (turtles-with-grab-buffer (:buf testbuf :point "><")
-        (should (equal "Baa, baa, black ><sheep, have you any wool?"
+        (should (equal "Baa, baa, black sh><eep, have you any wool?"
                        (buffer-string)))))))
 
 (turtles-ert-deftest turtles-send-mouse-ev-list ()
   (ert-with-test-buffer ()
-    (let ((testbuf (current-buffer))
-          (double-click-time nil))
+    (let ((testbuf (current-buffer)))
       (select-window (display-buffer testbuf))
       (delete-other-windows)
 
@@ -1404,19 +1389,10 @@
       (goto-char (point-min))
 
       (turtles-interaction
-        :mouse-ev-list (turtles-with-grab-buffer (:frame t)
-          (goto-char (point-min))
-          (search-forward "sheep")
-          (goto-char (match-beginning 0))
-          (let ((start-x (save-excursion
-                           (goto-char (match-beginning 0))
-                           (current-column)))
-                (end-x (save-excursion
-                         (goto-char (match-end 0))
-                         (current-column)))
-                (y (1- (line-number-at-pos))))
-            `((down-mouse-1 ,start-x ,y)
-              (drag-mouse-1 ,end-x ,y))))
+        :mouse-ev-list (turtles-grab
+                        (turtles-coords "sheep" :at 'beginning :buf testbuf)
+                        (turtles-coords "sheep" :at 'end :buf testbuf)
+                        3)
 
         (turtles-with-grab-buffer (:buf testbuf :faces '((region "<>")))
           (should (equal "Baa, baa, black <sheep>, have you any wool?"
@@ -1424,17 +1400,157 @@
 
 (turtles-ert-deftest turtles-use-file-menu ()
   (ert-with-test-buffer ()
-    (menu-bar-mode)
+    (unwind-protect
+        (progn
+          (menu-bar-mode 1)
 
-    (turtles-interaction
-      :mouse-ev '(mouse-1 1 0)
-      :mouse-ev `(mouse-1 3 ,(turtles-with-grab-buffer (:menu t)
-                               (should (equal " File >"
-                                              (buffer-substring (point-min) (pos-eol))))
-                               (search-forward "Visit New File...")
+          (turtles-interaction
+            :mouse-ev (turtles-click-on "File" :menu-bar t)
+            :mouse-ev (turtles-click-on "Visit New File..." :menu t)
 
-                               (1- (line-number-at-pos))))
+            (turtles-with-grab-buffer (:minibuffer t)
+              (should (string-prefix-p "Find file: " (buffer-string))))))
+      (menu-bar-mode -1))))
 
-      (turtles-with-grab-buffer (:minibuffer t)
-        (should (string-prefix-p "Find file: " (buffer-string)))))))
+
+(turtles-ert-deftest turtles-coords-at ()
+  (ert-with-test-buffer ()
+    (let ((buf (current-buffer)))
+      (insert "hello!\nworld")
+
+      (should (equal '(2 . 0) (turtles-coords "hello" :buf buf)))
+      (should (equal '(5 . 0) (turtles-coords "!" :buf buf)))
+      (should (equal '(2 . 1) (turtles-coords "world" :buf buf)))
+      (should (equal '(2 . 1) (turtles-coords "world" :at 'center :buf buf)))
+      (should (equal '(0 . 1) (turtles-coords "world" :at 'beginning :buf buf)))
+      (should (equal '(5 . 1) (turtles-coords "world" :at 'end :buf buf))))))
+
+(turtles-ert-deftest turtles-coords-restriction ()
+  (let (buf1 buf2 win1 win2)
+    (ert-with-test-buffer (:name "buf1")
+      (setq buf1 (current-buffer))
+      (setq-local header-line-format "world")
+      (setq-local mode-line-format "world")
+      (insert "hello\nworld")
+
+      (ert-with-test-buffer (:name "buf2")
+        (setq buf2 (current-buffer))
+        (setq-local header-line-format "world")
+        (setq-local mode-line-format "world")
+        (insert "foo\nworld")
+
+        (select-window (frame-root-window))
+        (delete-other-windows)
+        (setq win1 (selected-window))
+        (setq win2 (split-window-below 5))
+        (set-window-buffer win1 buf1)
+        (set-window-buffer win2 buf2)
+
+        (should (equal '(2 . 0) (turtles-coords "world")))
+        (should (equal '(2 . 0) (turtles-coords "world" :frame t)))
+        (should (equal '(2 . 2) (turtles-coords "world" :buf buf1)))
+        (should (equal '(2 . 2) (turtles-coords "world" :win win1)))
+        (should (equal '(2 . 7) (turtles-coords "world" :buf buf2)))
+        (should (equal '(2 . 7) (turtles-coords "world" :win win2)))
+        (should (equal '(2 . 0) (turtles-coords "world" :header-line buf1)))
+        (should (equal '(2 . 5) (turtles-coords "world" :header-line win2)))
+        (should (equal '(2 . 4) (turtles-coords "world" :mode-line buf1)))
+        (should (equal '(2 . 22) (turtles-coords "world" :mode-line win2)))))))
+
+(ert-deftest turtles-grab ()
+  (should (equal '((down-mouse-1 10 5)
+                   (drag-mouse-1 20 5))
+                 (turtles-grab '(10 . 5) '(20 . 5))))
+  (should (equal '((down-mouse-1 10 5)
+                   (mouse-movement 12 6)
+                   (mouse-movement 15 7)
+                   (mouse-movement 18 8)
+                   (drag-mouse-1 20 9))
+                 (turtles-grab '(10 . 5) '(20 . 9) 3))))
+
+(ert-deftest turtles-compute-menu-clip ()
+  (ert-with-test-buffer ()
+
+    (insert "                                      \n")
+    (insert "   XXXXXXXXXX                         \n")
+    (insert "   X........X                         \n")
+    (insert " XXXXXXXXXXXXXXX                      \n")
+    (insert " X.............X                      \n")
+    (insert " X.............X                      \n")
+    (insert " X.............X  XXXXXXXX            \n")
+    (insert " X.............X  X......X            \n")
+    (insert " X..........XXXXXXXXXXXXXXXXXXXXXXX   \n")
+    (insert " X..........X.....................X   \n")
+    (insert " X..........X.....................X   \n")
+    (insert " X..........X.....................X   \n")
+    (insert " XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   \n")
+    (insert "                                      \n")
+    (turtles-test-set-property-on-char
+     (lambda (c) (memq c '(?. ?X))) 'turtles--menu t)
+
+    (turtles--clip-menu)
+
+    (should
+     (equal (concat
+             "  XXXXXXXXXX                      \n"
+             "  X........X                      \n"
+             "XXXXXXXXXXXXXXX                   \n"
+             "X.............X                   \n"
+             "X.............X                   \n"
+             "X.............X  XXXXXXXX         \n"
+             "X.............X  X......X         \n"
+             "X..........XXXXXXXXXXXXXXXXXXXXXXX\n"
+             "X..........X.....................X\n"
+             "X..........X.....................X\n"
+             "X..........X.....................X\n"
+             "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n")
+            (buffer-substring-no-properties (point-min) (point-max))))))
+
+(ert-deftest turtles-clear-non-menu ()
+  (ert-with-test-buffer ()
+
+    (insert "----------------------------------\n")
+    (insert "--XXXXXXXXXX----------------------\n")
+    (insert "--X........X----------------------\n")
+    (insert "XXXXXXXXXXXXXXX-------------------\n")
+    (insert "X.............X-------------------\n")
+    (insert "X.............X-------------------\n")
+    (insert "X.............X--XXXXXXXX---------\n")
+    (insert "X.............X--X......X---------\n")
+    (insert "X..........XXXXXXXXXXXXXXXXXXXXXXX\n")
+    (insert "X..........X.....................X\n")
+    (insert "X..........X.....................X\n")
+    (insert "X..........X.....................X\n")
+    (insert "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n")
+    (turtles-test-set-property-on-char
+     (lambda (c) (memq c '(?. ?X))) 'turtles--menu t)
+
+    (turtles--clear-non-menu)
+
+    (should
+     (equal (concat
+             "\n"
+             "  XXXXXXXXXX\n"
+             "  X........X\n"
+             "XXXXXXXXXXXXXXX\n"
+             "X.............X\n"
+             "X.............X\n"
+             "X.............X  XXXXXXXX\n"
+             "X.............X  X......X\n"
+             "X..........XXXXXXXXXXXXXXXXXXXXXXX\n"
+             "X..........X.....................X\n"
+             "X..........X.....................X\n"
+             "X..........X.....................X\n"
+             "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n")
+            (buffer-substring-no-properties (point-min) (point-max))))))
+
+(defun turtles-test-set-property-on-char (pred prop value)
+  (save-excursion
+    (goto-char (point-min))
+    (while
+        (progn
+          (when (funcall pred (char-after (point)))
+            (put-text-property (point) (1+ (point)) prop value))
+          (goto-char (1+ (point)))
+          (< (point) (point-max))))))
 
