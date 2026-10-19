@@ -565,7 +565,8 @@ checks and follows."
                   (insert op)
                   (setq extend (turtles--extend-p face))
                   (setq closing close)))
-              (setq next (or (next-property-change (point)) (point-max)))
+              (setq next (or (next-single-property-change
+                              (point) 'face) (point-max)))
 
               (when closing
                 (goto-char next)
