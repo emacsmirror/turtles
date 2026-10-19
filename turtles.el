@@ -1129,8 +1129,8 @@ BODY can be a mix of:
  - :events [...]
  - :command #\\='mycommand
  - :command-with-keybinding keybinding #\\='mycommand
- - :mouse-ev \\='(event x y)
- - :mouse-ev-list \\='((event x y) (event x y) ... )
+ - :mouse-ev \\'event \\'(x . y)
+ - :mouse-ev-list \\='((event (x . y)) (event (x . y)) ... )
 
 See `turtles-interaction' for details on BODY elements.
 
@@ -1153,8 +1153,8 @@ BODY can be a mix of:
  - :events [...]
  - :command #\\='mycommand
  - :command-with-keybinding keybinding #\\='mycommand
- - :mouse-ev \\='(event x y)
- - :mouse-ev-list \\='((event x y) (event x y) ... )
+ - :mouse-ev \\'event \\'(x . y)
+ - :mouse-ev-list \\='((event (x . y)) (event (x . y)) ... )
 
 :keys must be followed by a string in the same format as accepted
 by `kbd'. It tells Turtles to feed some input to Emacs to be
@@ -1238,13 +1238,6 @@ arguments set, the whole frame is searched."
          ('center (/ (+ (match-beginning 0) (match-end 0)) 2))
          (_ (error "Unsupported :at value: %s" at)))))))
 
-(defun turtles-click-on (needle &rest args)
-  "Return a mouse-1 click event on NEEDLE to pass to :mouse-ev.
-
-NEEDLE and ARGS are passed to `turtles-coords', which see."
-  (pcase-let ((`(,x . ,y) (apply #'turtles-coords needle args)))
-    (list 'mouse-1 x y)))
-
 (defun turtles-grab (start end &optional steps)
   "Generate a list of mouse events to drag from START to END.
 
@@ -1255,18 +1248,20 @@ STEPS, if specified, is the number of intermediate `mouse-movement'
 events to generate between START and END.
 
 Returns a list of events suitable for passing to :mouse-ev-list."
-  (let ((events (list (list 'down-mouse-1 (car start) (cdr start))))
+  (let ((events (list (list 'down-mouse-1 start)))
         (start-x (car start))
         (start-y (cdr start))
         (dx (- (car end) (car start)))
         (dy (- (cdr end) (cdr start))))
     (when (and steps (> steps 0))
       (dotimes (i steps)
-        (push (list 'mouse-movement
-                    (round (+ start-x (/ (* dx (float (1+ i))) (1+ steps))))
-                    (round (+ start-y (/ (* dy (float (1+ i))) (1+ steps)))))
+        (push (list
+               'mouse-movement
+               (cons
+                (round (+ start-x (/ (* dx (float (1+ i))) (1+ steps))))
+                (round (+ start-y (/ (* dy (float (1+ i))) (1+ steps))))))
               events)))
-    (push (list 'drag-mouse-1 (car end) (cdr end)) events)
+    (push (list 'drag-mouse-1 end) events)
     (nreverse events)))
 
 (defun turtles--interaction-internal (readfunc bodyfunclist force-exit)
@@ -1412,7 +1407,7 @@ cmd, into a list of lambdas that can be fed to
         (funcall close-current-lambda))
        ((eq :mouse-ev (car rest))
         (pop rest)
-        (push `(turtles--send-mouse-ev-list (list ,(pop rest)))
+        (push `(turtles--send-mouse-ev-list (list (list ,(pop rest) ,(pop rest))))
               current-lambda)
         (funcall close-current-lambda))
        ((eq :mouse-ev-list (car rest))

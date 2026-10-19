@@ -1357,7 +1357,7 @@
       (goto-char (point-min))
 
       (turtles-interaction
-        :mouse-ev (turtles-click-on "sheep" :buf testbuf)
+        :mouse-ev 'mouse-1 (turtles-coords "sheep" :buf testbuf)
 
         (turtles-with-grab-buffer (:buf testbuf :point "><")
           (should (equal "Baa, baa, black sh><eep, have you any wool?"
@@ -1373,7 +1373,7 @@
       (goto-char (point-min))
 
       (turtles-interaction
-        :mouse-ev (turtles-click-on "sheep" :buf testbuf))
+        :mouse-ev 'mouse-1 (turtles-coords "sheep" :buf testbuf))
 
       (turtles-with-grab-buffer (:buf testbuf :point "><")
         (should (equal "Baa, baa, black sh><eep, have you any wool?"
@@ -1405,8 +1405,8 @@
           (menu-bar-mode 1)
 
           (turtles-interaction
-            :mouse-ev (turtles-click-on "File" :menu-bar t)
-            :mouse-ev (turtles-click-on "Visit New File..." :menu t)
+            :mouse-ev 'mouse-1 (turtles-coords "File" :menu-bar t)
+            :mouse-ev 'mouse-1 (turtles-coords "Visit New File..." :menu t)
 
             (turtles-with-grab-buffer (:minibuffer t)
               (should (string-prefix-p "Find file: " (buffer-string))))))
@@ -1458,14 +1458,14 @@
         (should (equal '(2 . 22) (turtles-coords "world" :mode-line win2)))))))
 
 (ert-deftest turtles-grab ()
-  (should (equal '((down-mouse-1 10 5)
-                   (drag-mouse-1 20 5))
+  (should (equal '((down-mouse-1 (10 . 5))
+                   (drag-mouse-1 (20 . 5)))
                  (turtles-grab '(10 . 5) '(20 . 5))))
-  (should (equal '((down-mouse-1 10 5)
-                   (mouse-movement 12 6)
-                   (mouse-movement 15 7)
-                   (mouse-movement 18 8)
-                   (drag-mouse-1 20 9))
+  (should (equal '((down-mouse-1 (10 . 5))
+                   (mouse-movement (12 . 6))
+                   (mouse-movement (15 . 7))
+                   (mouse-movement (18 . 8))
+                   (drag-mouse-1 (20 . 9)))
                  (turtles-grab '(10 . 5) '(20 . 9) 3))))
 
 (ert-deftest turtles-compute-menu-clip ()

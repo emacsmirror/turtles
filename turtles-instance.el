@@ -781,7 +781,7 @@ loop again to process the sequence."
 (defun turtles--send-mouse-ev-list (events)
   "Feed mouse EVENTS to the current instance.
 
-EVENTS is of the form ((event-type1 x1 y1) (event-type x2 y2) ...)
+EVENTS is of the form ((event-type1 (x1 . y1)) (event-type (x2 . y2)) ...)
 
 With event-typeN the symbol of an Emacs mouse events \\='mouse-1
 \\='mouse-2, \\='down-mouse-1, \\='drag-mouse-1 \\='mouse-movement...
@@ -798,7 +798,7 @@ screen."
          (mapconcat
           (lambda (ev)
             (pcase ev
-              (`(,event-type ,x ,y)
+              (`(,event-type ( ,x . ,y))
                (turtles--mouse-event-to-sgr event-type x y))
               (_ (error "Invalid mouse event: %S" ev))))
           events)))
