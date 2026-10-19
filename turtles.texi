@@ -1245,14 +1245,21 @@ The available keys are, just like in @code{turtles-with-grab-buffer}:
 @end itemize
 @end quotation
 
-(turtles-mouse-selection FROM TO &optional STEPS) : function
+(turtles-mouse-selection FROM TO &key STEPS BUTTON) : function
 
 @quotation
 
-This is meant to be passed to :mouse-ev (@ref{1e,,Interaction})
+This is meant to be passed to :mouse-ev-list (@ref{1e,,Interaction})
 
 This simulates a mouse press on FROM, STEPS number of mouse
 movement events, then a mouse release on TO.
+
+:steps specifies the number of intermediate @code{'mouse-movement}
+events to generate between FROM and TO.
+
+:button specifies the mouse button event to use, @code{'mouse-1} by
+default. It specifies the mouse and any modifiers (C- M- S-) to
+be applied, such as @code{'mouse-2} or @code{'C-mouse-1}.
 @end quotation
 
 @node Instance Management,Visiting Instance Buffers,Mouse Events,Reference
