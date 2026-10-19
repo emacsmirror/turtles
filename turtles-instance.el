@@ -783,12 +783,14 @@ loop again to process the sequence."
 
 EVENTS is of the form ((event-type1 (x1 . y1)) (event-type (x2 . y2)) ...)
 
-With event-typeN the symbol of an Emacs mouse events \\='mouse-1
-\\='mouse-2, \\='down-mouse-1, \\='drag-mouse-1 \\='mouse-movement...
+With event-typeN the symbol of an Emacs mouse events, such as
+\\='mouse-1 \\='mouse-2, \\='down-mouse-1, \\='drag-mouse-1 or
+\\='mouse-movement. \\='up-mouse-N is accepted as a synonym for
+\\='drag-mouse-N
 
 As in Emacs events, mouse-<num> is a click, that is a press and release,
-down-mouse-<num> is a press, drag-mouse-<num> is a release and
-mouse-movements are movements.
+down-mouse-<num> is a press, drag-mouse-<num> or up-mouse-<num> are a
+release and mouse-movements are movements.
 
 Modifiers shift, meta/alt and control are supported as S- M- and C-.
 
@@ -861,11 +863,11 @@ Throws \\='turtles-interaction-return when done, with value (list
   "Generate a SGR terminal sequence for the given event.
 
 EVENT-TYPE is an mouse event type such as the ones sent by Emacs
-\\='mouse-1 \\='mouse-2 \\='down-mouse-1 \\='drag-mouse-1
+\\='mouse-1 \\='mouse-2 \\='down-mouse-1 \\='drag-mouse-1 (a.k.a. \\='up-mouse-1)
 \\='mouse-movement possibly with S- C- or M- modifiers."
-  (let* ((ev (list event-type))
-         (basic-type (event-basic-type ev))
-         (mods (event-modifiers ev))
+  (let* ((ev-parts (string-split (symbol-name event-type) "-"))
+         (basic-type (intern (mapconcat #'identity (last ev-parts 2) "-")))
+         (mods (nbutlast ev-parts 2))
          (x (1+ x))
          (y (1+ y))
          (code 0)
@@ -887,14 +889,17 @@ EVENT-TYPE is an mouse event type such as the ones sent by Emacs
 
     (dolist (mod mods)
       (pcase mod
-        ('shift (setq code (logior code 4)))
-        ((or 'meta 'alt) (setq code (logior code 8)))
-        ('control (setq code (logior code 16)))
-        ('click (setq cmds '(?M ?m)))
-        ('down (setq cmds '(?M)))
-        ('drag (setq cmds '(?m)))
+        ("S" (setq code (logior code 4)))
+        ((or "M" "A") (setq code (logior code 8)))
+        ("C" (setq code (logior code 16)))
+        ("down" (setq cmds '(?M)))
+        ((or "drag" "up") (setq cmds '(?m)))
         (_ (error "Unsupported mouse event modifier %s in %s"
                   mod event-type))))
+
+    ;; default to click
+    (unless cmds
+      (setq cmds '(?M ?m)))
 
     (mapconcat
      (lambda (cmd)

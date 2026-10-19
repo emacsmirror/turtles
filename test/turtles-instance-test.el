@@ -255,6 +255,8 @@
   ;; release
   (should (equal "\e[<0;1;1m" (turtles--mouse-event-to-sgr 'drag-mouse-1 0 0)))
   (should (equal "\e[<1;1;1m" (turtles--mouse-event-to-sgr 'drag-mouse-2 0 0)))
+  (should (equal "\e[<0;1;1m" (turtles--mouse-event-to-sgr 'up-mouse-1 0 0)))
+  (should (equal "\e[<1;1;1m" (turtles--mouse-event-to-sgr 'up-mouse-2 0 0)))
 
   ;; motion
   (should (equal "\e[<32;1;1m" (turtles--mouse-event-to-sgr 'mouse-movement 0 0)))
@@ -268,6 +270,7 @@
   (should (equal "\e[<4;1;1M\e[<4;1;1m" (turtles--mouse-event-to-sgr 'S-mouse-1 0 0)))
   (should (equal "\e[<4;1;1M" (turtles--mouse-event-to-sgr 'S-down-mouse-1 0 0)))
   (should (equal "\e[<4;1;1m" (turtles--mouse-event-to-sgr 'S-drag-mouse-1 0 0)))
+  (should (equal "\e[<4;1;1m" (turtles--mouse-event-to-sgr 'S-up-mouse-1 0 0)))
   (should (equal "\e[<5;1;1M\e[<5;1;1m" (turtles--mouse-event-to-sgr 'S-mouse-2 0 0)))
   (should (equal "\e[<6;1;1M\e[<6;1;1m" (turtles--mouse-event-to-sgr 'S-mouse-3 0 0)))
 
