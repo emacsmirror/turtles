@@ -600,6 +600,8 @@ FRAME selected and return the result to CONN."
           (if (fboundp 'clear-minibuffer-message)
               (funcall #'clear-minibuffer-message)
             (message nil))
+          (menu-bar-mode -1)
+          (xterm-mouse-mode)
           (when setup-func
             (funcall setup-func)))
       ((error t)
