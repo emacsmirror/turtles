@@ -1237,30 +1237,44 @@ arguments set, the current buffer is searched."
          ('center (/ (+ (match-beginning 0) (match-end 0)) 2))
          (_ (error "Unsupported :at value: %s" at)))))))
 
-(defun turtles-mouse-selection (start end &optional steps)
+(cl-defun turtles-mouse-selection (start end &key steps (button 'mouse-1))
   "Generate a list of mouse events to drag from START to END.
 
 START and END are frame coordinates as (cons X Y), as returned by
 `turtles-coords'.
 
-STEPS, if specified, is the number of intermediate `mouse-movement'
-events to generate between START and END.
+The key argument STEPS, if specified, is the number of intermediate
+`mouse-movement' events to generate between START and END.
+
+The key argument BUTTON is the mouse button event ID to use, such as
+\\='mouse-1 (the default), \\='mouse-2, \\='C-mouse-1, etc.
 
 Returns a list of events suitable for passing to :mouse-ev-list."
-  (let ((events (list (list 'down-mouse-1 start)))
-        (start-x (car start))
-        (start-y (cdr start))
-        (dx (- (car end) (car start)))
-        (dy (- (cdr end) (cdr start))))
+  (let* ((ev-parsed (turtles--parse-event-type button))
+         (basic-type (car ev-parsed))
+         (mods (cdr ev-parsed))
+         (down-ev (turtles--build-event-type basic-type 'down mods))
+         (move-ev (turtles--build-event-type 'mouse-movement nil mods))
+         (drag-ev (turtles--build-event-type basic-type 'drag mods))
+         (events (list (list down-ev start)))
+         (start-x (car start))
+         (start-y (cdr start))
+         (dx (- (car end) (car start)))
+         (dy (- (cdr end) (cdr start))))
+    (unless (string-match-p "mouse-[0-9]+" (symbol-name basic-type))
+      (error "Unsupported button type: %s" basic-type))
+    (dolist (mod mods)
+      (unless (member mod '("C" "S" "M" "A"))
+        (error "Unsupported button modifier: %s in %s" mod button)))
     (when (and steps (> steps 0))
       (dotimes (i steps)
         (push (list
-               'mouse-movement
+               move-ev
                (cons
                 (round (+ start-x (/ (* dx (float (1+ i))) (1+ steps))))
                 (round (+ start-y (/ (* dy (float (1+ i))) (1+ steps))))))
               events)))
-    (push (list 'drag-mouse-1 end) events)
+    (push (list drag-ev end) events)
     (nreverse events)))
 
 (defun turtles--interaction-internal (readfunc bodyfunclist force-exit)

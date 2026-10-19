@@ -865,9 +865,9 @@ Throws \\='turtles-interaction-return when done, with value (list
 EVENT-TYPE is an mouse event type such as the ones sent by Emacs
 \\='mouse-1 \\='mouse-2 \\='down-mouse-1 \\='drag-mouse-1 (a.k.a. \\='up-mouse-1)
 \\='mouse-movement possibly with S- C- or M- modifiers."
-  (let* ((ev-parts (string-split (symbol-name event-type) "-"))
-         (basic-type (intern (mapconcat #'identity (last ev-parts 2) "-")))
-         (mods (nbutlast ev-parts 2))
+  (let* ((ev-parsed (turtles--parse-event-type event-type))
+         (basic-type (car ev-parsed))
+         (mods (cdr ev-parsed))
          (x (1+ x))
          (y (1+ y))
          (code 0)
@@ -905,6 +905,42 @@ EVENT-TYPE is an mouse event type such as the ones sent by Emacs
      (lambda (cmd)
        (format "\e[<%d;%d;%d%c" code x y cmd))
      cmds)))
+
+(defun turtles--parse-event-type (event-type)
+  "Parse EVENT-TYPE into basic event and modifiers.
+
+This returns (cons BASIC-EVENT-TYPE . MODS)
+
+BASIC-EVENT-TYPE is a symbol that correspond to the mouse
+button (\\='mouse-1 \\='mouse-2 ...) or \\='mouse-movement for
+movements.
+
+MODS is a list of strings, such as \"C\" for control, \"S\" for shift,
+\"M\" for meta, \"A\" for alt, \"down\" for mouse press, \"drag\" or
+\"up\" for mouse release."
+  (let* ((ev-parts (string-split (symbol-name event-type) "-"))
+         (basic-type (intern (mapconcat #'identity (last ev-parts 2) "-")))
+         (mods (nbutlast ev-parts 2)))
+    (cons basic-type mods)))
+
+(defun turtles--build-event-type (basic-event-type subtype mods)
+  "Build an event type from its parts.
+
+BASIC-EVENT-TYPE is a \\='mouse-N event type or \\='mouse-movement.
+
+SUBTYPE is nil \\='drag \\='up or \\='down
+
+MODS is a list of strings that correspond to modifiers \"S\" for shift,
+\"C\" for control, \"M\" for meta, \"A\" for alt.
+
+The return value is a full event type symbol."
+  (intern
+   (mapconcat #'identity
+              (append mods
+                      (when subtype
+                        (list (symbol-name subtype)))
+                      (list (symbol-name basic-event-type)))
+              "-")))
 
 (provide 'turtles-instance)
 
