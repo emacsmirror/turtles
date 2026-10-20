@@ -126,10 +126,11 @@ check for faces rather than colors, see the :faces key argument below.
         :margins t grabs the left and right margin. This only has an
         effect when grabbing a buffer or a window.
 
-        :menu-bar t grabs the menu bar. Make sure `(menu-bar-mode)` is enabled.
+        :menu-bar t grabs the menu bar. Make sure `(menu-bar-mode)` is
+        enabled.
 
-        :menu t grabs a menu. There must be a menu shown on the screen or
-        it will fail.
+        :menu t grabs a menu. There must be a menu shown on the screen
+        or it will fail. Requires Emacs version 28 or later.
 
         :frame t grabs the whole frame. There must not be a menu shown
         on the screen or it will fail to grab anything.
@@ -256,7 +257,8 @@ neither ``turtles-with-grab-buffer`` nor ``turtles-to-string``.
       ``turtles-with-grab-buffer``. (:ref:`grab`)
 
 (turtles-grab-menu) : function
-      This function grabs the menu currently shown on the screen.
+      This function grabs the menu currently shown on the screen. It
+      requires Emacs 28 or later.
 
       Menu are recognized based on background color. Make sure you're
       using a theme with well-recognizable menu, such as Emacs default
