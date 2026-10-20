@@ -805,7 +805,7 @@ screen."
               (`(,event-type ( ,x . ,y))
                (turtles--mouse-event-to-sgr event-type x y))
               (_ (error "Invalid mouse event: %S" ev))))
-          events)))
+          events "")))
     (setq turtles--processing-key-stack
           (append turtles--processing-key-stack (list [])))
     (turtles--send-term-seq (concat seq turtles--magic-key))))
@@ -906,7 +906,7 @@ EVENT-TYPE is an mouse event type such as the ones sent by Emacs
     (mapconcat
      (lambda (cmd)
        (format "\e[<%d;%d;%d%c" code x y cmd))
-     cmds)))
+     cmds "")))
 
 (defun turtles--parse-event-type (event-type)
   "Parse EVENT-TYPE into basic event and modifiers.
