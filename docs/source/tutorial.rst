@@ -323,7 +323,8 @@ click; this is using the same even ID as Emacs mouse events.
 
 In this example `(turtles-coords "Turtle!" :menu-bar t)` grabs the
 text of the menu bar, looks for "Turtles!" and returns its position,
-in frame coordinates.
+in frame coordinates. `turtles-coords-regexp` is also available for
+more complicated cases.
 
 For that to work, the "Turtles!" menu defined for the example major
 mode must be active, which is why the `turtles-example-mode` buffer is

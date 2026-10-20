@@ -380,9 +380,10 @@ can be tested using `turtles-with-minibuffer`.
         This expression provides a single mouse event. This is a real
         event, created by Emacs by simulating user input.
 
-        X and Y are 0-based frame coordinates. (turtles-coords`
-        provides a convenient way of figuring out where the elements
-        you're interested in are on the frame. (:ref:`events`)
+        X and Y are 0-based frame coordinates. `turtles-coords` and
+        `turtles-coords-regexp` provide a convenient ways of figuring
+        out where the elements you're interested in are on the frame.
+        (:ref:`events`)
         
         EVENT-TYPE is an Emacs mouse event type, such as:
         
@@ -443,7 +444,7 @@ Mouse Events
     pair: function; turtles-mouse-selection
 
     
-(turtles-coords NEEDLE &key at ...) : function
+(turtles-coords NEEDLE &key AT ...) : function
 
       This function grabs the frame, buffer or menu as
       ``turtles-with-grab-buffer`` does, then looks for the string NEEDLE
@@ -471,6 +472,27 @@ Mouse Events
       - :menu-bar t 
       - :menu t 
       - :frame t 
+      
+(turtles-coords REGEXP &key GROUP AT ...) : function
+
+      This function grabs the frame, buffer or menu as
+      ``turtles-with-grab-buffer`` does, then looks for REGEXP and
+      reports the position of the given matching GROUP in frame
+      coordinates as a (cons X Y).
+
+      This is meant to be passed to :mouse-ev (:ref:`interaction`)
+
+      :at specifies where exactly to set the position on NEEDLE. In
+      the `'center`, which is the default, at the `'beginning` or at
+      the `'end`.
+
+      :group specifies a matching group within REGEXP. It defaults
+      to 0.
+
+      Just like in `turtles-coords` other key arguments specify the
+      part of the frame to grab, defaulting to a window showing the
+      current buffer. This works exactly like
+      ``turtles-with-grab-buffer``. See :ref:`interaction`
       
 
 (turtles-mouse-selection FROM TO &key STEPS BUTTON) : function

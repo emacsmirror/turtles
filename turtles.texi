@@ -548,7 +548,8 @@ click; this is using the same even ID as Emacs mouse events.
 
 In this example @cite{(turtles-coords “Turtle!” :menu-bar t)} grabs the
 text of the menu bar, looks for “Turtles!” and returns its position,
-in frame coordinates.
+in frame coordinates. @cite{turtles-coords-regexp} is also available for
+more complicated cases.
 
 For that to work, the “Turtles!” menu defined for the example major
 mode must be active, which is why the @cite{turtles-example-mode} buffer is
@@ -1115,9 +1116,10 @@ can be any kind of UI events.
 This expression provides a single mouse event. This is a real
 event, created by Emacs by simulating user input.
 
-X and Y are 0-based frame coordinates. (turtles-coords`
-provides a convenient way of figuring out where the elements
-you’re interested in are on the frame. (@ref{1f,,Mouse Events})
+X and Y are 0-based frame coordinates. @cite{turtles-coords} and
+@cite{turtles-coords-regexp} provide a convenient ways of figuring
+out where the elements you’re interested in are on the frame.
+(@ref{1f,,Mouse Events})
 
 EVENT-TYPE is an Emacs mouse event type, such as:
 
@@ -1192,7 +1194,7 @@ to the BODY section of @code{turtles-interaction}, described above.
 @geindex function; turtles-coords
 @geindex function; turtles-mouse-selection
 
-(turtles-coords NEEDLE &key at …) : function
+(turtles-coords NEEDLE &key AT …) : function
 
 @quotation
 
@@ -1243,6 +1245,30 @@ The available keys are, just like in @code{turtles-with-grab-buffer}:
 @item 
 :frame t
 @end itemize
+@end quotation
+
+(turtles-coords REGEXP &key GROUP AT …) : function
+
+@quotation
+
+This function grabs the frame, buffer or menu as
+@code{turtles-with-grab-buffer} does, then looks for REGEXP and
+reports the position of the given matching GROUP in frame
+coordinates as a (cons X Y).
+
+This is meant to be passed to :mouse-ev (@ref{1e,,Interaction})
+
+:at specifies where exactly to set the position on NEEDLE. In
+the @cite{‘center}, which is the default, at the @cite{‘beginning} or at
+the @cite{‘end}.
+
+:group specifies a matching group within REGEXP. It defaults
+to 0.
+
+Just like in @cite{turtles-coords} other key arguments specify the
+part of the frame to grab, defaulting to a window showing the
+current buffer. This works exactly like
+@code{turtles-with-grab-buffer}. See @ref{1e,,Interaction}
 @end quotation
 
 (turtles-mouse-selection FROM TO &key STEPS BUTTON) : function
