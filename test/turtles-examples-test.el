@@ -120,6 +120,7 @@
                        (buffer-string)))))))
 
 (turtles-ert-deftest turtles-example-menu ()
+  (skip-unless (>= emacs-major-version 28))
   (menu-bar-mode)
 
   (ert-with-test-buffer ()
@@ -147,6 +148,7 @@
     (should (equal "weee!" (buffer-string)))))
 
 (turtles-ert-deftest turtles-example-mode-line-menu ()
+  (skip-unless (>= emacs-major-version 28))
   (ert-with-test-buffer ()
     ;; Keep the buffer name short, on the mode won't appear on the
     ;; mode line.

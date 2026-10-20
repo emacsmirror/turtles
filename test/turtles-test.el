@@ -1399,6 +1399,7 @@
                          (buffer-string))))))))
 
 (turtles-ert-deftest turtles-use-file-menu ()
+  (skip-unless (>= emacs-major-version 28))
   (ert-with-test-buffer ()
     (unwind-protect
         (progn

@@ -186,7 +186,11 @@ so any other face not in GRAB-FACE are absent."
 (defun turtles-grab-menu ()
   "Grab a snapshot of the displayed menu into the current buffer.
 
-This works for both menu-bar menu and pop-up menus."
+This works for both menu-bar menu and pop-up menus.
+
+Requires Emacs 28 or later."
+  (unless (>= emacs-major-version 28)
+    (error "Grabbing menus requires Emacs 28 or later"))
   (unless (turtles-io-conn-live-p (turtles-upstream))
     (error "No upstream connection"))
   (let (grabbed)
