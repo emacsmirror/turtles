@@ -25,8 +25,7 @@ or in the info manual that comes with the package.
 
 ## Status
 
-Version 2.0.1 is the latest version. Please depend on that tag or the
-branch 2.0.
+Version 2.1.0 is the latest version. Please depend on that tag.
 
 Since this is a library, versioning matters: This project follows
 [Semantic Versioning 2.0.0](https://semver.org/), that is, versions
@@ -38,29 +37,6 @@ follow the format MAJOR.MINOR.PATCH with:
 
 To avoid surprises, you should aim to depend on a specific, tagged
 version and only increase that version when you need to.
-
-## Installation
-
-Install Turtles:
-
-- on a recent version of Emacs (29 or later), from the
-  github repository by doing `M-x package-vc-install https://github.com/szermatt/turtles`
-
-- using [eldev](https://github.com/emacs-eldev/eldev) to run tests in
-  batch mode:
-
-  ```elisp
-
-    (eldev-add-extra-dependencies 'test 'turtles)
-    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "2.0.1")
-  ```
-
-- from [MELPA](https://melpa.org/#/getting-started), by typing `M-x
-  package-install turtles`. Note that there's no practical difference
-  between the stable and unstable melpa package, as development
-  happens on a branch. You'll always get the latest release.
-
-Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
 ## How it works
 
@@ -215,6 +191,29 @@ Interact with mode line popup menus using button press and release events:
 
 - Generate button press (`'down-mouse-1`) and release (`'up-mouse-1`) events ([reference](https://turtles.readthedocs.io/en/latest/reference.html#interaction)).
 - `(turtles-coords "Turtle!" :mode-line (current-buffer))` ([reference](https://turtles.readthedocs.io/en/latest/reference.html#events)) locates the mode string on the buffer's mode line.
+
+## Installation
+
+Install Turtles:
+
+- on a recent version of Emacs (29 or later), from the
+  github repository by doing `M-x package-vc-install https://github.com/szermatt/turtles`
+
+- using [eldev](https://github.com/emacs-eldev/eldev) to run tests in
+  batch mode:
+
+  ```elisp
+
+    (eldev-add-extra-dependencies 'test 'turtles)
+    (eldev-use-vc-repository 'turtles :github "szermatt/turtles" :commit "2.0.1")
+  ```
+
+- from [MELPA](https://melpa.org/#/getting-started), by typing `M-x
+  package-install turtles`. Note that there's no practical difference
+  between the stable and unstable melpa package, as development
+  happens on a branch. You'll always get the latest release.
+
+Turtles requires Emacs 26.1 or later. Emacs 29.1 or later is recommended.
 
 ## Something is wrong!
 
