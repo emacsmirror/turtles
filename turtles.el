@@ -1231,17 +1231,54 @@ arguments set, the current buffer is searched."
       (goto-char (point-min))
       (search-forward needle)
       (turtles--to-frame-coordinates
-       (pcase at
-         ('beginning (match-beginning 0))
-         ('end (match-end 0))
-         ('center (/ (+ (match-beginning 0) (match-end 0)) 2))
-         (_ (error "Unsupported :at value: %s" at)))))))
+       (turtles--match-position 0 at)))))
+
+(cl-defun turtles-coords-regexp (regexp
+                                 &key (group 0) (at 'center)
+                                 frame win buf minibuffer mode-line header-line
+                                 menu menu-bar margins)
+  "Return the frame coordinates of the first match for REGEXP.
+
+Returns a (cons X Y) with 0-based frame coordinates.
+
+The key argument GROUP and AT specifies where in the match to return
+coordinates for:
+  - \\='center (the default): at the center of the match GROUP
+  - \\='beginning: on the first character of the match GROUP
+  - \\='end: just after the last character of the match GROUP
+
+The search can be restricted using the same key arguments as
+`turtles-to-string': FRAME, WIN, BUF, MINIBUFFER, MODE-LINE,
+HEADER-LINE, MENU, MENU-BAR and MARGINS. With none of these
+arguments set, the current buffer is searched."
+  (let ((calling-buf (current-buffer)))
+    (with-temp-buffer
+      (turtles--internal-grab
+       frame win buf calling-buf minibuffer mode-line header-line
+       menu menu-bar nil margins)
+      (goto-char (point-min))
+      (search-forward-regexp regexp)
+      (turtles--to-frame-coordinates
+       (turtles--match-position group at)))))
+
+(defun turtles--match-position (group at)
+  "Return a position for match group GROUP.
+
+AT specifies where in the group the position should be taken, at the
+\\='center, \\='beginning or \\='end."
+  (pcase at
+    ('beginning (match-beginning group))
+    ('end (match-end group))
+    ('center (/ (+ (match-beginning group)
+                   (match-end group))
+                2))
+    (_ (error "Unsupported :at value: %s" at))))
 
 (cl-defun turtles-mouse-selection (start end &key steps (button 'mouse-1))
   "Generate a list of mouse events to drag from START to END.
 
 START and END are frame coordinates as (cons X Y), as returned by
-`turtles-coords'.
+`turtles-coords' and `turtles-coords-regexp'.
 
 The key argument STEPS, if specified, is the number of intermediate
 `mouse-movement' events to generate between START and END.

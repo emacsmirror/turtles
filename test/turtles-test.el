@@ -1424,6 +1424,22 @@
     (should (equal '(0 . 1) (turtles-coords "world" :at 'beginning)))
     (should (equal '(5 . 1) (turtles-coords "world" :at 'end)))))
 
+(turtles-ert-deftest turtles-coords-regexp-at ()
+  (ert-with-test-buffer ()
+    (insert "hello!\nworld")
+
+    (should (equal '(2 . 0) (turtles-coords-regexp "hello")))
+    (should (equal '(2 . 0) (turtles-coords-regexp "he..o")))
+    (should (equal '(5 . 0) (turtles-coords-regexp "!")))
+    (should (equal '(2 . 1) (turtles-coords "world")))
+    (should (equal '(2 . 1) (turtles-coords "world" :at 'center)))
+    (should (equal '(0 . 1) (turtles-coords "world" :at 'beginning)))
+    (should (equal '(5 . 1) (turtles-coords "world" :at 'end)))
+    (should (equal '(1 . 1) (turtles-coords-regexp "w\\(orl\\)d" :group 1 :at 'beginning)))
+    (should (equal '(2 . 1) (turtles-coords-regexp "w\\(orl\\)d" :group 1 :at 'center)))
+    (should (equal '(2 . 1) (turtles-coords-regexp "w\\(orl\\)d" :group 1)))
+    (should (equal '(4 . 1) (turtles-coords-regexp "w\\(orl\\)d" :group 1 :at 'end)))))
+
 (turtles-ert-deftest turtles-coords-restriction ()
   (let (buf1 buf2 win1 win2)
     (ert-with-test-buffer (:name "buf1")
@@ -1454,6 +1470,16 @@
         (should (equal '(2 . 5) (turtles-coords "world" :header-line win2)))
         (should (equal '(2 . 4) (turtles-coords "world" :mode-line buf1)))
         (should (equal '(2 . 22) (turtles-coords "world" :mode-line win2)))
+
+        (should (equal '(2 . 0) (turtles-coords-regexp "world" :frame t)))
+        (should (equal '(2 . 2) (turtles-coords-regexp "world" :buf buf1)))
+        (should (equal '(2 . 2) (turtles-coords-regexp "world" :win win1)))
+        (should (equal '(2 . 7) (turtles-coords-regexp "world" :buf buf2)))
+        (should (equal '(2 . 7) (turtles-coords-regexp "world" :win win2)))
+        (should (equal '(2 . 0) (turtles-coords-regexp "world" :header-line buf1)))
+        (should (equal '(2 . 5) (turtles-coords-regexp "world" :header-line win2)))
+        (should (equal '(2 . 4) (turtles-coords-regexp "world" :mode-line buf1)))
+        (should (equal '(2 . 22) (turtles-coords-regexp "world" :mode-line win2)))
 
         ;; default is equivalent to :buf (current-buffer)
         (with-current-buffer buf2
