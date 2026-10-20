@@ -109,10 +109,10 @@ instance.")
     (term-color-red :foreground "#ff0000" :background "#ff0000")
     (term-color-green :foreground "#00ff00" :background "#00ff00")
     (term-color-blue :foreground "#0000ff" :background "#0000ff")
-    (term-color-yellow :foreground "#ffff00" :background "#ffff0")
+    (term-color-yellow :foreground "#ffff00" :background "#ffff00")
     (term-color-magenta :foreground "#ff00ff" :background "#ff00ff")
     (term-color-cyan :foreground "#00ffff" :background "#00ffff")
-    (term-color-white :foreground "#ffffff" :background "#fffff"))
+    (term-color-white :foreground "#ffffff" :background "#ffffff"))
   "Hardcoded color faces for term-mode, for consistency.")
 
 (cl-defstruct (turtles-instance
