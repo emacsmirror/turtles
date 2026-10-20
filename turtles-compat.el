@@ -29,10 +29,15 @@
 ;;
 
 ;;; Code:
+(require 'term)
+
+(eval-when-compile
+  (declare-function turtles--term-ansi-color-code-as-hex nil (color))
+  (declare-function turtles--term-color-as-hex nil (for-foreground))
+  (declare-function turtles--term-handle-colors-list nil (parameters))
+  (declare-function turtles--term-handle-ansi-escape nil (orig-fun proc params char)))
+
 (when (eval-when-compile (= emacs-major-version 28))
-
-  (require 'term)
-
   (defvar ansi-term-color-vector) ;; declared in term.el
   (defvar ansi-color-bold-is-bright) ;; declared in ansi-color.el
   (defvar term-ansi-current-bold) ;; declared in term.el
