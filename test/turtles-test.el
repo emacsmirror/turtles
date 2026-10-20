@@ -1281,10 +1281,10 @@
     :keys "foo RET bar RET"))
 
 (turtles-ert-deftest turtles-term-truecolor ()
-  (skip-unless (>= emacs-major-version 29))
+  (skip-unless (turtles--term-truecolor-p))
   ;; Truecolor in term.el became available in Emacs 29.1. Before that,
   ;; term was limited to just 16 (Emacs 28) and even 8 (Emacs 26)
-  ;; colors.
+  ;; colors. Turtles polyfills 24-bit color on earlier versions.
 
   (should (equal 16777216 (display-color-cells)))
 

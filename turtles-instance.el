@@ -30,6 +30,8 @@
 (require 'subr-x) ;; when-let
 (require 'term)
 (require 'turtles-io)
+(when (< emacs-major-version 29)
+  (require 'turtles-compat))
 
 (defvar term-home-marker) ;; declared in term.el
 (defvar term-width) ;; declared in term.el
@@ -676,7 +678,7 @@ frame, which only makes sense for graphical displays."
 
 (defun turtles--term-truecolor-p ()
   "Return non-nil if the terminal supports 24bit colors."
-  (>= emacs-major-version 29))
+  t)
 
 (defun turtles--term-resize (width height)
   "Set the size of the terminal in the current buffer.

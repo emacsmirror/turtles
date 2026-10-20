@@ -24,6 +24,7 @@
 (require 'isearch)
 
 (require 'turtles)
+(require 'mule-util) ;; for truncate-string-ellipsis
 
 ;; Snippet shown in README.md
 (turtles-ert-deftest turtles-examples-hello-world ()
